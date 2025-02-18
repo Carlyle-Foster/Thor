@@ -2,9 +2,11 @@
 #define THOR_AST_H
 #include "util/slab.h"
 #include "util/string.h"
+#include "lexer.h"
 
 namespace Thor {
 
+struct Ast;
 struct System;
 
 struct AstSlabID {
@@ -22,6 +24,7 @@ private:
 struct AstNode {
 	// Only 12-bit node index (2^12 = 4096)
 	static inline constexpr const auto MAX = 4096_u32;
+	virtual void dump(const Ast& ast, StringBuilder& builder) const = 0;
 };
 
 struct AstID {
@@ -45,8 +48,6 @@ private:
 	Uint32 value_ = ~0_u32;
 };
 static_assert(sizeof(AstID) == 4);
-
-struct Ast;
 
 template<typename T>
 struct AstRef {
@@ -72,20 +73,82 @@ private:
 	AstID id_;
 };
 
-struct AstStmt {
-	virtual void dump(StringBuilder& builder) const = 0;
+struct AstStmt : AstNode {
 };
 
 struct AstImportStmt : AstStmt {
 	constexpr AstImportStmt(StringView path) : path{path} {}
-	virtual void dump(StringBuilder& builder) const;
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
 	StringView path;
 };
 
 struct AstPackageStmt : AstStmt {
 	constexpr AstPackageStmt(StringView name) : name{name} {}
-	virtual void dump(StringBuilder& builder) const;
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
 	StringView name;
+};
+
+struct AstIfStmt : AstStmt {
+	// TODO
+};
+
+struct AstWhenStmt : AstStmt {
+	// TODO
+};
+
+struct AstForStmt : AstStmt {
+	// TODO
+};
+
+struct AstDeferStmt : AstStmt {
+	// TODO
+};
+
+struct AstReturnStmt : AstStmt {
+	// TODO
+};
+
+struct AstExpr : AstNode {
+};
+
+struct AstBinExpr : AstExpr {
+	constexpr AstBinExpr(AstRef<AstExpr> lhs, AstRef<AstExpr> rhs, OperatorKind op)
+		: lhs{lhs}
+		, rhs{rhs}
+		, op{op}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> lhs;
+	AstRef<AstExpr> rhs;
+	OperatorKind    op;
+};
+
+struct AstUnaryExpr : AstExpr {
+	constexpr AstUnaryExpr(AstRef<AstExpr> operand, OperatorKind op)
+		: operand{operand}
+		, op{op}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+	OperatorKind    op;
+};
+
+struct AstTernaryExpr : AstExpr {
+	constexpr AstTernaryExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+		: cond{cond}
+		, on_true{on_true}
+		, on_false{on_false}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> cond;
+	AstRef<AstExpr> on_true;
+	AstRef<AstExpr> on_false;
+};
+
+struct AstType : AstNode {
 };
 
 struct Ast {

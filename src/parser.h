@@ -17,8 +17,20 @@ struct Parser {
 	{
 	}
 	AstRef<AstStmt> parse_stmt();
+	AstRef<AstExpr> parse_expr(Bool lhs);
+	AstRef<AstExpr> parse_operand();
+	AstRef<AstExpr> parse_bin_expr(Bool lhs, Uint32 prec);
+	AstRef<AstExpr> parse_unary_expr(Bool lhs);
+	AstRef<AstExpr> parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
+
 	AstRef<AstImportStmt> parse_import_stmt();
 	AstRef<AstPackageStmt> parse_package_stmt();
+	AstRef<AstIfStmt> parse_if_stmt();
+	AstRef<AstWhenStmt> parse_when_stmt();
+	AstRef<AstForStmt> parse_for_stmt();
+	AstRef<AstDeferStmt> parse_defer_stmt();
+	AstRef<AstReturnStmt> parse_return_stmt();
+
 	Ast& ast() { return ast_; }
 	const Ast& ast() const { return ast_; }
 private:

@@ -35,7 +35,7 @@ int main(int, char **) {
 		StringBuilder builder{allocator};
 		Ulen n_stmts = stmts.length();
 		for (Ulen i = 0; i < n_stmts; i++) {
-			ast[stmts[i]].dump(builder);
+			ast[stmts[i]].dump(ast, builder);
 		}
 		if (auto dump = builder.result()) {
 			sys.console.write(sys, *dump);

@@ -58,6 +58,7 @@ DEPFLAGS += -MP
 # C++ flags
 #
 CXXFLAGS := -Isrc
+CXXFLAGS += -pipe
 CXXFLAGS += -Wall
 CXXFLAGS += -Wextra
 CXXFLAGS += -std=c++23
