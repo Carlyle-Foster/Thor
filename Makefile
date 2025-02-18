@@ -13,6 +13,8 @@ MAKEFLAGS += --no-builtin-variables
 rwildcard = $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
+UNAME := $(shell uname)
+
 #
 # C and C++ compiler
 #
@@ -98,8 +100,9 @@ endif
 # Linker flags
 #
 LDFLAGS := -ldl
-LDFLAGS += -static-libgcc
-LDFLAGS += -Wl,--gc-sections
+ifneq ($(UNAME),Darwin)
+	LDFLAGS += -static-libgcc
+endif
 ifeq ($(LTO),1)
 	LDFLAGS += -flto
 endif
@@ -113,6 +116,7 @@ endif
 ifeq ($(UBSAN),1)
 	LDFLAGS += -fsanitize=undefined
 endif
+LDFLAGS += -Wl,--gc-sections
 
 all: $(BIN)
 

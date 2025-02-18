@@ -65,7 +65,7 @@ private:
 };
 
 struct TemporaryAllocator : Allocator {
-	TemporaryAllocator(Allocator& allocator)
+	constexpr TemporaryAllocator(Allocator& allocator)
 		: allocator_{allocator}
 	{
 	}
