@@ -15,6 +15,7 @@ struct StringBuilder {
 	}
 	void put(char ch);
 	void put(StringView view);
+	void rep(Ulen n, char ch = ' ');
 	void lpad(Ulen n, char ch, char pad = ' ');
 	void lpad(Ulen n, StringView view, char pad = ' ');
 	void rpad(Ulen n, char ch, char pad = ' ');

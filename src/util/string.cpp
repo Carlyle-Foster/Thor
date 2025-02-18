@@ -17,26 +17,31 @@ void StringBuilder::put(StringView view) {
 		error_ = true;
 	}
 }
+
+void StringBuilder::rep(Ulen n, char ch) {
+	for (Ulen i = 0; i < n; i++) put(ch);
+}
+
 void StringBuilder::lpad(Ulen n, char ch, char pad) {
-	if (n) for (Ulen i = 0; i < n - 1; i++) put(pad);
+	if (n) rep(n - 1, pad);
 	put(ch);
 }
 
 void StringBuilder::lpad(Ulen n, StringView view, char pad) {
 	const auto l = view.length();
-	if (n >= l) for (Ulen i = 0; i < n - l; i++) put(pad);
+	if (n >= l) rep(n - 1, pad);
 	put(view);
 }
 
 void StringBuilder::rpad(Ulen n, char ch, char pad) {
 	put(ch);
-	if (n) for (Ulen i = 0; i < n - 1; i++) put(pad);
+	if (n) rep(n - 1, pad);
 }
 
 void StringBuilder::rpad(Ulen n, StringView view, char pad) {
 	const auto l = view.length();
 	put(view);
-	if (n >= l) for (Ulen i = 0; i < n - l; i++) put(pad);
+	if (n >= l) rep(n - l, pad);
 }
 
 Maybe<StringView> StringBuilder::result() const {

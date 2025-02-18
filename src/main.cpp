@@ -33,7 +33,7 @@ int main(int, char **) {
 	const auto n_stmts = stmts.length();
 	StringBuilder builder{sys.allocator};
 	for (Ulen i = 0; i < n_stmts; i++) {
-		ast[stmts[i]].dump(ast, builder);
+		ast[stmts[i]].dump(ast, builder, 0);
 	}
 	if (auto result = builder.result()) {
 		sys.console.write(sys, *result);

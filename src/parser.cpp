@@ -18,6 +18,77 @@ Parser::Parser(System& sys, Lexer&& lexer)
 {
 }
 
+StringView Parser::parse_ident() {
+	const auto result = lexer_.string(token_);
+	eat(); // Eat <ident>
+	return result;
+}
+
+AstRef<AstStmt> Parser::parse_stmt() {
+	AstRef<AstStmt> stmt;
+	if (is_kind(TokenKind::SEMICOLON)) {
+		return parse_empty_stmt();
+	} else if (is_kind(TokenKind::LBRACE)) {
+		return parse_block_stmt();
+	} else if (is_keyword(KeywordKind::PACKAGE)) {
+		stmt = parse_package_stmt();
+	} else if (is_keyword(KeywordKind::IMPORT)) {
+		stmt = parse_import_stmt();
+	} else if (is_keyword(KeywordKind::DEFER)) {
+		stmt = parse_defer_stmt();
+	} else if (is_keyword(KeywordKind::BREAK)) {
+		stmt = parse_break_stmt();
+	} else if (is_keyword(KeywordKind::CONTINUE)) {
+		stmt = parse_continue_stmt();
+	} else if (is_keyword(KeywordKind::FALLTHROUGH)) {
+		stmt = parse_fallthrough_stmt();
+	} else {
+		// TODO
+		error("Unimplemented\n");
+		while (!is_kind(TokenKind::SEMICOLON) && !is_kind(TokenKind::ENDOF)) {
+			eat();
+		}
+	}
+	if (is_kind(TokenKind::SEMICOLON)) {
+		eat(); // Eat ';'
+		return stmt;
+	}
+	if (!is_kind(TokenKind::ENDOF)) {
+		error("Expected ';' or newline after statement\n");
+	}
+	return {};
+}
+
+AstRef<AstEmptyStmt> Parser::parse_empty_stmt() {
+	if (!is_kind(TokenKind::SEMICOLON)) {
+		error("Expected ';' (or newline)");
+		return {};
+	}
+	eat(); // Eat ';'
+	return ast_.create<AstEmptyStmt>();
+}
+
+AstRef<AstBlockStmt> Parser::parse_block_stmt() {
+	if (!is_kind(TokenKind::LBRACE)) {
+		error("Expected '{'");
+		return {};
+	}
+	eat(); // Eat '{'
+	Array<AstRef<AstStmt>> stmts{sys_.allocator};
+	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+		auto stmt = parse_stmt();
+		if (!stmt || !stmts.push_back(stmt)) {
+			return {};
+		}
+	}
+	if (!is_kind(TokenKind::RBRACE)) {
+		error("Expected '}'");
+		return {};
+	}
+	eat(); // Eat '}'
+	return ast_.create<AstBlockStmt>(move(stmts));
+}
+
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	eat(); // Eat 'package'
 	if (is_kind(TokenKind::IDENTIFIER)) {
@@ -40,57 +111,88 @@ AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	return {};
 }
 
-AstRef<AstIfStmt> Parser::parse_if_stmt() {
-	return {};
+AstRef<AstBreakStmt> Parser::parse_break_stmt() {
+	if (!is_keyword(KeywordKind::BREAK)) {
+		error("Expected 'break'");
+		return {};
+	}
+	eat(); // Eat 'break'
+	StringView label;
+	if (is_kind(TokenKind::IDENTIFIER)) {
+		label = parse_ident();
+	}
+	return ast_.create<AstBreakStmt>(label);
 }
 
-AstRef<AstWhenStmt> Parser::parse_when_stmt() {
-	return {};
+AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
+	if (!is_keyword(KeywordKind::CONTINUE)) {
+		error("Expected 'continue'");
+		return {};
+	}
+	eat(); // Eat 'continue'
+	StringView label;
+	if (is_kind(TokenKind::IDENTIFIER)) {
+		label = parse_ident();
+	}
+	return ast_.create<AstContinueStmt>(label);
 }
 
-AstRef<AstForStmt> Parser::parse_for_stmt() {
-	return {};
+AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
+	if (!is_keyword(KeywordKind::FALLTHROUGH)) {
+		error("Expected 'fallthrough'");
+		return {};
+	}
+	eat(); // Eat 'fallthrough'
+	return ast_.create<AstFallthroughStmt>();
 }
 
 AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
-	return {};
+	if (!is_keyword(KeywordKind::DEFER)) {
+		error("Expected 'defer'");
+		return {};
+	}
+	eat(); // Eat 'defer'
+	auto stmt = parse_stmt();
+	if (!stmt) {
+		return {};
+	}
+	auto& s = ast_[stmt];
+	if (s.is_stmt<AstEmptyStmt>()) {
+		error("Empty statement after defer (e.g. ';')");
+		return {};
+	} else if (s.is_stmt<AstDeferStmt>()) {
+		error("Cannot defer a defer statement");
+		return {};
+	}
+	return ast_.create<AstDeferStmt>(stmt);
 }
 
-AstRef<AstReturnStmt> Parser::parse_return_stmt() {
-	return {};
+AstRef<AstIdentExpr> Parser::parse_ident_expr() {
+	if (!is_kind(TokenKind::IDENTIFIER)) {
+		error("Expected identifier");
+		return {};
+	}
+	const auto ident = lexer_.string(token_);
+	eat(); // Eat <ident>
+	return ast_.create<AstIdentExpr>(ident);
 }
 
-AstRef<AstStmt> Parser::parse_stmt() {
-	AstRef<AstStmt> stmt;
-	if (is_keyword(KeywordKind::IMPORT)) {
-		stmt = parse_import_stmt();
-	} else if (is_keyword(KeywordKind::PACKAGE)) {
-		stmt = parse_package_stmt();
-	} else if (is_keyword(KeywordKind::IF)) {
-		stmt = parse_if_stmt();
-	} else if (is_keyword(KeywordKind::WHEN)) {
-		stmt = parse_when_stmt();
-	} else if (is_keyword(KeywordKind::FOR)) {
-		stmt = parse_for_stmt();
-	} else if (is_keyword(KeywordKind::DEFER)) {
-		stmt = parse_defer_stmt();
-	} else if (is_keyword(KeywordKind::RETURN)) {
-		stmt = parse_return_stmt();
-	} else {
-		error("Unimplemented statement\n");
-		// Skip entire line for now for better error messages.
-		while (!is_kind(TokenKind::SEMICOLON) && !is_kind(TokenKind::ENDOF)) {
-			eat();
-		}
+AstRef<AstUndefExpr> Parser::parse_undef_expr() {
+	if (!is_kind(TokenKind::UNDEFINED)) {
+		error("Expected '---'");
+		return {};
 	}
-	if (is_kind(TokenKind::SEMICOLON)) {
-		eat(); // Eat ';'
-		return stmt;
+	eat(); // Eat '---'
+	return ast_.create<AstUndefExpr>();
+}
+
+AstRef<AstContextExpr> Parser::parse_context_expr() {
+	if (!is_keyword(KeywordKind::CONTEXT)) {
+		error("Expected 'context'");
+		return {};
 	}
-	if (!is_kind(TokenKind::ENDOF)) {
-		error("Expected ';' or newline after statement\n");
-	}
-	return {};
+	eat(); // Eat 'context'
+	return ast_.create<AstContextExpr>();
 }
 
 AstRef<AstExpr> Parser::parse_expr(Bool lhs) {
@@ -181,32 +283,12 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 
 AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	(void)lhs;
-	if (is_kind(TokenKind::CONST)) {
-		// Para poly AST monomorph time!
-	} else if (is_kind(TokenKind::IDENTIFIER)) {
-		//return parse_ident_expr();
+	if (is_kind(TokenKind::IDENTIFIER)) {
+		return parse_ident_expr();
 	} else if (is_kind(TokenKind::UNDEFINED)) {
-		//return parse_undefined_expr();
-	} else if (is_kind(TokenKind::LITERAL)) {
-		//return parse_literal_expr();
-	} else if (is_kind(TokenKind::LBRACE)) {
-		//return parse_aggregate_expr();
-	} else if (is_operator(OperatorKind::MUL)) {
-		return parse_unary_expr(true);
-	} else if (is_operator(OperatorKind::LBRACKET)) {
-		// TODO
-	} else if (is_operator(OperatorKind::LPAREN)) {
-		// TODO
+		return parse_undef_expr();
 	} else if (is_keyword(KeywordKind::CONTEXT)) {
-		// return parse_context_expr();
-	} else if (is_keyword(KeywordKind::DISTINCT)) {
-		// return parse_distinct_expr();
-	} else if (is_keyword(KeywordKind::PROC)) {
-		//return parse_proc_expr();
-	} else if (is_keyword(KeywordKind::MAP)) {
-		// TODO
-	} else if (is_keyword(KeywordKind::MATRIX)) {
-		// TODO
+		return parse_context_expr();
 	}
 	return {};
 }

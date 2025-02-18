@@ -8,20 +8,29 @@ namespace Thor {
 
 struct Parser {
 	static Maybe<Parser> open(System& sys, StringView file);
-	AstRef<AstStmt> parse_stmt();
+	StringView parse_ident();
+
+	// Expression parsers
+	AstRef<AstIdentExpr> parse_ident_expr();
+	AstRef<AstUndefExpr> parse_undef_expr();
+	AstRef<AstContextExpr> parse_context_expr();
+
 	AstRef<AstExpr> parse_expr(Bool lhs);
 	AstRef<AstExpr> parse_operand();
 	AstRef<AstExpr> parse_bin_expr(Bool lhs, Uint32 prec);
 	AstRef<AstExpr> parse_unary_expr(Bool lhs);
 	AstRef<AstExpr> parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 
-	AstRef<AstImportStmt> parse_import_stmt();
+	// Statement parsers
+	AstRef<AstStmt> parse_stmt();
+	AstRef<AstEmptyStmt> parse_empty_stmt();
+	AstRef<AstBlockStmt> parse_block_stmt();
 	AstRef<AstPackageStmt> parse_package_stmt();
-	AstRef<AstIfStmt> parse_if_stmt();
-	AstRef<AstWhenStmt> parse_when_stmt();
-	AstRef<AstForStmt> parse_for_stmt();
+	AstRef<AstImportStmt> parse_import_stmt();
+	AstRef<AstBreakStmt> parse_break_stmt();
+	AstRef<AstContinueStmt> parse_continue_stmt();
+	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
 	AstRef<AstDeferStmt> parse_defer_stmt();
-	AstRef<AstReturnStmt> parse_return_stmt();
 
 	[[nodiscard]] Ast& ast() { return ast_; }
 	[[nodiscard]] const Ast& ast() const { return ast_; }
