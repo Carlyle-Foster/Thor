@@ -9,27 +9,37 @@ struct System;
 struct Filesystem {
 	struct File;
 	enum class Access : Uint8 { RD, WR };
-	File* (*open)(const System& sys, StringView name, Access access);
-	void (*close)(const System& sys, File* file);
-	Uint64 (*read)(const System& sys, File* file, Uint64 offset, Slice<Uint8> data);
-	Uint64 (*write)(const System& sys, File* file, Uint64 offset, Slice<const Uint8> data);
-	Uint64 (*tell)(const System& sys, File* file);
+	File* (*open)(System& sys, StringView name, Access access);
+	void (*close)(System& sys, File* file);
+	Uint64 (*read)(System& sys, File* file, Uint64 offset, Slice<Uint8> data);
+	Uint64 (*write)(System& sys, File* file, Uint64 offset, Slice<const Uint8> data);
+	Uint64 (*tell)(System& sys, File* file);
 };
 
 struct Heap {
-	void *(*allocate)(const System& sys, Ulen len, Bool zero);
-	void (*deallocate)(const System& sys, void* addr, Ulen len);
+	void *(*allocate)(System& sys, Ulen len, Bool zero);
+	void (*deallocate)(System& sys, void* addr, Ulen len);
 };
 
 struct Console {
-	void (*write)(const System& sys, StringView data);
-	void (*flush)(const System& sys);
+	void (*write)(System& sys, StringView data);
+	void (*flush)(System& sys);
 };
 
 struct System {
+	constexpr System(const Filesystem& filesystem,
+	                 const Heap&       heap,
+	                 const Console&    console)
+		: filesystem{filesystem}
+		, heap{heap}
+		, console{console}
+		, allocator{*this}
+	{
+	}
 	const Filesystem& filesystem;
 	const Heap&       heap;
 	const Console&    console;
+	SystemAllocator   allocator;
 };
 
 } // namespace Thor

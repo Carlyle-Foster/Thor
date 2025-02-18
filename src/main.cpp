@@ -3,52 +3,39 @@
 
 #include "parser.h"
 
-#include <stdio.h>
-
 namespace Thor {
-	extern const System STD_SYSTEM;
+	extern const Filesystem STD_FILESYSTEM;
+	extern const Heap       STD_HEAP;
+	extern const Console    STD_CONSOLE;
 }
 
 using namespace Thor;
 
 int main(int, char **) {
-	auto file = File::open(STD_SYSTEM, "test/ks.odin", File::Access::RD);
-	if (!file) {
+	System sys {
+		STD_FILESYSTEM,
+		STD_HEAP,
+		STD_CONSOLE
+	};
+
+	auto parser = Parser::open(sys, "test/ks.odin");
+	if (!parser) {
 		return 1;
 	}
-
-	const auto& sys = STD_SYSTEM;
-	SystemAllocator allocator{sys};
-
-	auto data = file->map(allocator);
-	auto view = data.slice().cast<const char>();
-	if (auto lexer = Lexer::open(view, allocator)) {
-		Parser parser{sys, *lexer};
-		auto& ast = parser.ast();
-		Array<AstRef<AstStmt>> stmts{allocator};
-		for (;;) {
-			auto stmt = parser.parse_stmt();
-			if (!stmt || !stmts.push_back(stmt)) {
-				break;
-			}
-		}
-		StringBuilder builder{allocator};
-		Ulen n_stmts = stmts.length();
-		for (Ulen i = 0; i < n_stmts; i++) {
-			ast[stmts[i]].dump(ast, builder);
-		}
-		if (auto dump = builder.result()) {
-			sys.console.write(sys, *dump);
-		}
-		return 0;
-	}
-	return 1;
-	/*
+	auto& ast = parser->ast();
+	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {
-		auto token = lexer->next();
-		token.dump(STD_SYSTEM, view);
-		if (token.kind == TokenKind::ENDOF) {
+		auto stmt = parser->parse_stmt();
+		if (!stmt || !stmts.push_back(move(stmt))) {
 			break;
 		}
-	}*/
+	}
+	const auto n_stmts = stmts.length();
+	StringBuilder builder{sys.allocator};
+	for (Ulen i = 0; i < n_stmts; i++) {
+		ast[stmts[i]].dump(ast, builder);
+	}
+	if (auto result = builder.result()) {
+		sys.console.write(sys, *result);
+	}
 }

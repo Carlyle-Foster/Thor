@@ -1,75 +1,27 @@
 #include "lexer.h"
 #include "string.h"
 
-#include "util/system.h"
+#include "util/file.h"
 
 namespace Thor {
 
-void Token::dump(const System& sys, StringView input) {
-	static constexpr const StringView KINDS[] = {
-		#define KIND(ENUM, NAME, ASI) NAME,
-		#include "lexer.inl"
-	};
-	static constexpr const StringView ASSIGNS[] = {
-		#define ASSIGN(ENUM, NAME, MATCH) NAME,
-		#include "lexer.inl"
-	};
-	static constexpr const StringView LITERALS[] = {
-		#define LITERAL(ENUM, NAME) NAME,
-		#include "lexer.inl"
-	};
-	static constexpr const StringView OPERATORS[] = {
-		#define OPERATOR(ENUM, NAME, MATCH, PREC, NAMED, ASI) NAME,
-		#include "lexer.inl"
-	};
-	SystemAllocator allocator{sys};
-	ScratchAllocator<1024> scratch{allocator};
-	StringBuilder builder{scratch};
-	builder.rpad(20, KINDS[int(kind)]);
-	switch (kind) {
-	case TokenKind::INVALID:
-		return;
-	case TokenKind::ASSIGNMENT:
-		builder.rpad(20, ASSIGNS[int(as_assign)]);
-		break;
-	case TokenKind::LITERAL:
-		builder.rpad(20, LITERALS[int(as_literal)]);
-		break;
-	case TokenKind::OPERATOR:
-		builder.rpad(20, OPERATORS[int(as_operator)]);
-		break;
-	case TokenKind::SEMICOLON:
-		builder.rpad(20, input[offset] == '\n' ? "instered" : "explicit");
-		break;
-	default:
-		builder.rpad(20, ' ');
-		break;
-	}
-	builder.put('\'');
-	for (Ulen i = offset; i < offset + length; i++) {
-		if (input[i] == '\n') {
-			builder.put('\\');
-			builder.put('n');
-		} else {
-			builder.put(input[i]);
-		}
-	}
-	builder.put('\'');
-	builder.put('\n');
-	if (auto result = builder.result()) {
-		sys.console.write(sys, *result);
-	}
-}
-
-Maybe<Lexer> Lexer::open(StringView input, Allocator& allocator) {
-	if (input.is_empty()) {
+Maybe<Lexer> Lexer::open(System& sys, StringView filename) {
+	if (filename.is_empty()) {
 		return {};
 	}
-	if (input.length() >= 0xffffff) {
-		// ERROR: Max file size is 4 GiB
+	auto file = File::open(sys, filename, File::Access::RD);
+	if (!file) {
 		return {};
 	}
-	return Lexer{input, allocator};
+	const auto length = file->tell();
+	if (length == 0 || length >= 0xff'ff'ff'ff_ulen) {
+		return {};
+	}
+	auto map = file->map(sys.allocator);
+	if (map.is_empty()) {
+		return {};
+	}
+	return Lexer{move(map)};
 }
 
 void Lexer::eat() {

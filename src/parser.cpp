@@ -2,6 +2,22 @@
 
 namespace Thor {
 
+Maybe<Parser> Parser::open(System& sys, StringView file) {
+	if (auto lexer = Lexer::open(sys, file)) {
+		return Parser { sys, move(*lexer) };
+	}
+	return {};
+}
+
+Parser::Parser(System& sys, Lexer&& lexer)
+	: sys_{sys}
+	, temporary_{sys.allocator}
+	, ast_{sys.allocator}
+	, lexer_{move(lexer)}
+	, token_{lexer_.next()}
+{
+}
+
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	eat(); // Eat 'package'
 	if (is_kind(TokenKind::IDENTIFIER)) {

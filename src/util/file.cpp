@@ -2,7 +2,7 @@
 
 namespace Thor {
 
-Maybe<File> File::open(const System& sys, StringView name, Access access) {
+Maybe<File> File::open(System& sys, StringView name, Access access) {
 	if (name.is_empty()) {
 		return {};
 	}

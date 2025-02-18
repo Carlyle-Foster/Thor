@@ -81,7 +81,7 @@ struct Token {
 	{
 		as_directive = kind;
 	}
-	void dump(const System& sys, StringView input);
+	void dump(System& sys, StringView input);
 	TokenKind kind; // 1b
 	union {
 		Nat           as_nat{};
@@ -123,7 +123,15 @@ struct Position {
 };
 
 struct Lexer {
-	static Maybe<Lexer> open(StringView input, Allocator& allocator);
+	static Maybe<Lexer> open(System& sys, StringView file);
+	Lexer(Lexer&& other)
+		: map_{move(other.map_)}
+		, input_{other.input_}
+		, position_{other.position_}
+		, rune_{exchange(other.rune_, 0)}
+		, asi_{exchange(other.asi_, false)}
+	{
+	}
 	Token next();
 	void eat();
 	constexpr StringView input() const {
@@ -136,15 +144,15 @@ private:
 	Token advance();
 	Token scan_string();
 	void scan_escape();
-	constexpr Lexer(StringView input, Allocator& allocator)
-		: input_{input}
-		, peek_{allocator}
+	constexpr Lexer(Array<Uint8>&& map)
+		: map_{move(map)}
+		, input_{map_.slice().cast<const char>()}
 	{
 		eat();
 	}
+	Array<Uint8> map_;
 	StringView   input_;
 	Position     position_;
-	Array<Token> peek_;
 	Rune         rune_ = 0;
 	Bool         asi_  = false;
 };

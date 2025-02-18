@@ -40,6 +40,7 @@ Address ArenaAllocator::alloc(Ulen new_len, Bool zero) {
 }
 
 void ArenaAllocator::free(Address addr, Ulen old_len) {
+	if (addr == 0) return;
 	old_len = round(old_len);
 	ASSERT(addr >= region_.beg);
 	if (addr + old_len == cursor_) {
@@ -134,6 +135,7 @@ Address TemporaryAllocator::alloc(Ulen new_len, Bool zero) {
 }
 
 void TemporaryAllocator::free(Address addr, Ulen old_len) {
+	if (addr == 0) return;
 	for (auto node = head_; node; node = node->next_) {
 		if (node->arena_.owns(addr, old_len)) {
 			node->arena_.free(addr, old_len);
@@ -184,6 +186,7 @@ Address SystemAllocator::alloc(Ulen new_len, Bool zero) {
 }
 
 void SystemAllocator::free(Address addr, Ulen old_len) {
+	if (addr == 0) return;
 	const auto ptr = reinterpret_cast<void *>(addr);
 	sys_.heap.deallocate(sys_, ptr, old_len);
 }

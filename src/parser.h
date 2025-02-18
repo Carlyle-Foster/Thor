@@ -7,15 +7,7 @@
 namespace Thor {
 
 struct Parser {
-	constexpr Parser(const System& sys, Lexer& lexer)
-		: sys_{sys}
-		, allocator_{sys}
-		, temporary_{allocator_}
-		, ast_{allocator_}
-		, lexer_{lexer}
-		, token_{lexer.next()}
-	{
-	}
+	static Maybe<Parser> open(System& sys, StringView file);
 	AstRef<AstStmt> parse_stmt();
 	AstRef<AstExpr> parse_expr(Bool lhs);
 	AstRef<AstExpr> parse_operand();
@@ -31,34 +23,35 @@ struct Parser {
 	AstRef<AstDeferStmt> parse_defer_stmt();
 	AstRef<AstReturnStmt> parse_return_stmt();
 
-	Ast& ast() { return ast_; }
-	const Ast& ast() const { return ast_; }
+	[[nodiscard]] Ast& ast() { return ast_; }
+	[[nodiscard]] const Ast& ast() const { return ast_; }
 private:
+	Parser(System& sys, Lexer&& lexer);
+
 	template<Ulen E, typename... Ts>
 	void error(const char (&msg)[E], Ts&&...) {
 		sys_.console.write(sys_, StringView { msg });
 		sys_.console.flush(sys_);
 	}
-	inline Bool is_kind(TokenKind kind) const {
+	constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;
 	}
-	inline Bool is_keyword(KeywordKind kind) const {
+	constexpr Bool is_keyword(KeywordKind kind) const {
 		return is_kind(TokenKind::KEYWORD) && token_.as_keyword == kind;
 	}
-	inline Bool is_operator(OperatorKind kind) const {
+	constexpr Bool is_operator(OperatorKind kind) const {
 		return is_kind(TokenKind::OPERATOR) && token_.as_operator == kind;
 	}
-	inline Bool is_literal(LiteralKind kind) const {
+	constexpr Bool is_literal(LiteralKind kind) const {
 		return is_kind(TokenKind::LITERAL) && token_.as_literal == kind;
 	}
 	void eat() {
 		token_ = lexer_.next();
 	}
-	const System&      sys_;
-	SystemAllocator    allocator_;
+	System&            sys_;
 	TemporaryAllocator temporary_;
 	Ast                ast_;
-	Lexer&             lexer_;
+	Lexer              lexer_;
 	Token              token_;
 };
 

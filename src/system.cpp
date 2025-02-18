@@ -7,32 +7,29 @@
 
 namespace Thor {
 
-static Filesystem::File* filesystem_open(const System& sys, StringView name, Filesystem::Access access) {
-	const char* mode = "";
+static Filesystem::File* filesystem_open(System& sys, StringView name, Filesystem::Access access) {
+	const char* mode = nullptr;
 	switch (access) {
-	case Filesystem::Access::RD:
-		mode = "rb";
-		break;
-	case Filesystem::Access::WR:
-		mode = "wb";
-		break;
+	case Filesystem::Access::RD: mode = "rb"; break;
+	case Filesystem::Access::WR: mode = "wb"; break;
 	}
-	auto path = sys.heap.allocate(sys, name.length() + 1, true);
+	ScratchAllocator<1024> scratch{sys.allocator};
+	auto path = scratch.allocate<char>(name.length() + 1, false);
 	if (!path) {
 		// Out of memory.
 		return nullptr;
 	}
 	memcpy(path, name.data(), name.length());
-	auto fp = fopen(reinterpret_cast<const char *>(path), mode);
-	sys.heap.deallocate(sys, path, name.length() + 1);
+	path[name.length()] = '\0';
+	auto fp = fopen(path, mode);
 	return reinterpret_cast<Filesystem::File*>(fp);
 }
 
-static void filesystem_close(const System&, Filesystem::File* file) {
+static void filesystem_close(System&, Filesystem::File* file) {
 	fclose(reinterpret_cast<FILE*>(file));
 }
 
-static Uint64 filesystem_read(const System&, Filesystem::File* file, Uint64 offset, Slice<Uint8> data) {
+static Uint64 filesystem_read(System&, Filesystem::File* file, Uint64 offset, Slice<Uint8> data) {
 	const auto fp = reinterpret_cast<FILE*>(file);
 	if (fseek(fp, offset, SEEK_SET) != 0) {
 		return 0;
@@ -43,7 +40,7 @@ static Uint64 filesystem_read(const System&, Filesystem::File* file, Uint64 offs
 	return data.length();
 }
 
-static Uint64 filesystem_write(const System&, Filesystem::File* file, Uint64 offset, Slice<const Uint8> data) {
+static Uint64 filesystem_write(System&, Filesystem::File* file, Uint64 offset, Slice<const Uint8> data) {
 	const auto fp = reinterpret_cast<FILE*>(file);
 	if (fseek(fp, offset, SEEK_SET) != 0) {
 		return 0;
@@ -54,7 +51,7 @@ static Uint64 filesystem_write(const System&, Filesystem::File* file, Uint64 off
 	return data.length();
 }
 
-static Uint64 filesystem_tell(const System&, Filesystem::File* file) {
+static Uint64 filesystem_tell(System&, Filesystem::File* file) {
 	const auto fp = reinterpret_cast<FILE*>(file);
 	if (fseek(fp, 0, SEEK_END) != 0) {
 		return 0;
@@ -66,7 +63,7 @@ static Uint64 filesystem_tell(const System&, Filesystem::File* file) {
 	return len;
 }
 
-const Filesystem STD_FILESYSTEM = {
+extern const Filesystem STD_FILESYSTEM = {
 	.open  = filesystem_open,
 	.close = filesystem_close,
 	.read  = filesystem_read,
@@ -74,38 +71,32 @@ const Filesystem STD_FILESYSTEM = {
 	.tell  = filesystem_tell,
 };
 
-static void* heap_allocate(const System&, Ulen length, Bool zero) {
+static void* heap_allocate(System&, Ulen length, Bool zero) {
 	if (zero) {
 		return calloc(1, length);
 	}
 	return malloc(length);
 }
 
-static void heap_deallocate(const System&, void *addr, Ulen) {
+static void heap_deallocate(System&, void *addr, Ulen) {
 	free(addr);
 }
 
-const Heap STD_HEAP = {
+extern const Heap STD_HEAP = {
 	.allocate   = heap_allocate,
 	.deallocate = heap_deallocate,
 };
 
-static void console_write(const System&, StringView data) {
+static void console_write(System&, StringView data) {
 	printf("%.*s", Sint32(data.length()), data.data());
 }
-static void console_flush(const System&) {
+static void console_flush(System&) {
 	fflush(stdout);
 }
 
-const Console STD_CONSOLE = {
+extern const Console STD_CONSOLE = {
 	.write = console_write,
 	.flush = console_flush,
-};
-
-extern const System STD_SYSTEM = {
-	.filesystem = STD_FILESYSTEM,
-	.heap       = STD_HEAP,
-	.console    = STD_CONSOLE,
 };
 
 } // namespace Thor

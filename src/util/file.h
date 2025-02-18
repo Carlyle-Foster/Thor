@@ -9,7 +9,7 @@ namespace Thor {
 struct File {
 	using Access = Filesystem::Access;
 
-	static Maybe<File> open(const System& sys, StringView name, Access access);
+	static Maybe<File> open(System& sys, StringView name, Access access);
 
 	constexpr File(File&& other)
 		: sys_{other.sys_}
@@ -36,12 +36,12 @@ private:
 		close();
 		return this;
 	}
-	constexpr File(const System& sys, Filesystem::File* file)
+	constexpr File(System& sys, Filesystem::File* file)
 		: sys_{sys}
 		, file_{file}
 	{
 	}
-	const System&     sys_;
+	System&           sys_;
 	Filesystem::File* file_;
 };
 

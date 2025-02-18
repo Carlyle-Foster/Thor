@@ -64,6 +64,11 @@ CXXFLAGS += -Wextra
 CXXFLAGS += -std=c++23
 CXXFLAGS += -fno-exceptions
 CXXFLAGS += -fno-rtti
+# For reasons unknown, glibcxx decides to override C headers like <stdlib.h>, so
+# that when you include them in C++, it actually ends up includng <cstdlib>. We
+# do not desire this behavior, we do not want C++ headers to ever be included in
+# the Thor compiler under any circumstance, we prefer the C ones, always.
+CXXFLAGS += -D_GLIBCXX_INCLUDE_NEXT_C_HEADERS
 # Give each function and data its own section so the linker can remove unused
 # references to each. This adds to the link time so it's not enabled by default
 CXXFLAGS += -ffunction-sections

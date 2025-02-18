@@ -141,7 +141,7 @@ private:
 };
 
 struct SystemAllocator : Allocator {
-	constexpr SystemAllocator(const System& sys)
+	constexpr SystemAllocator(System& sys)
 		: sys_{sys}
 	{
 	}
@@ -150,7 +150,7 @@ struct SystemAllocator : Allocator {
 	virtual void shrink(Address, Ulen, Ulen);
 	virtual Address grow(Address addr, Ulen old_len, Ulen new_len, Bool zero);
 private:
-	const System& sys_;
+	System& sys_;
 };
 
 } // namespace Thor
