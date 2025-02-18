@@ -116,7 +116,9 @@ endif
 ifeq ($(UBSAN),1)
 	LDFLAGS += -fsanitize=undefined
 endif
-LDFLAGS += -Wl,--gc-sections
+ifneq ($(UNAME),Darwin)
+	LDFLAGS += -Wl,--gc-sections
+endif
 
 all: $(BIN)
 
