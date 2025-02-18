@@ -36,10 +36,8 @@ struct Slice {
 		, length_{exchange(other.length_, 0)}
 	{
 	}
-	template<typename Self>
-	constexpr auto&& operator[](this Self&& self, Ulen index) {
-		return self.data_[index];
-	}
+	[[nodiscard]] constexpr T& operator[](Ulen index) { return data_[index]; }
+	[[nodiscard]] constexpr const T& operator[](Ulen index) const { return data_[index]; }
 	constexpr Slice slice(Ulen offset) const {
 		return Slice{data_ + offset, length_ - offset};
 	}
@@ -51,8 +49,14 @@ struct Slice {
 	[[nodiscard]] constexpr T* data() { return data_; }
 	[[nodiscard]] constexpr const T* data() const { return data_; }
 	template<typename U>
-	Slice<U> cast(this auto&& self) {
-		return Slice<U>{(U*)(self.data_), (self.length_ * sizeof(T)) / sizeof(U)};
+	Slice<U> cast() {
+		const auto ptr = reinterpret_cast<U*>(data_);
+		return Slice<U> { ptr, (length_ * sizeof(T)) / sizeof(U) };
+	}
+	template<typename U>
+	Slice<const U> cast() const {
+		const auto ptr = reinterpret_cast<const U*>(data_);
+		return Slice<const U> { ptr, (length_ * sizeof(T)) / sizeof(U) };
 	}
 	[[nodiscard]] friend constexpr Bool operator==(const Slice& lhs, const Slice& rhs) {
 		const auto lhs_len = lhs.length();
