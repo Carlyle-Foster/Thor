@@ -36,18 +36,20 @@ struct Slice {
 		, length_{exchange(other.length_, 0)}
 	{
 	}
-	constexpr auto&& operator[](this auto&& self, Ulen index) {
+	template<typename Self>
+	constexpr auto&& operator[](this Self&& self, Ulen index) {
 		return self.data_[index];
 	}
-	constexpr Slice slice(this auto&& self, Ulen offset) {
-		return Slice{self.data_ + offset, self.length_ - offset};
+	constexpr Slice slice(Ulen offset) const {
+		return Slice{data_ + offset, length_ - offset};
 	}
-	constexpr Slice truncate(this auto&& self, Ulen length) {
-		return Slice{self.data_, length};
+	constexpr Slice truncate(Ulen length) const {
+		return Slice{data_, length};
 	}
 	[[nodiscard]] constexpr auto length() const { return length_; }
 	[[nodiscard]] constexpr auto is_empty() const { return length_ == 0; }
-	[[nodiscard]] constexpr auto&& data(this auto&& self) { return self.data_; }
+	[[nodiscard]] constexpr T* data() { return data_; }
+	[[nodiscard]] constexpr const T* data() const { return data_; }
 	template<typename U>
 	Slice<U> cast(this auto&& self) {
 		return Slice<U>{(U*)(self.data_), (self.length_ * sizeof(T)) / sizeof(U)};

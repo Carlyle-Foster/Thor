@@ -124,7 +124,8 @@ struct Array {
 		capacity_ = 0;
 	}
 
-	constexpr auto&& last(this auto&& self) { return self.data_[self.length_ - 1]; }
+	constexpr T& last() { return data_[length_ - 1]; }
+	constexpr const T& last() const { return data_[length_ - 1]; }
 
 	[[nodiscard]] constexpr auto length() const { return length_; }
 	[[nodiscard]] constexpr auto capacity() const { return capacity_; }
@@ -132,17 +133,11 @@ struct Array {
 	[[nodiscard]] Allocator& allocator() { return allocator_; }
 	[[nodiscard]] Allocator& allocator() const { return allocator_; }
 
-	auto&& operator[](this auto&& self, Ulen index) {
-		return self.data_[index];
-	}
+	[[nodiscard]] constexpr T& operator[](Ulen index) { return data_[index]; }
+	[[nodiscard]] constexpr const T& operator[](Ulen index) const { return data_[index]; }
 
-	constexpr Slice<T> slice() {
-		return { data_, length_ };
-	}
-
-	constexpr Slice<const T> slice() const {
-		return { data_, length_ };
-	}
+	constexpr Slice<T> slice() { return { data_, length_ }; }
+	constexpr Slice<const T> slice() const { return { data_, length_ }; }
 
 private:
 	void destruct() {

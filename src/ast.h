@@ -117,7 +117,7 @@ struct Ast {
 	constexpr const T& operator[](AstRef<T> ref) const {
 		const auto slab_idx = ref.id_.value_ / MAX;
 		const auto slab_ref = ref.id_.value_ % MAX;
-		return *reinterpret_cast<T*>((*slabs_[slab_idx])[SlabRef { slab_ref }]);
+		return *reinterpret_cast<const T*>((*slabs_[slab_idx])[SlabRef { slab_ref }]);
 	}
 
 private:

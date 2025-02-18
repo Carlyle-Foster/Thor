@@ -35,9 +35,12 @@ struct Maybe {
 	}
 	[[nodiscard]] constexpr auto is_valid() const { return valid_; }
 	[[nodiscard]] constexpr operator Bool() const { return is_valid(); }
-	[[nodiscard]] constexpr auto&& value(this auto&& self) { return self.as_value_; }
-	[[nodiscard]] constexpr T& operator*(this auto&& self) { return self.as_value_; }
-	[[nodiscard]] constexpr T* operator->(this auto&& self) { return &self.as_value_; }
+	[[nodiscard]] constexpr T& value() { return as_value_; }
+	[[nodiscard]] constexpr const T& value() const { return as_value_; }
+	[[nodiscard]] constexpr T& operator*() { return as_value_; }
+	[[nodiscard]] constexpr const T& operator*() const { return as_value_; }
+	[[nodiscard]] constexpr T* operator->() { return &as_value_; }
+	[[nodiscard]] constexpr const T* operator->() const { return &as_value_; }
 	~Maybe() { drop(); }
 	void reset() {
 		drop();

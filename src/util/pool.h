@@ -36,9 +36,8 @@ struct Pool {
 	Maybe<PoolRef> allocate();
 	void deallocate(PoolRef ref);
 
-	constexpr auto operator[](this auto&& self, PoolRef ref) {
-		return self.data_ + self.size_ * ref.index;
-	}
+	constexpr auto operator[](PoolRef ref) { return data_ + size_ * ref.index; }
+	constexpr auto operator[](PoolRef ref) const { return data_ + size_ * ref.index; }
 
 private:
 	constexpr Pool(Allocator& allocator, Ulen size, Ulen capacity, Uint8* data, Uint32* used)

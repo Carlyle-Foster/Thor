@@ -26,10 +26,15 @@ struct Slab {
 	}
 	Maybe<SlabRef> allocate();
 	void deallocate(SlabRef slab_ref);
-	constexpr auto operator[](this auto&& self, SlabRef slab_ref) {
-		const auto cache_idx = Uint32(slab_ref.index / self.capacity_);
-		const auto cache_ref = Uint32(slab_ref.index % self.capacity_);
-		return (*self.caches_[cache_idx])[PoolRef { cache_ref }];
+	constexpr Uint8* operator[](SlabRef slab_ref) {
+		const auto cache_idx = Uint32(slab_ref.index / capacity_);
+		const auto cache_ref = Uint32(slab_ref.index % capacity_);
+		return (*caches_[cache_idx])[PoolRef { cache_ref }];
+	}
+	constexpr const Uint8* operator[](SlabRef slab_ref) const {
+		const auto cache_idx = Uint32(slab_ref.index / capacity_);
+		const auto cache_ref = Uint32(slab_ref.index % capacity_);
+		return (*caches_[cache_idx])[PoolRef { cache_ref }];
 	}
 private:
 	Array<Maybe<Pool>> caches_;
