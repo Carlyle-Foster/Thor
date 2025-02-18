@@ -33,7 +33,7 @@ struct Array {
 	Array& operator=(const Array&) = delete;
 
 	Array& operator=(Array&& other) {
-		return *new (drop, Nat{}) Array{move(other)};
+		return *new (drop(), Nat{}) Array{move(other)};
 	}
 
 	[[nodiscard]] Bool resize(Ulen length) {

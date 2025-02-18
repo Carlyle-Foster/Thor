@@ -10,7 +10,10 @@ namespace Thor {
 // is a field of T.
 template<typename T>
 struct Maybe {
-	constexpr Maybe() = default;
+	constexpr Maybe()
+		: as_nat_{}
+	{
+	}
 	constexpr Maybe(T&& value)
 		: as_value_{move(value)}
 		, valid_{true}
@@ -50,7 +53,7 @@ private:
 		return this;
 	}
 	union {
-		Nat as_nat_{};
+		Nat as_nat_;
 		T   as_value_;
 	};
 	Bool valid_ = false;

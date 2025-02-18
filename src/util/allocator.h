@@ -78,7 +78,7 @@ private:
 	// Add a new block to the temporary allocator.
 	Bool add(Ulen len);
 	struct Block {
-		constexpr Block(Ulen length)
+		Block(Ulen length)
 			: arena_{reinterpret_cast<Address>(data_), length}
 		{
 		}

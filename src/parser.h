@@ -23,7 +23,7 @@ struct Parser {
 	const Ast& ast() const { return ast_; }
 private:
 	template<Ulen E, typename... Ts>
-	void error(const char (&msg)[E], Ts&&... args) {
+	void error(const char (&msg)[E], Ts&&...) {
 		sys_.console.write(sys_, StringView { msg });
 		sys_.console.flush(sys_);
 	}
