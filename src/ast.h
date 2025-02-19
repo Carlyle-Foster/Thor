@@ -161,7 +161,7 @@ struct AstInteger : AstExpr {
 
 struct AstFloat : AstExpr {
 	static constexpr const auto KIND = Kind::FLOAT;
-	constexpr AstFloat(Float64 vluae)
+	constexpr AstFloat(Float64 value)
 		: AstExpr{KIND}
 		, value{value}
 	{
@@ -216,7 +216,7 @@ struct AstBlockStmt;
 
 struct AstProcExpr : AstExpr {
 	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProcExpr(Maybe<Array<AstRef<AstDeclStmt>>>&& params,
+	constexpr AstProcExpr(Maybe<Array<AstRef<AstDeclStmt>>>&&   params,
 		                    AstRef<AstBlockStmt>                body,
 		                    AstRef<AstTypeExpr>                 ret)
 		: AstExpr{KIND}
