@@ -130,8 +130,8 @@ struct Array {
 	[[nodiscard]] constexpr auto length() const { return length_; }
 	[[nodiscard]] constexpr auto capacity() const { return capacity_; }
 	[[nodiscard]] constexpr auto is_empty() const { return length_ == 0; }
-	[[nodiscard]] Allocator& allocator() { return allocator_; }
-	[[nodiscard]] Allocator& allocator() const { return allocator_; }
+	[[nodiscard]] constexpr Allocator& allocator() { return allocator_; }
+	[[nodiscard]] constexpr Allocator& allocator() const { return allocator_; }
 
 	[[nodiscard]] constexpr T& operator[](Ulen index) { return data_[index]; }
 	[[nodiscard]] constexpr const T& operator[](Ulen index) const { return data_[index]; }

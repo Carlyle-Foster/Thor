@@ -65,7 +65,7 @@ struct AstRef {
 	[[nodiscard]] constexpr operator AstRef<U>() const 
 		requires DerivedFrom<T, U>
 	{
-		return AstRef<U>(id_);
+		return AstRef<U>{id_};
 	}
 private:
 	friend struct Ast;
