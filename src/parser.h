@@ -61,8 +61,17 @@ private:
 	constexpr Bool is_operator(OperatorKind kind) const {
 		return is_kind(TokenKind::OPERATOR) && token_.as_operator == kind;
 	}
+	constexpr Bool is_literal() const {
+		return is_kind(TokenKind::LITERAL);
+	}
 	constexpr Bool is_literal(LiteralKind kind) const {
 		return is_kind(TokenKind::LITERAL) && token_.as_literal == kind;
+	}
+	constexpr Bool is_assignment() const {
+		return is_kind(TokenKind::ASSIGNMENT);
+	}
+	constexpr Bool is_assignment(AssignKind kind) const {
+		return is_kind(TokenKind::ASSIGNMENT) && token_.as_assign == kind;
 	}
 	void eat() {
 		token_ = lexer_.next();

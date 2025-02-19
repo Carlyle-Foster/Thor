@@ -73,9 +73,23 @@ AstRef<AstStmt> Parser::parse_simple_stmt() {
 			values = parse_expr_list(false);
 		}
 		return ast_.create<AstDeclStmt>(move(*lhs), type, move(values));
+	} else if (is_assignment()) {
+		Token token = token_;
+		eat();
+		auto rhs = parse_expr_list(false);
+		if (!rhs || rhs->length() == 0) {
+			error("No right-hand side assignment statement");
+			return {};
+		}
+		if (!lhs) {
+			error("No left-hand side assignments");
+			return {};
+		}
+		return ast_.create<AstAssignStmt>(move(*lhs), token, move(*rhs));
+
 	}
 	if (!lhs || lhs->length() > 1) {
-		error("Epxected 1 expression");
+		error("Expected 1 expression");
 		return {};
 	}
 

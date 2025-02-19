@@ -73,8 +73,38 @@ void AstFallthroughStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) con
 	builder.put(';');
 }
 
+void AstAssignStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+	static constexpr const StringView OP[] = {
+		#define ASSIGN(ENUM, NAME, MATCH) MATCH,
+		#include "lexer.inl"
+	};
+
+	builder.rep(nest * 2, ' ');
+	for (Ulen i = 0; i < lhs.length(); i++) {
+		if (i != 0) {
+			builder.put(", ");
+		}
+		ast[lhs[i]].dump(ast, builder);
+	}
+
+	builder.put(' ');
+	builder.put(OP[Uint32(token.as_assign)]);
+	builder.put(' ');
+
+	for (Ulen i = 0; i < rhs.length(); i++) {
+		if (i != 0) {
+			builder.put(", ");
+		}
+		ast[rhs[i]].dump(ast, builder);
+	}
+
+	builder.put(';');
+}
+
+
 
 void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
 	builder.put("if");
 	if (init) {
 		ast[*init].dump(ast, builder, nest);
@@ -87,7 +117,6 @@ void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
 		builder.put("else");
 		ast[*on_false].dump(ast, builder, nest);
 	}
-	builder.put('\n');
 }
 
 void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {

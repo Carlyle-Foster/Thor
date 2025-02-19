@@ -191,6 +191,7 @@ struct AstStmt : AstNode {
 	enum struct Kind : Uint8 {
 		EMPTY,
 		EXPR,
+		ASSIGN,
 		BLOCK,
 		IMPORT,
 		PACKAGE,
@@ -236,6 +237,26 @@ struct AstExprStmt : AstStmt {
 	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstExpr> expr;
 };
+
+
+struct AstAssignStmt : AstStmt {
+	static constexpr const auto KIND = Kind::ASSIGN;
+	constexpr AstAssignStmt(Array<AstRef<AstExpr>> &&lhs,
+	                        Token                  token,
+	                        Array<AstRef<AstExpr>> &&rhs)
+		: AstStmt{KIND}
+		, lhs{move(lhs)}
+		, token{token}
+		, rhs{move(rhs)}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	Array<AstRef<AstExpr>> lhs;
+	Token                  token;
+	Array<AstRef<AstExpr>> rhs;
+};
+
+
 
 
 struct AstBlockStmt : AstStmt {
