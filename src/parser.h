@@ -22,6 +22,7 @@ struct Parser {
 	AstRef<AstExpr>       parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 	AstRef<AstStructExpr> parse_struct_expr();
 	AstRef<AstTypeExpr>   parse_type_expr();
+	AstRef<AstProcExpr>   parse_proc_expr();
 
 	// Statement parsers
 	AstRef<AstStmt>            parse_stmt();
@@ -35,7 +36,6 @@ struct Parser {
 	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
 	AstRef<AstIfStmt>          parse_if_stmt();
 	AstRef<AstDeferStmt>       parse_defer_stmt();
-	AstRef<AstProc>            parse_proc();
 
 	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
 	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }

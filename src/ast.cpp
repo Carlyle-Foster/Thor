@@ -117,7 +117,7 @@ void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) cons
 	}
 }
 
-void AstProc::dump(const AstFile& ast, StringBuilder& builder) const {
+void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("proc");
 	builder.put('(');
 	if (params) {

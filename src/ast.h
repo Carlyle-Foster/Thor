@@ -190,11 +190,11 @@ struct AstTypeExpr : AstExpr {
 
 struct AstBlockStmt;
 
-struct AstProc : AstExpr {
+struct AstProcExpr : AstExpr {
 	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProc(Maybe<Array<AstRef<AstDeclStmt>>>&& params,
-	                  AstRef<AstBlockStmt>                body,
-	                  AstRef<AstTypeExpr>                 ret)
+	constexpr AstProcExpr(Maybe<Array<AstRef<AstDeclStmt>>>&& params,
+		                    AstRef<AstBlockStmt>                body,
+		                    AstRef<AstTypeExpr>                 ret)
 		: AstExpr{KIND}
 		, params{move(params)}
 		, body{body}
