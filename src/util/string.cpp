@@ -111,4 +111,12 @@ Bool StringTable::grow(Ulen additional) {
 	return true;
 }
 
+char *cstr_from_stingview(Allocator& allocator, StringView stringview) {
+	char *result = (char*)allocator.alloc(stringview.length(), true);
+	for(Ulen i = 0; i < stringview.length(); i++) {
+		result[i] = stringview[i];
+	}
+	return result;
+}
+
 } // namespace Thor

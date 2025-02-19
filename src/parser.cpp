@@ -1,6 +1,10 @@
 #include <stdio.h>
 
 #include "parser.h"
+#include "util/allocator.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 namespace Thor {
 
@@ -615,10 +619,24 @@ AstRef<AstStructExpr> Parser::parse_struct_expr() {
 	return ast_.create<AstStructExpr>(move(fields));
 }
 
+AstRef<AstExpr> Parser::parse_value_literal() {
+	StringView token_as_string = lexer_.string(token_);
+	char *token_cstr = cstr_from_stingview(temporary_, token_as_string);
+	if(is_literal(LiteralKind::INTEGER)) {
+		Uint64 value = strtoul(token_cstr, nullptr, 10);
+		return ast_.create<AstInteger>(value);
+	} else if(is_literal(LiteralKind::FLOAT)) {
+		Float64 value = strtod(token_cstr, nullptr);
+		return ast_.create<AstFloat>(value);
+	}
+}
+
 AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	TRACE();
 	(void)lhs;
-	if (is_kind(TokenKind::IDENTIFIER)) {
+	if (is_kind(TokenKind::LITERAL)) {
+		return parse_value_literal();
+	} else if (is_kind(TokenKind::IDENTIFIER)) {
 		return parse_ident_expr();
 	} else if (is_kind(TokenKind::UNDEFINED)) {
 		return parse_undef_expr();

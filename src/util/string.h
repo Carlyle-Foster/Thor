@@ -87,6 +87,8 @@ private:
 	Uint32                     length_   = 0;
 };
 
+char *cstr_from_stingview(Allocator& allocator, StringView stringview);
+
 } // namespace Thor
 
 #endif // THOR_STRING_H

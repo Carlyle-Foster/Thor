@@ -83,6 +83,8 @@ struct AstExpr : AstNode {
 		STRUCT,
 		TYPE,
 		PROC,
+		INTEGER,
+		FLOAT,
 	};
 	constexpr AstExpr(Kind kind)
 		: kind{kind}
@@ -144,6 +146,28 @@ struct AstIdentExpr : AstExpr {
 	}
 	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	StringRef ident;
+};
+
+struct AstInteger : AstExpr {
+	static constexpr const auto KIND = Kind::INTEGER;
+	constexpr AstInteger(Uint64 value)
+		: AstExpr{KIND}
+		, value{value}
+	{
+	}
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	Uint64 value;
+};
+
+struct AstFloat : AstExpr {
+	static constexpr const auto KIND = Kind::FLOAT;
+	constexpr AstFloat(Float64 vluae)
+		: AstExpr{KIND}
+		, value{value}
+	{
+	}
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	Float64 value;
 };
 
 struct AstUndefExpr : AstExpr {
