@@ -225,14 +225,14 @@ void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(ast[ident]);
 }
 
-void AstInteger::dump(const AstFile& ast, StringBuilder& builder) const {
+void AstInteger::dump(const AstFile&, StringBuilder& builder) const {
 	Uint8 buffer[128] = {0};
 	Ulen len = snprintf((char*)buffer, 128, "%llu", value);
 	StringView string = {(char*)buffer, len};
 	builder.put(string);
 }
 
-void AstFloat::dump(const AstFile& ast, StringBuilder& builder) const {
+void AstFloat::dump(const AstFile&, StringBuilder& builder) const {
 	Uint8 buffer[128] = {0};
 	Ulen len = snprintf((char*)buffer, 128, "%f", value);
 	StringView string = {(char*)buffer, len};
