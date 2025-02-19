@@ -37,8 +37,8 @@ struct Parser {
 	AstRef<AstDeferStmt>       parse_defer_stmt();
 	AstRef<AstProc>            parse_proc();
 
-	[[nodiscard]] Ast& ast() { return ast_; }
-	[[nodiscard]] const Ast& ast() const { return ast_; }
+	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
+	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
 private:
 	Maybe<Array<AstRef<AstExpr>>> parse_expr_list(Bool lhs);
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
@@ -79,7 +79,7 @@ private:
 	}
 	System&            sys_;
 	TemporaryAllocator temporary_;
-	Ast                ast_;
+	AstFile            ast_;
 	Lexer              lexer_;
 	Token              token_;
 	// >= 0: In Expression

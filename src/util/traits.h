@@ -46,6 +46,9 @@ inline constexpr auto is_same = false;
 template<typename T>
 inline constexpr auto is_same<T, T> = true;
 
+template<typename T1, typename T2>
+concept Same = is_same<T1, T2>;
+
 template<typename B, typename D>
 inline constexpr auto is_base_of = __is_base_of(B, D);
 

@@ -6,7 +6,7 @@
 
 namespace Thor {
 
-struct Ast;
+struct AstFile;
 struct System;
 
 struct AstSlabID {
@@ -43,7 +43,7 @@ struct AstID {
 private:
 	template<typename>
 	friend struct AstRef;
-	friend struct Ast;
+	friend struct AstFile;
 	Uint32 value_ = ~0_u32;
 };
 static_assert(sizeof(AstID) == 4);
@@ -68,7 +68,7 @@ struct AstRef {
 		return AstRef<U>{id_};
 	}
 private:
-	friend struct Ast;
+	friend struct AstFile;
 	AstID id_;
 };
 
@@ -87,7 +87,7 @@ struct AstExpr : AstNode {
 		: kind{kind}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const = 0;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const = 0;
 	Kind kind;
 };
 
@@ -100,7 +100,7 @@ struct AstBinExpr : AstExpr {
 		, op{op}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> lhs;
 	AstRef<AstExpr> rhs;
 	OperatorKind    op;
@@ -114,7 +114,7 @@ struct AstUnaryExpr : AstExpr {
 		, op{op}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> operand;
 	OperatorKind    op;
 };
@@ -128,7 +128,7 @@ struct AstTernaryExpr : AstExpr {
 		, on_false{on_false}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> cond;
 	AstRef<AstExpr> on_true;
 	AstRef<AstExpr> on_false;
@@ -136,13 +136,13 @@ struct AstTernaryExpr : AstExpr {
 
 struct AstIdentExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IDENT;
-	constexpr AstIdentExpr(StringView ident)
+	constexpr AstIdentExpr(StringRef ident)
 		: AstExpr{KIND}
 		, ident{ident}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-	StringView ident;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	StringRef ident;
 };
 
 struct AstUndefExpr : AstExpr {
@@ -151,7 +151,7 @@ struct AstUndefExpr : AstExpr {
 		: AstExpr{KIND}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstContextExpr : AstExpr {
@@ -160,7 +160,7 @@ struct AstContextExpr : AstExpr {
 		: AstExpr{KIND}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstDeclStmt;
@@ -172,7 +172,7 @@ struct AstStructExpr : AstExpr {
 		, decls{move(decls)}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	Array<AstRef<AstDeclStmt>> decls;
 };
 
@@ -183,7 +183,7 @@ struct AstTypeExpr : AstExpr {
 		, expr{expr}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> expr;
 };
 
@@ -213,7 +213,7 @@ struct AstStmt : AstNode {
 		return kind == T::KIND;
 	}
 
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const = 0;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const = 0;
 
 	Kind kind;
 };
@@ -224,7 +224,7 @@ struct AstEmptyStmt : AstStmt {
 		: AstStmt{KIND}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 };
 
 struct AstExprStmt : AstStmt {
@@ -234,30 +234,26 @@ struct AstExprStmt : AstStmt {
 		, expr{expr}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstExpr> expr;
 };
 
-
 struct AstAssignStmt : AstStmt {
 	static constexpr const auto KIND = Kind::ASSIGN;
-	constexpr AstAssignStmt(Array<AstRef<AstExpr>> &&lhs,
-	                        Token                  token,
-	                        Array<AstRef<AstExpr>> &&rhs)
+	constexpr AstAssignStmt(Array<AstRef<AstExpr>>&& lhs,
+	                        Token                    token,
+	                        Array<AstRef<AstExpr>>&& rhs)
 		: AstStmt{KIND}
 		, lhs{move(lhs)}
-		, token{token}
 		, rhs{move(rhs)}
+		, token{token}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Array<AstRef<AstExpr>> lhs;
-	Token                  token;
 	Array<AstRef<AstExpr>> rhs;
+	Token                  token;
 };
-
-
-
 
 struct AstBlockStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BLOCK;
@@ -266,30 +262,30 @@ struct AstBlockStmt : AstStmt {
 		, stmts{move(stmts)}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Array<AstRef<AstStmt>> stmts;
 };
 
 struct AstImportStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IMPORT;
-	constexpr AstImportStmt(StringView path)
+	constexpr AstImportStmt(StringRef path)
 		: AstStmt{KIND}
 		, path{path}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
-	StringView path;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	StringRef path;
 };
 
 struct AstPackageStmt : AstStmt {
 	static constexpr const auto KIND = Kind::PACKAGE;
-	constexpr AstPackageStmt(StringView name)
+	constexpr AstPackageStmt(StringRef name)
 		: AstStmt{KIND}
 		, name{name}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
-	StringView name;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	StringRef name;
 };
 
 struct AstDeferStmt : AstStmt {
@@ -299,30 +295,30 @@ struct AstDeferStmt : AstStmt {
 		, stmt{stmt}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstStmt> stmt;
 };
 
 struct AstBreakStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BREAK;
-	constexpr AstBreakStmt(StringView label)
+	constexpr AstBreakStmt(StringRef label)
 		: AstStmt{KIND}
 		, label{label}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
-	StringView label;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	StringRef label;
 };
 
 struct AstContinueStmt : AstStmt {
 	static constexpr const auto KIND = Kind::CONTINUE;
-	constexpr AstContinueStmt(StringView label)
+	constexpr AstContinueStmt(StringRef label)
 		: AstStmt{KIND}
 		, label{label}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
-	StringView label;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	StringRef label;
 };
 
 struct AstFallthroughStmt : AstStmt {
@@ -331,7 +327,7 @@ struct AstFallthroughStmt : AstStmt {
 		: AstStmt{KIND}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 };
 
 struct AstIfStmt : AstStmt {
@@ -347,7 +343,7 @@ struct AstIfStmt : AstStmt {
 		, on_false{move(on_false)}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Maybe<AstRef<AstStmt>> init;
 	AstRef<AstExpr>        cond;
 	AstRef<AstStmt>        on_true;
@@ -366,15 +362,16 @@ struct AstDeclStmt : AstStmt {
 		, rhs{move(rhs)}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	List                lhs;
 	AstRef<AstTypeExpr> type;
 	Maybe<List>         rhs;
 };
 
-struct Ast {
-	constexpr Ast(Allocator& allocator)
-		: slabs_{allocator}
+struct AstFile {
+	constexpr AstFile(Allocator& allocator)
+		: string_table_{allocator}
+		, slabs_{allocator}
 	{
 	}
 
@@ -397,6 +394,7 @@ struct Ast {
 		return {};
 	}
 
+	// Lookup an Ast node by AstRef
 	template<typename T>
 	constexpr const T& operator[](AstRef<T> ref) const {
 		const auto slab_idx = ref.id_.value_ / MAX;
@@ -404,10 +402,23 @@ struct Ast {
 		return *reinterpret_cast<const T*>((*slabs_[slab_idx])[SlabRef { slab_ref }]);
 	}
 
+	// Lookup a StrinfView by StringRef
+	[[nodiscard]] constexpr StringView operator[](StringRef ref) const {
+		return string_table_[ref];
+	}
+
+	[[nodiscard]] StringRef insert(StringView view) {
+		return string_table_.insert(view);
+	}
+
+	[[nodiscard]] const StringTable& string_table() const {
+		return string_table_;
+	}
+
 private:
+	StringTable        string_table_;
 	Array<Maybe<Slab>> slabs_;
 };
-
 
 } // namespace Thor
 

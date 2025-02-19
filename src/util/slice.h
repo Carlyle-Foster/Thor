@@ -2,6 +2,7 @@
 #define THOR_SLICE_H
 #include "util/types.h"
 #include "util/exchange.h"
+#include "util/hash.h"
 
 namespace Thor {
 
@@ -73,6 +74,12 @@ struct Slice {
 			}
 		}
 		return true;
+	}
+	constexpr Hash hash(Hash h = FNV_OFFSET) const {
+		for (Ulen i = 0; i < length_; i++) {
+			h = Thor::hash(data_[i], h);
+		}
+		return h;
 	}
 private:
 	T*   data_   = nullptr;

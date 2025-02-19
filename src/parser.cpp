@@ -61,7 +61,7 @@ Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
 
 AstRef<AstProc> Parser::parse_proc() {
 	eat(); // Eat 'proc'
-	Maybe<Array<AstRef<AstDeclStmt>>> params {sys_.allocator};
+	Maybe<Array<AstRef<AstDeclStmt>>> params{sys_.allocator};
 	for (;;) {
 		if(is_operator(OperatorKind::RPAREN)) break;
 		eat();
@@ -203,7 +203,12 @@ AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		const auto ident = lexer_.string(token_);
 		eat(); // Eat <ident>
-		return ast_.create<AstPackageStmt>(ident);
+		if (auto ref = ast_.insert(ident)) {
+			return ast_.create<AstPackageStmt>(ref);
+		} else {
+			// Out of memory.
+			return {};
+		}
 	}
 	error("Expected identifier for package");
 	return {};
@@ -215,7 +220,11 @@ AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	if (is_literal(LiteralKind::STRING)) {
 		const auto path = lexer_.string(token_);
 		eat(); // Eat ""
-		return ast_.create<AstImportStmt>(path);
+		if (auto ref = ast_.insert(path)) {
+			return ast_.create<AstImportStmt>(ref);
+		} else {
+			return {};
+		}
 	}
 	error("Expected string literal for import path");
 	return {};
@@ -228,9 +237,9 @@ AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 		return {};
 	}
 	eat(); // Eat 'break'
-	StringView label;
+	StringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
-		label = parse_ident();
+		label = ast_.insert(parse_ident());
 	}
 	return ast_.create<AstBreakStmt>(label);
 }
@@ -242,9 +251,9 @@ AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 		return {};
 	}
 	eat(); // Eat 'continue'
-	StringView label;
+	StringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
-		label = parse_ident();
+		label = ast_.insert(parse_ident());
 	}
 	return ast_.create<AstContinueStmt>(label);
 }
@@ -310,7 +319,7 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 
 	skip_possible_newline_for_literal();
 	if (is_keyword(KeywordKind::ELSE)) {
-		Token else_tok = token_;
+		// Token else_tok = token_;
 		eat();
 		if (is_keyword(KeywordKind::IF)) {
 			on_false = parse_if_stmt();
@@ -367,7 +376,7 @@ AstRef<AstIdentExpr> Parser::parse_ident_expr() {
 		error("Expected identifier");
 		return {};
 	}
-	const auto ident = parse_ident();
+	const auto ident = ast_.insert(parse_ident());
 	return ast_.create<AstIdentExpr>(ident);
 }
 

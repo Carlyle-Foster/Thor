@@ -5,18 +5,18 @@
 namespace Thor {
 
 // Stmt
-void AstEmptyStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put(';');
 }
 
-void AstExprStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstExprStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	ast[expr].dump(ast, builder);
 	builder.put(';');
 }
 
-void AstBlockStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
 	builder.put('\n');
@@ -29,51 +29,51 @@ void AstBlockStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const
 	builder.put('}');
 }
 
-void AstPackageStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstPackageStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("package");
 	builder.put(' ');
-	builder.put(name);
+	builder.put(ast[name]);
 	builder.put(';');
 	builder.put('\n');
 }
 
-void AstImportStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("import");
 	builder.put(' ');
-	builder.put(path);
+	builder.put(ast[path]);
 	builder.put(';');
 	builder.put('\n');
 }
 
-void AstBreakStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstBreakStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("break");
-	if (!label.is_empty()) {
+	if (label) {
 		builder.put(' ');
-		builder.put(label);
+		builder.put(ast[label]);
 	}
 	builder.put(';');
 }
 
-void AstContinueStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstContinueStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("continue");
-	if (!label.is_empty()) {
+	if (label) {
 		builder.put(' ');
-		builder.put(label);
+		builder.put(ast[label]);
 	}
 	builder.put(';');
 }
 
-void AstFallthroughStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
+void AstFallthroughStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("fallthrough");
 	builder.put(';');
 }
 
-void AstAssignStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	static constexpr const StringView OP[] = {
 		#define ASSIGN(ENUM, NAME, MATCH) MATCH,
 		#include "lexer.inl"
@@ -101,9 +101,7 @@ void AstAssignStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) cons
 	builder.put(';');
 }
 
-
-
-void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("if");
 	if (init) {
@@ -119,21 +117,24 @@ void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
 	}
 }
 
-void AstProc::dump(const Ast& ast, StringBuilder& builder) const {
-	builder.put("proc(");
+void AstProc::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("proc");
+	builder.put('(');
 	if (params) {
 		for(int i = 0; i < params->length(); i++) {
 			ast[(*params)[i]].dump(ast, builder, 0);
 			builder.put(", ");
 		}
 	}
-	builder.put(") ");
-	builder.put("-> ");
+	builder.put(')');
+	builder.put(' ');
+	builder.put("->");
+	builder.put(' ');
 	ast[ret].dump(ast, builder);
 	ast[body].dump(ast, builder, 0);
 }
 
-void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("defer");
 	builder.put(' ');
@@ -146,7 +147,7 @@ void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const
 	}
 }
 
-void AstDeclStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	const auto n_lhs = lhs.length();
 	for (Ulen i = 0; i < n_lhs; i++) {
@@ -171,7 +172,7 @@ void AstDeclStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const 
 }
 
 // Expr
-void AstBinExpr::dump(const Ast& ast, StringBuilder& builder) const {
+void AstBinExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('(');
 	static constexpr const StringView OP[] = {
 		#define OPERATOR(ENUM, NAME, MATCH, PREC, NAMED, ASI) MATCH,
@@ -185,7 +186,7 @@ void AstBinExpr::dump(const Ast& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
-void AstUnaryExpr::dump(const Ast& ast, StringBuilder& builder) const {
+void AstUnaryExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('(');
 	static constexpr const StringView OP[] = {
 		#define OPERATOR(ENUM, NAME, MATCH, PREC, NAMED, ASI) MATCH,
@@ -196,7 +197,7 @@ void AstUnaryExpr::dump(const Ast& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
-void AstTernaryExpr::dump(const Ast& ast, StringBuilder& builder) const {
+void AstTernaryExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('(');
 	ast[cond].dump(ast, builder);
 	builder.put(' ');
@@ -210,19 +211,19 @@ void AstTernaryExpr::dump(const Ast& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
-void AstIdentExpr::dump(const Ast&, StringBuilder& builder) const {
-	builder.put(ident);
+void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put(ast[ident]);
 }
 
-void AstUndefExpr::dump(const Ast&, StringBuilder& builder) const {
+void AstUndefExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put("---");
 }
 
-void AstContextExpr::dump(const Ast&, StringBuilder& builder) const {
+void AstContextExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put("context");
 }
 
-void AstStructExpr::dump(const Ast& ast, StringBuilder& builder) const {
+void AstStructExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("struct");
 	builder.put(' ');
 	builder.put('{');
@@ -237,7 +238,7 @@ void AstStructExpr::dump(const Ast& ast, StringBuilder& builder) const {
 	builder.put('\n');
 }
 
-void AstTypeExpr::dump(const Ast& ast, StringBuilder& builder) const {
+void AstTypeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	if (expr) {
 		ast[expr].dump(ast, builder);
 	}
