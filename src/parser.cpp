@@ -26,17 +26,24 @@ struct Debug {
 #define TRACE() \
 	auto debug_ ## __LINE__ = Debug{__func__, __LINE__}
 
-Maybe<Parser> Parser::open(System& sys, StringView file) {
-	if (auto lexer = Lexer::open(sys, file)) {
-		return Parser { sys, move(*lexer) };
+Maybe<Parser> Parser::open(System& sys, StringView filename) {
+	auto lexer = Lexer::open(sys, filename);
+	if (!lexer) {
+		// Could not open filename
+		return {};
 	}
-	return {};
+	auto file = AstFile::create(sys.allocator, filename);
+	if (!file) {
+		// Could not create astfile
+		return {};
+	}
+	return Parser { sys, move(*lexer), move(*file) };
 }
 
-Parser::Parser(System& sys, Lexer&& lexer)
+Parser::Parser(System& sys, Lexer&& lexer, AstFile&& ast)
 	: sys_{sys}
 	, temporary_{sys.allocator}
-	, ast_{sys.allocator}
+	, ast_{move(ast)}
 	, lexer_{move(lexer)}
 	, token_{lexer_.next()}
 {

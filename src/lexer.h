@@ -140,6 +140,26 @@ struct Lexer {
 	constexpr StringView string(Token token) const {
 		return input_.slice(token.offset).truncate(token.length);
 	}
+
+	// Calculate the source position for a given token.
+	struct SourcePosition {
+		Uint32 line   = 0;
+		Uint32 column = 0;
+	};
+	SourcePosition position(Token token) const {
+		Uint32 line   = 1;
+		Uint32 column = 1;
+		for (Uint32 i = 0; i < token.offset; i++) {
+			if (input_[i] == '\n') {
+				column = 1;
+				line++;
+			} else {
+				column++;
+			}
+		}
+		return SourcePosition { line, column };
+	}
+
 private:
 	Token advance();
 	Token scan_string();

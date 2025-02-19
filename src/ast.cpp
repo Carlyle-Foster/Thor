@@ -8,6 +8,15 @@
 
 namespace Thor {
 
+Maybe<AstFile> AstFile::create(Allocator& allocator, StringView filename) {
+	StringTable table{allocator};
+	auto ref = table.insert(filename);
+	if (!ref) {
+		return {};
+	}
+	return AstFile { move(table), allocator, ref };
+}
+
 AstFile::~AstFile() {
 	// TODO(dweiler): Call destructors on nodes
 }
@@ -174,7 +183,7 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	ast[type].dump(ast, builder);
 	if (rhs) {
 		builder.put(':');
-		Bool first = false;
+		Bool first = true;
 		for (auto value : *rhs) {
 			if (!first) {
 				builder.put(',');

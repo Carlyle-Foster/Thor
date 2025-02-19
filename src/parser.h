@@ -46,12 +46,30 @@ private:
 
 	Bool skip_possible_newline_for_literal();
 
-	Parser(System& sys, Lexer&& lexer);
+	Parser(System& sys, Lexer&& lexer, AstFile&& ast);
 
 	template<Ulen E, typename... Ts>
 	void error(const char (&msg)[E], Ts&&...) {
-		sys_.console.write(sys_, StringView { msg });
-		sys_.console.write(sys_, StringView { "\n" });
+		ScratchAllocator<1024> scratch{sys_.allocator};
+		StringBuilder builder{scratch};
+		auto position = lexer_.position(token_);
+		builder.put(ast_.filename());
+		builder.put(':');
+		builder.put(position.line);
+		builder.put(':');
+		builder.put(position.column);
+		builder.put(':');
+		builder.put(' ');
+		builder.put("error");
+		builder.put(':');
+		builder.put(' ');
+		builder.put(StringView { msg });
+		builder.put('\n');
+		if (auto result = builder.result()) {
+			sys_.console.write(sys_, *result);
+		} else {
+			sys_.console.write(sys_, StringView { "Out of memory" });
+		}
 		sys_.console.flush(sys_);
 	}
 	constexpr Bool is_kind(TokenKind kind) const {

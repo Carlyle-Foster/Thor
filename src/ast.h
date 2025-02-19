@@ -413,10 +413,10 @@ struct AstDeclStmt : AstStmt {
 };
 
 struct AstFile {
-	constexpr AstFile(Allocator& allocator)
-		: string_table_{allocator}
-		, slabs_{allocator}
-	{
+	static Maybe<AstFile> create(Allocator& allocator, StringView filename);
+
+	StringView filename() const {
+		return string_table_[filename_];
 	}
 
 	AstFile(AstFile&&) = default;
@@ -463,8 +463,16 @@ struct AstFile {
 	}
 
 private:
+	AstFile(StringTable&& string_table, Allocator& allocator, StringRef filename)
+		: string_table_{move(string_table)}
+		, slabs_{allocator}
+		, filename_{filename}
+	{
+	}
+
 	StringTable        string_table_;
 	Array<Maybe<Slab>> slabs_;
+	StringRef          filename_;
 };
 
 } // namespace Thor
