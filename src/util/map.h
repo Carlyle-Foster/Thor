@@ -74,13 +74,14 @@ struct Map {
 			, v_{v}
 			, h_{h}
 		{
+			if (k_) seek();
 		}
 		constexpr Tuple operator*() {
-			seek();
 			return Tuple { *k_, *v_ };
 		}
 		constexpr Iterator& operator++() {
 			next();
+			seek();
 			return *this;
 		}
 		constexpr Iterator operator++(Sint32) {
