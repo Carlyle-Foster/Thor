@@ -20,9 +20,12 @@ struct Parser {
 	AstRef<AstExpr> parse_bin_expr(Bool lhs, Uint32 prec);
 	AstRef<AstExpr> parse_unary_expr(Bool lhs);
 	AstRef<AstExpr> parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
+	AstRef<AstStructExpr> parse_struct_expr();
+	AstRef<AstTypeExpr> parse_type_expr();
 
 	// Statement parsers
 	AstRef<AstStmt> parse_stmt();
+	AstRef<AstStmt> parse_simple_stmt();
 	AstRef<AstEmptyStmt> parse_empty_stmt();
 	AstRef<AstBlockStmt> parse_block_stmt();
 	AstRef<AstPackageStmt> parse_package_stmt();
@@ -35,11 +38,15 @@ struct Parser {
 	[[nodiscard]] Ast& ast() { return ast_; }
 	[[nodiscard]] const Ast& ast() const { return ast_; }
 private:
+	Maybe<Array<AstRef<AstExpr>>> parse_expr_list(Bool lhs);
+	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
+
 	Parser(System& sys, Lexer&& lexer);
 
 	template<Ulen E, typename... Ts>
 	void error(const char (&msg)[E], Ts&&...) {
 		sys_.console.write(sys_, StringView { msg });
+		sys_.console.write(sys_, StringView { "\n" });
 		sys_.console.flush(sys_);
 	}
 	constexpr Bool is_kind(TokenKind kind) const {

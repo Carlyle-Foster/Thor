@@ -80,6 +80,30 @@ void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const
 	}
 }
 
+void AstDeclStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	const auto n_lhs = lhs.length();
+	for (Ulen i = 0; i < n_lhs; i++) {
+		ast[lhs[i]].dump(ast, builder);
+		if (i != n_lhs - 1) {
+			builder.put(',');
+			builder.put(' ');
+		}
+	}
+	builder.put(':');
+	ast[type].dump(ast, builder);
+	if (rhs) {
+		const auto n_rhs = rhs->length();
+		builder.put(':');
+		for (Ulen i = 0; i < n_rhs; i++) {
+			ast[(*rhs)[i]].dump(ast, builder);
+			if (i != n_rhs - 1) {
+				builder.put(',');
+			}
+		}
+	}
+}
+
 // Expr
 void AstBinExpr::dump(const Ast& ast, StringBuilder& builder) const {
 	builder.put('(');
@@ -130,6 +154,27 @@ void AstUndefExpr::dump(const Ast&, StringBuilder& builder) const {
 
 void AstContextExpr::dump(const Ast&, StringBuilder& builder) const {
 	builder.put("context");
+}
+
+void AstStructExpr::dump(const Ast& ast, StringBuilder& builder) const {
+	builder.put("struct");
+	builder.put(' ');
+	builder.put('{');
+	builder.put('\n');
+	const auto n_decls = decls.length();
+	for (Ulen i = 0; i < n_decls; i++) {
+		ast[decls[i]].dump(ast, builder, 0);
+		builder.put(',');
+		builder.put('\n');
+	}
+	builder.put('}');
+	builder.put('\n');
+}
+
+void AstTypeExpr::dump(const Ast& ast, StringBuilder& builder) const {
+	if (expr) {
+		ast[expr].dump(ast, builder);
+	}
 }
 
 // Type

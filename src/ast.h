@@ -72,6 +72,121 @@ private:
 	AstID id_;
 };
 
+struct AstExpr : AstNode {
+	enum class Kind : Uint8 {
+		BIN,
+		UNARY,
+		TERNARY,
+		IDENT,
+		UNDEF,
+		CONTEXT,
+		STRUCT,
+		TYPE,
+	};
+	constexpr AstExpr(Kind kind) 
+		: kind{kind}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const = 0;
+	Kind kind;
+};
+
+struct AstBinExpr : AstExpr {
+	static constexpr const auto KIND = Kind::BIN;
+	constexpr AstBinExpr(AstRef<AstExpr> lhs, AstRef<AstExpr> rhs, OperatorKind op)
+		: AstExpr{KIND}
+		, lhs{lhs}
+		, rhs{rhs}
+		, op{op}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> lhs;
+	AstRef<AstExpr> rhs;
+	OperatorKind    op;
+};
+
+struct AstUnaryExpr : AstExpr {
+	static constexpr const auto KIND = Kind::UNARY;
+	constexpr AstUnaryExpr(AstRef<AstExpr> operand, OperatorKind op)
+		: AstExpr{KIND}
+		, operand{operand}
+		, op{op}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+	OperatorKind    op;
+};
+
+struct AstTernaryExpr : AstExpr {
+	static constexpr const auto KIND = Kind::TERNARY;
+	constexpr AstTernaryExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+		: AstExpr{KIND}
+		, cond{cond}
+		, on_true{on_true}
+		, on_false{on_false}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> cond;
+	AstRef<AstExpr> on_true;
+	AstRef<AstExpr> on_false;
+};
+
+struct AstIdentExpr : AstExpr {
+	static constexpr const auto KIND = Kind::IDENT;
+	constexpr AstIdentExpr(StringView ident)
+		: AstExpr{KIND}
+		, ident{ident}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	StringView ident;
+};
+
+struct AstUndefExpr : AstExpr {
+	static constexpr const auto KIND = Kind::UNDEF;
+	constexpr AstUndefExpr()
+		: AstExpr{KIND}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+};
+
+struct AstContextExpr : AstExpr {
+	static constexpr const auto KIND = Kind::CONTEXT;
+	constexpr AstContextExpr()
+		: AstExpr{KIND}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+};
+
+struct AstDeclStmt;
+
+struct AstStructExpr : AstExpr {
+	static constexpr const auto KIND = Kind::STRUCT;
+	constexpr AstStructExpr(Array<AstRef<AstDeclStmt>>&& decls)
+		: AstExpr{KIND}
+		, decls{move(decls)}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	Array<AstRef<AstDeclStmt>> decls;
+};
+
+struct AstTypeExpr : AstExpr {
+	static constexpr const auto KIND = Kind::TYPE;
+	constexpr AstTypeExpr(AstRef<AstExpr> expr)
+		: AstExpr{KIND}
+		, expr{expr}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> expr;
+};
+
 struct AstStmt : AstNode {
 	enum struct Kind : Uint8 {
 		EMPTY,
@@ -81,7 +196,8 @@ struct AstStmt : AstNode {
 		DEFER,
 		BREAK,
 		CONTINUE,
-		FALLTHROUGH
+		FALLTHROUGH,
+		DECL,
 	};
 
 	constexpr AstStmt(Kind kind)
@@ -183,70 +299,22 @@ struct AstFallthroughStmt : AstStmt {
 	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
 };
 
-struct AstExpr : AstNode {
-	virtual void dump(const Ast& ast, StringBuilder& builder) const = 0;
-};
+struct AstExpr;
 
-struct AstBinExpr : AstExpr {
-	constexpr AstBinExpr(AstRef<AstExpr> lhs, AstRef<AstExpr> rhs, OperatorKind op)
-		: lhs{lhs}
-		, rhs{rhs}
-		, op{op}
+struct AstDeclStmt : AstStmt {
+	static constexpr const auto KIND = Kind::DECL;
+	using List = Array<AstRef<AstExpr>>;
+	constexpr AstDeclStmt(List&& lhs, AstRef<AstTypeExpr> type, Maybe<List>&& rhs)
+		: AstStmt{KIND}
+		, lhs{move(lhs)}
+		, type{type}
+		, rhs{move(rhs)}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> lhs;
-	AstRef<AstExpr> rhs;
-	OperatorKind    op;
-};
-
-struct AstUnaryExpr : AstExpr {
-	constexpr AstUnaryExpr(AstRef<AstExpr> operand, OperatorKind op)
-		: operand{operand}
-		, op{op}
-	{
-	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> operand;
-	OperatorKind    op;
-};
-
-struct AstTernaryExpr : AstExpr {
-	constexpr AstTernaryExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
-		: cond{cond}
-		, on_true{on_true}
-		, on_false{on_false}
-	{
-	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> cond;
-	AstRef<AstExpr> on_true;
-	AstRef<AstExpr> on_false;
-};
-
-struct AstIdentExpr : AstExpr {
-	constexpr AstIdentExpr(StringView ident)
-		: ident{ident}
-	{
-	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-	StringView ident;
-};
-
-struct AstUndefExpr : AstExpr {
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-};
-
-struct AstContextExpr : AstExpr {
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
-};
-
-struct AstType : AstNode {
-	constexpr AstType(AstRef<AstExpr> expr)
-		: expr{expr}
-	{
-	}
-	AstRef<AstExpr> expr;
+	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	List                lhs;
+	AstRef<AstTypeExpr> type;
+	Maybe<List>         rhs;
 };
 
 struct Ast {

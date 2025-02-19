@@ -137,7 +137,6 @@ $(OBJDIR):
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d | $(OBJDIR) $(DEPDIR)
 	$(CXX) -MT $@ $(DEPFLAGS) -MF $(DEPDIR)/$*.Td $(CXXFLAGS) -c -o $@ $<
 	@mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
-	@touch $(DEPDIR)/$*.d
 
 # The rule that links object files and makes the executable
 $(BIN): $(OBJS)

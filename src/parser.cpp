@@ -1,6 +1,26 @@
+#include <stdio.h>
+
 #include "parser.h"
 
 namespace Thor {
+
+struct Debug {
+	Debug(const char* name, int line) {
+		for (int i = 0; i < s_depth; i++) {
+			printf("  ");
+		}
+		printf("%s:%d\n", name, line);
+		s_depth++;
+	}
+	~Debug() {
+		s_depth--;
+	}
+	static inline int s_depth = 0;
+};
+
+// #define TRACE()
+#define TRACE() \
+	auto debug_ ## __LINE__ = Debug{__func__, __LINE__}
 
 Maybe<Parser> Parser::open(System& sys, StringView file) {
 	if (auto lexer = Lexer::open(sys, file)) {
@@ -24,42 +44,94 @@ StringView Parser::parse_ident() {
 	return result;
 }
 
+Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
+	TRACE();
+	Array<AstRef<AstExpr>> exprs{sys_.allocator};
+	for (;;) {
+		auto expr = parse_expr(lhs);
+		if (!expr || !exprs.push_back(expr)) {
+			return {};
+		}
+		if (!is_kind(TokenKind::COMMA) || is_kind(TokenKind::ENDOF)) {
+			break;
+		}
+	}
+	return exprs;
+}
+
+AstRef<AstStmt> Parser::parse_simple_stmt() {
+	TRACE();
+	auto lhs = parse_expr_list(true);
+	if (is_operator(OperatorKind::COLON)) {
+		eat(); // Eat ':'
+		auto type = parse_type_expr();
+		Maybe<Array<AstRef<AstExpr>>> values;
+		if (is_operator(OperatorKind::EQ) ||
+		    is_operator(OperatorKind::COLON))
+		{
+			eat(); // Eat ':' or '='
+			values = parse_expr_list(false);
+		}
+		return ast_.create<AstDeclStmt>(move(*lhs), type, move(values));
+	}
+	return {};
+}
+
 AstRef<AstStmt> Parser::parse_stmt() {
+	TRACE();
 	AstRef<AstStmt> stmt;
 	if (is_kind(TokenKind::SEMICOLON)) {
 		return parse_empty_stmt();
 	} else if (is_kind(TokenKind::LBRACE)) {
 		return parse_block_stmt();
+	} else if (is_kind(TokenKind::ATTRIBUTE)) {
+		// TODO
+	} else if (is_kind(TokenKind::DIRECTIVE)) {
+		// TODO
 	} else if (is_keyword(KeywordKind::PACKAGE)) {
 		stmt = parse_package_stmt();
 	} else if (is_keyword(KeywordKind::IMPORT)) {
 		stmt = parse_import_stmt();
 	} else if (is_keyword(KeywordKind::DEFER)) {
 		stmt = parse_defer_stmt();
+	} else if (is_keyword(KeywordKind::RETURN)) {
+		// TODO
 	} else if (is_keyword(KeywordKind::BREAK)) {
 		stmt = parse_break_stmt();
 	} else if (is_keyword(KeywordKind::CONTINUE)) {
 		stmt = parse_continue_stmt();
 	} else if (is_keyword(KeywordKind::FALLTHROUGH)) {
 		stmt = parse_fallthrough_stmt();
-	} else {
+	} else if (is_keyword(KeywordKind::FOREIGN)) {
 		// TODO
-		error("Unimplemented\n");
-		while (!is_kind(TokenKind::SEMICOLON) && !is_kind(TokenKind::ENDOF)) {
-			eat();
-		}
+	} else if (is_keyword(KeywordKind::IF)) {
+		// TODO
+	} else if (is_keyword(KeywordKind::WHEN)) {
+		// TODO
+	} else if (is_keyword(KeywordKind::FOR)) {
+		// TODO
+	} else if (is_keyword(KeywordKind::SWITCH)) {
+		// TODO
+	} else if (is_keyword(KeywordKind::USING)) {
+		// TODO
+	} else {
+		stmt = parse_simple_stmt();
+	}
+	if (!stmt) {
+		return {};
 	}
 	if (is_kind(TokenKind::SEMICOLON)) {
 		eat(); // Eat ';'
 		return stmt;
 	}
 	if (!is_kind(TokenKind::ENDOF)) {
-		error("Expected ';' or newline after statement\n");
+		error("Expected ';' or newline after statement");
 	}
 	return {};
 }
 
 AstRef<AstEmptyStmt> Parser::parse_empty_stmt() {
+	TRACE();
 	if (!is_kind(TokenKind::SEMICOLON)) {
 		error("Expected ';' (or newline)");
 		return {};
@@ -69,6 +141,7 @@ AstRef<AstEmptyStmt> Parser::parse_empty_stmt() {
 }
 
 AstRef<AstBlockStmt> Parser::parse_block_stmt() {
+	TRACE();
 	if (!is_kind(TokenKind::LBRACE)) {
 		error("Expected '{'");
 		return {};
@@ -90,28 +163,31 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 }
 
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
+	TRACE();
 	eat(); // Eat 'package'
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		const auto ident = lexer_.string(token_);
 		eat(); // Eat <ident>
 		return ast_.create<AstPackageStmt>(ident);
 	}
-	error("Expected identifier for package\n");
+	error("Expected identifier for package");
 	return {};
 }
 
 AstRef<AstImportStmt> Parser::parse_import_stmt() {
+	TRACE();
 	eat(); // Eat 'import'
 	if (is_literal(LiteralKind::STRING)) {
 		const auto path = lexer_.string(token_);
 		eat(); // Eat ""
 		return ast_.create<AstImportStmt>(path);
 	}
-	error("Expected string literal for import path\n");
+	error("Expected string literal for import path");
 	return {};
 }
 
 AstRef<AstBreakStmt> Parser::parse_break_stmt() {
+	TRACE();
 	if (!is_keyword(KeywordKind::BREAK)) {
 		error("Expected 'break'");
 		return {};
@@ -125,6 +201,7 @@ AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 }
 
 AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
+	TRACE();
 	if (!is_keyword(KeywordKind::CONTINUE)) {
 		error("Expected 'continue'");
 		return {};
@@ -138,6 +215,7 @@ AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 }
 
 AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
+	TRACE();
 	if (!is_keyword(KeywordKind::FALLTHROUGH)) {
 		error("Expected 'fallthrough'");
 		return {};
@@ -147,6 +225,7 @@ AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
 }
 
 AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
+	TRACE();
 	if (!is_keyword(KeywordKind::DEFER)) {
 		error("Expected 'defer'");
 		return {};
@@ -168,16 +247,17 @@ AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
 }
 
 AstRef<AstIdentExpr> Parser::parse_ident_expr() {
+	TRACE();
 	if (!is_kind(TokenKind::IDENTIFIER)) {
 		error("Expected identifier");
 		return {};
 	}
-	const auto ident = lexer_.string(token_);
-	eat(); // Eat <ident>
+	const auto ident = parse_ident();
 	return ast_.create<AstIdentExpr>(ident);
 }
 
 AstRef<AstUndefExpr> Parser::parse_undef_expr() {
+	TRACE();
 	if (!is_kind(TokenKind::UNDEFINED)) {
 		error("Expected '---'");
 		return {};
@@ -187,6 +267,7 @@ AstRef<AstUndefExpr> Parser::parse_undef_expr() {
 }
 
 AstRef<AstContextExpr> Parser::parse_context_expr() {
+	TRACE();
 	if (!is_keyword(KeywordKind::CONTEXT)) {
 		error("Expected 'context'");
 		return {};
@@ -196,10 +277,12 @@ AstRef<AstContextExpr> Parser::parse_context_expr() {
 }
 
 AstRef<AstExpr> Parser::parse_expr(Bool lhs) {
+	TRACE();
 	return parse_bin_expr(lhs, 1);
 }
 
 AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
+	TRACE();
 	static constexpr const Uint32 PREC[] = {
 		#define OPERATOR(ENUM, NAME, MATCH, PREC, NAMED, ASI) PREC,
 		#include "lexer.inl"
@@ -207,8 +290,8 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 	auto expr = parse_unary_expr(lhs);
 	for (;;) {
 		if (!is_kind(TokenKind::OPERATOR)) {
-			error("Expected operator in binary expression");
-			return {};
+			// error("Expected operator in binary expression");
+			break;
 		}
 		if (PREC[Uint32(token_.as_operator)] < prec) {
 			// Stop climbing, found the correct precedence.
@@ -236,7 +319,61 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 	return expr;
 }
 
+AstRef<AstTypeExpr> Parser::parse_type_expr() {
+	TRACE();
+	auto operand = parse_operand(true);
+	auto atom = parse_unary_atom(operand, true);
+	return ast_.create<AstTypeExpr>(atom);
+}
+
+AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
+	TRACE();
+	if (!operand) {
+		// printf("No operand\n");
+		// error("Expected an operand");
+		return {};
+	}
+	for (;;) {
+		if (is_operator(OperatorKind::LPAREN)) {
+			// operand(...)
+		} else if (is_operator(OperatorKind::PERIOD)) {
+			// operand.expr(...)
+		} else if (is_operator(OperatorKind::ARROW)) {
+			// operand->expr()
+		} else if (is_operator(OperatorKind::LBRACKET)) {
+			// operand[a]
+			// operand[:]
+			// operand[a:]
+			// operand[:a]
+			// operand[a:b]
+			// operand[a,b]
+			// operand[a..=b]
+			// operand[a..<b]
+			// operand[...]
+			// operand[?]
+		} else if (is_operator(OperatorKind::POINTER)) {
+			// operand^
+		} else if (is_operator(OperatorKind::OR_RETURN)) {
+			// operand or_return
+		} else if (is_operator(OperatorKind::OR_BREAK)) {
+			// operand or_break
+		} else if (is_operator(OperatorKind::OR_CONTINUE)) {
+			// operand or_continue
+		} else if (is_kind(TokenKind::LBRACE)) {
+			// operand {
+			if (lhs) {
+				break;
+			}
+		} else {
+			break;
+		}
+		lhs = false;
+	}
+	return operand;
+}
+
 AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
+	TRACE();
 	if (is_operator(OperatorKind::TRANSMUTE) ||
 	    is_operator(OperatorKind::CAST))
 	{
@@ -278,10 +415,85 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 		// 	//return ast_.create<AstImplicitSelectorExpr>(ident);
 		// }
 	}
-	return {};
+	auto operand = parse_operand(lhs);
+	return parse_unary_atom(operand, lhs);
+}
+
+AstRef<AstStructExpr> Parser::parse_struct_expr() {
+	TRACE();
+	if (!is_keyword(KeywordKind::STRUCT)) {
+		error("Expected 'struct'");
+		return {};
+	}
+	eat(); // Eat 'struct'
+	if (is_operator(OperatorKind::LPAREN)) {
+		// Parametric polymorphic struct
+		eat(); // Eat '('
+		// TODO
+		eat(); // Eat ')'
+	}
+	// Array<AstDirective> directives{sys.allocator};
+	while (is_kind(TokenKind::DIRECTIVE)) {
+		// auto directive = parse_directive();
+		// if (!directive || !directives.push_back(directive)) {
+		// 	return {};
+		// }
+	}
+	if (!is_kind(TokenKind::LBRACE)) {
+		error("Expected '{");
+		return {};
+	}
+	eat(); // Eat '{'
+	Array<AstRef<AstDeclStmt>> fields{sys_.allocator};
+	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+		if (is_kind(TokenKind::DIRECTIVE)) {
+			eat(); // Eat <directive>
+		} else if (is_keyword(KeywordKind::USING)) {
+			eat(); // Eat 'using'
+		}
+		Array<AstRef<AstExpr>> lhs{sys_.allocator};
+		for (;;) {
+			auto ident = parse_ident_expr();
+			if (!ident || !lhs.push_back(ident)) {
+				return {};
+			}
+			if (is_kind(TokenKind::COMMA)) {
+				eat(); // Eat ','
+			} else {
+				break;
+			}
+		}
+		if (!is_operator(OperatorKind::COLON)) {
+			error("Expected ':'");
+			return {};
+		}
+		eat(); // Eat ':'
+		auto type = parse_type_expr();
+		if (!type) {
+			return {};
+		}
+		auto decl = ast_.create<AstDeclStmt>(move(lhs), type, Maybe<Array<AstRef<AstExpr>>>{});
+		if (!decl || !fields.push_back(decl)) {
+			return {};
+		}
+		if (!is_kind(TokenKind::COMMA)) {
+			break;
+		}
+		eat(); // Eat ','
+	}
+	if (is_kind(TokenKind::SEMICOLON)) {
+		eat(); // Since ASI can add a semicolon for non-trailing comma
+	}
+	if (!is_kind(TokenKind::RBRACE)) {
+		error("Expected '}'");
+		return {};
+	}
+	eat(); // Eat '}'
+	return ast_.create<AstStructExpr>(move(fields));
 }
 
 AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
+	TRACE();
 	(void)lhs;
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		return parse_ident_expr();
@@ -289,6 +501,8 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 		return parse_undef_expr();
 	} else if (is_keyword(KeywordKind::CONTEXT)) {
 		return parse_context_expr();
+	} else if (is_keyword(KeywordKind::STRUCT)) {
+		return parse_struct_expr();
 	}
 	return {};
 }

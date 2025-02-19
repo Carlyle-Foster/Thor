@@ -5,7 +5,7 @@ import "core:fmt"
 Item :: struct {
 	name:   string,
 	weight: int,
-	value:  int 
+	value:  int
 }
 
 ks :: proc(items: []Item, w: int) -> []bool {
