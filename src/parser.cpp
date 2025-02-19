@@ -50,7 +50,7 @@ StringView Parser::parse_ident() {
 
 Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
 	TRACE();
-	Array<AstRef<AstExpr>> exprs{sys_.allocator};
+	Array<AstRef<AstExpr>> exprs{temporary_};
 	for (;;) {
 		auto expr = parse_expr(lhs);
 		if (!expr || !exprs.push_back(expr)) {
@@ -65,7 +65,7 @@ Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
 
 AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	eat(); // Eat 'proc'
-	Maybe<Array<AstRef<AstDeclStmt>>> params{sys_.allocator};
+	Maybe<Array<AstRef<AstDeclStmt>>> params{temporary_};
 	for (;;) {
 		if(is_operator(OperatorKind::RPAREN)) break;
 		eat();
@@ -185,7 +185,7 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 		return {};
 	}
 	eat(); // Eat '{'
-	Array<AstRef<AstStmt>> stmts{sys_.allocator};
+	Array<AstRef<AstStmt>> stmts{temporary_};
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
 		auto stmt = parse_stmt();
 		if (!stmt || !stmts.push_back(stmt)) {
@@ -571,14 +571,14 @@ AstRef<AstStructExpr> Parser::parse_struct_expr() {
 		return {};
 	}
 	eat(); // Eat '{'
-	Array<AstRef<AstDeclStmt>> fields{sys_.allocator};
+	Array<AstRef<AstDeclStmt>> fields{temporary_};
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
 		if (is_kind(TokenKind::DIRECTIVE)) {
 			eat(); // Eat <directive>
 		} else if (is_keyword(KeywordKind::USING)) {
 			eat(); // Eat 'using'
 		}
-		Array<AstRef<AstExpr>> lhs{sys_.allocator};
+		Array<AstRef<AstExpr>> lhs{temporary_};
 		for (;;) {
 			auto ident = parse_ident_expr();
 			if (!ident || !lhs.push_back(ident)) {

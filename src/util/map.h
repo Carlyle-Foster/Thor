@@ -69,52 +69,32 @@ struct Map {
 		return allocator_;
 	}
 	struct Iterator {
-		constexpr Iterator(K* k, V* v, H* h)
-			: k_{k}
-			, v_{v}
-			, h_{h}
+		constexpr Iterator(Map& map, Ulen n)
+			: map_{map}
+			, n_{n}
 		{
-			if (k_) seek();
+			while (n_ < map_.capacity_ && map_.hs_[n_] == 0) n_++;
 		}
 		constexpr Tuple operator*() {
-			return Tuple { *k_, *v_ };
+			return { map_.ks_[n_], map_.vs_[n_] };
 		}
 		constexpr Iterator& operator++() {
-			next();
-			seek();
+			do ++n_; while (n_ < map_.capacity_ && map_.hs_[n_] == 0);
 			return *this;
 		}
-		constexpr Iterator operator++(Sint32) {
-			auto i = *this;
-			++(*this);
-			return i;
-		}
-		[[nodiscard]] friend Bool operator==(const Iterator& lhs, const Iterator& rhs) {
-			return lhs.h_ == rhs.h_;
-		}
-		[[nodiscard]] friend Bool operator!=(const Iterator& lhs, const Iterator& rhs) {
-			return lhs.h_ != rhs.h_;
-		}
+		[[nodiscard]] friend Bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ == rhs.n_; }
+		[[nodiscard]] friend Bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ != rhs.n_; }
 	private:
-		constexpr void next() {
-			k_++;
-			v_++;
-			h_++;
-		}
-		constexpr void seek() {
-			while (*h_ == 0) {
-				next();
-			}
-		}
-		K* k_;
-		V* v_;
-		H* h_;
+		Map& map_;
+		Ulen n_;
 	};
 
-	constexpr Iterator begin() { return Iterator{ks_, vs_, hs_}; }
-	constexpr Iterator end() { return Iterator{ks_ + capacity_, vs_ + capacity_, hs_ + capacity_}; }
+	constexpr Iterator begin() { return Iterator{*this, 0}; }
+	constexpr Iterator end() { return Iterator{*this, capacity_}; }
 
 private:
+	friend struct Iterator;
+
 	static Uint64 assign(K* ks, V* vs, H* hs, K&& k, V&& v, H h, Ulen capacity) {
 		auto q = capacity - 1;
 		auto m = h & q;

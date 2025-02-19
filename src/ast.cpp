@@ -8,6 +8,10 @@
 
 namespace Thor {
 
+AstFile::~AstFile() {
+	// TODO(dweiler): Call destructors on nodes
+}
+
 // Stmt
 void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');

@@ -419,6 +419,9 @@ struct AstFile {
 	{
 	}
 
+	AstFile(AstFile&&) = default;
+	~AstFile();
+
 	static inline constexpr const auto MAX = AstID::MAX * AstNode::MAX;
 
 	template<typename T, typename... Ts>
