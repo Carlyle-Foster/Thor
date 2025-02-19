@@ -62,7 +62,7 @@ struct AstRef {
 		return is_valid();
 	}
 	template<typename U>
-	[[nodiscard]] constexpr operator AstRef<U>() const 
+	[[nodiscard]] constexpr operator AstRef<U>() const
 		requires DerivedFrom<T, U>
 	{
 		return AstRef<U>(id_);
@@ -82,8 +82,9 @@ struct AstExpr : AstNode {
 		CONTEXT,
 		STRUCT,
 		TYPE,
+		PROC,
 	};
-	constexpr AstExpr(Kind kind) 
+	constexpr AstExpr(Kind kind)
 		: kind{kind}
 	{
 	}
@@ -185,6 +186,25 @@ struct AstTypeExpr : AstExpr {
 	}
 	virtual void dump(const Ast& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> expr;
+};
+
+struct AstBlockStmt;
+
+struct AstProc : AstExpr {
+	static constexpr const auto KIND = Kind::PROC;
+	constexpr AstProc(Maybe<Array<AstRef<AstDeclStmt>>>&& params,
+	                  AstRef<AstBlockStmt>                body,
+	                  AstRef<AstTypeExpr>                 ret)
+		: AstExpr{KIND}
+		, params{move(params)}
+		, body{body}
+		, ret{ret}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	Maybe<Array<AstRef<AstDeclStmt>>> params;
+	AstRef<AstBlockStmt>              body;
+	AstRef<AstTypeExpr>               ret;
 };
 
 struct AstStmt : AstNode {
