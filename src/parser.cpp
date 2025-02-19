@@ -77,7 +77,6 @@ AstRef<AstProc> Parser::parse_proc() {
 AstRef<AstStmt> Parser::parse_simple_stmt() {
 	TRACE();
 	auto lhs = parse_expr_list(true);
-	Token name = token_;
 	if (is_operator(OperatorKind::COLON)) {
 		eat(); // Eat ':'
 		auto type = parse_type_expr();

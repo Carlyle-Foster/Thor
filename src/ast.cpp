@@ -121,9 +121,11 @@ void AstProc::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("proc");
 	builder.put('(');
 	if (params) {
-		for(int i = 0; i < params->length(); i++) {
+		const auto n_params = params->length();
+		for (Ulen i = 0; i < n_params; i++) {
 			ast[(*params)[i]].dump(ast, builder, 0);
-			builder.put(", ");
+			builder.put(',');
+			builder.put(' ');
 		}
 	}
 	builder.put(')');

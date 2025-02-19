@@ -201,7 +201,7 @@ struct AstProc : AstExpr {
 		, ret{ret}
 	{
 	}
-	virtual void dump(const Ast& ast, StringBuilder& builder) const;
+	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
 	Maybe<Array<AstRef<AstDeclStmt>>> params;
 	AstRef<AstBlockStmt>              body;
 	AstRef<AstTypeExpr>               ret;
