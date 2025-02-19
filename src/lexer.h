@@ -91,7 +91,7 @@ struct Token {
 		KeywordKind   as_keyword;
 		DirectiveKind as_directive;
 	};              // 1b
-	Uint16 length;  // 2b
+	Uint16 length;  // 2b (if 0, length is too long and must be re-lexed at the given offset)
 	Uint32 offset;  // 4b
 };
 static_assert(sizeof(Token) == 8, "Token cannot be larger than 64-bits");

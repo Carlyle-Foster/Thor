@@ -190,6 +190,7 @@ struct AstTypeExpr : AstExpr {
 struct AstStmt : AstNode {
 	enum struct Kind : Uint8 {
 		EMPTY,
+		EXPR,
 		BLOCK,
 		IMPORT,
 		PACKAGE,
@@ -197,6 +198,7 @@ struct AstStmt : AstNode {
 		BREAK,
 		CONTINUE,
 		FALLTHROUGH,
+		IF,
 		DECL,
 	};
 
@@ -223,6 +225,18 @@ struct AstEmptyStmt : AstStmt {
 	}
 	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
 };
+
+struct AstExprStmt : AstStmt {
+	static constexpr const auto KIND = Kind::EXPR;
+	constexpr AstExprStmt(AstRef<AstExpr> expr)
+		: AstStmt{KIND}
+		, expr{expr}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	AstRef<AstExpr> expr;
+};
+
 
 struct AstBlockStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BLOCK;
@@ -297,6 +311,26 @@ struct AstFallthroughStmt : AstStmt {
 	{
 	}
 	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+};
+
+struct AstIfStmt : AstStmt {
+	static constexpr const auto KIND = Kind::IF;
+	constexpr AstIfStmt(Maybe<AstRef<AstStmt>>&& init,
+	                    AstRef<AstExpr>          cond,
+	                    AstRef<AstStmt>          on_true,
+	                    Maybe<AstRef<AstStmt>>&& on_false)
+		: AstStmt{KIND}
+		, init{move(init)}
+		, cond{cond}
+		, on_true{on_true}
+		, on_false{move(on_false)}
+	{
+	}
+	virtual void dump(const Ast& ast, StringBuilder& builder, Ulen nest) const;
+	Maybe<AstRef<AstStmt>> init;
+	AstRef<AstExpr>        cond;
+	AstRef<AstStmt>        on_true;
+	Maybe<AstRef<AstStmt>> on_false;
 };
 
 struct AstExpr;

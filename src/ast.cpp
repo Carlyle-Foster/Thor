@@ -10,6 +10,12 @@ void AstEmptyStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) const {
 	builder.put(';');
 }
 
+void AstExprStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	ast[expr].dump(ast, builder);
+	builder.put(';');
+}
+
 void AstBlockStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
@@ -65,6 +71,23 @@ void AstFallthroughStmt::dump(const Ast&, StringBuilder& builder, Ulen nest) con
 	builder.rep(nest * 2, ' ');
 	builder.put("fallthrough");
 	builder.put(';');
+}
+
+
+void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
+	builder.put("if");
+	if (init) {
+		ast[*init].dump(ast, builder, nest);
+		builder.put(' ');
+		builder.put(';');
+	}
+	ast[cond].dump(ast, builder);
+	ast[on_true].dump(ast, builder, nest);
+	if (on_false) {
+		builder.put("else");
+		ast[*on_false].dump(ast, builder, nest);
+	}
+	builder.put('\n');
 }
 
 void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {

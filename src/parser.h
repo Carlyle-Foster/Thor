@@ -11,35 +11,38 @@ struct Parser {
 	StringView parse_ident();
 
 	// Expression parsers
-	AstRef<AstIdentExpr> parse_ident_expr();
-	AstRef<AstUndefExpr> parse_undef_expr();
+	AstRef<AstIdentExpr>   parse_ident_expr();
+	AstRef<AstUndefExpr>   parse_undef_expr();
 	AstRef<AstContextExpr> parse_context_expr();
 
-	AstRef<AstExpr> parse_expr(Bool lhs);
-	AstRef<AstExpr> parse_operand();
-	AstRef<AstExpr> parse_bin_expr(Bool lhs, Uint32 prec);
-	AstRef<AstExpr> parse_unary_expr(Bool lhs);
-	AstRef<AstExpr> parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
+	AstRef<AstExpr>       parse_expr(Bool lhs);
+	AstRef<AstExpr>       parse_operand();
+	AstRef<AstExpr>       parse_bin_expr(Bool lhs, Uint32 prec);
+	AstRef<AstExpr>       parse_unary_expr(Bool lhs);
+	AstRef<AstExpr>       parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 	AstRef<AstStructExpr> parse_struct_expr();
-	AstRef<AstTypeExpr> parse_type_expr();
+	AstRef<AstTypeExpr>   parse_type_expr();
 
 	// Statement parsers
-	AstRef<AstStmt> parse_stmt();
-	AstRef<AstStmt> parse_simple_stmt();
-	AstRef<AstEmptyStmt> parse_empty_stmt();
-	AstRef<AstBlockStmt> parse_block_stmt();
-	AstRef<AstPackageStmt> parse_package_stmt();
-	AstRef<AstImportStmt> parse_import_stmt();
-	AstRef<AstBreakStmt> parse_break_stmt();
-	AstRef<AstContinueStmt> parse_continue_stmt();
+	AstRef<AstStmt>            parse_stmt();
+	AstRef<AstStmt>            parse_simple_stmt();
+	AstRef<AstEmptyStmt>       parse_empty_stmt();
+	AstRef<AstBlockStmt>       parse_block_stmt();
+	AstRef<AstPackageStmt>     parse_package_stmt();
+	AstRef<AstImportStmt>      parse_import_stmt();
+	AstRef<AstBreakStmt>       parse_break_stmt();
+	AstRef<AstContinueStmt>    parse_continue_stmt();
 	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
-	AstRef<AstDeferStmt> parse_defer_stmt();
+	AstRef<AstIfStmt>          parse_if_stmt();
+	AstRef<AstDeferStmt>       parse_defer_stmt();
 
 	[[nodiscard]] Ast& ast() { return ast_; }
 	[[nodiscard]] const Ast& ast() const { return ast_; }
 private:
 	Maybe<Array<AstRef<AstExpr>>> parse_expr_list(Bool lhs);
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
+
+	Bool skip_possible_newline_for_literal();
 
 	Parser(System& sys, Lexer&& lexer);
 
@@ -69,6 +72,10 @@ private:
 	Ast                ast_;
 	Lexer              lexer_;
 	Token              token_;
+	// >= 0: In Expression
+	// <  0: In Control Clause
+	Sint32             expr_level_ = 0;
+	Bool               allow_in_expr_ = false;
 };
 
 } // namespace Thor

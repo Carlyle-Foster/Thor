@@ -74,7 +74,12 @@ AstRef<AstStmt> Parser::parse_simple_stmt() {
 		}
 		return ast_.create<AstDeclStmt>(move(*lhs), type, move(values));
 	}
-	return {};
+	if (!lhs || lhs->length() > 1) {
+		error("Epxected 1 expression");
+		return {};
+	}
+
+	return ast_.create<AstExprStmt>((*lhs)[0]);
 }
 
 AstRef<AstStmt> Parser::parse_stmt() {
@@ -105,7 +110,7 @@ AstRef<AstStmt> Parser::parse_stmt() {
 	} else if (is_keyword(KeywordKind::FOREIGN)) {
 		// TODO
 	} else if (is_keyword(KeywordKind::IF)) {
-		// TODO
+		stmt = parse_if_stmt();
 	} else if (is_keyword(KeywordKind::WHEN)) {
 		// TODO
 	} else if (is_keyword(KeywordKind::FOR)) {
@@ -223,6 +228,86 @@ AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
 	eat(); // Eat 'fallthrough'
 	return ast_.create<AstFallthroughStmt>();
 }
+
+AstRef<AstIfStmt> Parser::parse_if_stmt() {
+	TRACE();
+	if (!is_keyword(KeywordKind::IF)) {
+		error("Expected 'if'");
+		return {};
+	}
+	eat(); // Eat 'if'
+	Maybe<AstRef<AstStmt>> init;
+	AstRef<AstExpr>        cond;
+	AstRef<AstStmt>        on_true;
+	Maybe<AstRef<AstStmt>> on_false;
+
+	auto prev_level = this->expr_level_;
+	this->expr_level_ = -1;
+
+	auto prev_allow_in_expr = this->allow_in_expr_;
+	this->allow_in_expr_ = true;
+
+	if (is_kind(TokenKind::SEMICOLON)) {
+		cond = parse_expr(false);
+	} else {
+		init = parse_simple_stmt();
+		if (is_kind(TokenKind::SEMICOLON)) {
+			cond = parse_expr(false);
+		} else {
+			if (init && ast_[*init].is_stmt<AstExprStmt>()) {
+				cond = static_cast<AstExprStmt const &>(ast_[*init]).expr;
+			} else {
+				error("Expected a boolean expression");
+			}
+			init.reset();
+		}
+	}
+
+	this->expr_level_    = prev_level;
+	this->allow_in_expr_ = prev_allow_in_expr;
+
+	if (!cond.is_valid()) {
+		error("Expected a condition for if statement");
+	}
+
+	if (is_keyword(KeywordKind::DO)) {
+		eat(); // Eat 'do'
+		// TODO(bill): enforce same line behaviour
+		on_true = parse_stmt();
+	} else {
+		on_true = parse_block_stmt();
+	}
+
+	skip_possible_newline_for_literal();
+	if (is_keyword(KeywordKind::ELSE)) {
+		Token else_tok = token_;
+		eat();
+		if (is_keyword(KeywordKind::IF)) {
+			on_false = parse_if_stmt();
+		} else if (is_kind(TokenKind::LBRACE)) {
+			on_false = parse_block_stmt();
+		} else if (is_keyword(KeywordKind::DO)) {
+			eat(); // Eat 'do'
+			// TODO(bill): enforce same line behaviour
+			on_false = parse_stmt();
+		} else {
+			error("Expected if statement block statement");
+		}
+	}
+
+	return ast_.create<AstIfStmt>(move(init), cond, on_true, move(on_false));
+}
+
+
+Bool Parser::skip_possible_newline_for_literal() {
+	if (is_kind(TokenKind::SEMICOLON) && lexer_.string(token_) == "\n") {
+		// peek
+		eat();
+		// TODO
+	}
+	return false;
+}
+
 
 AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
 	TRACE();
