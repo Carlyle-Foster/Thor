@@ -59,9 +59,25 @@ Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
 	return exprs;
 }
 
+AstRef<AstProc> Parser::parse_proc() {
+	eat(); // Eat 'proc'
+	Maybe<Array<AstRef<AstDeclStmt>>> params {sys_.allocator};
+	for (;;) {
+		if(is_operator(OperatorKind::RPAREN)) break;
+		eat();
+	}
+	eat(); // Eat ')'
+	eat(); // Eat '-'
+	eat(); // Eat '>'
+	auto ret = parse_type_expr();
+	auto body = parse_block_stmt();
+	return ast_.create<AstProc>(move(params), body, ret);
+}
+
 AstRef<AstStmt> Parser::parse_simple_stmt() {
 	TRACE();
 	auto lhs = parse_expr_list(true);
+	Token name = token_;
 	if (is_operator(OperatorKind::COLON)) {
 		eat(); // Eat ':'
 		auto type = parse_type_expr();
@@ -602,6 +618,8 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 		return parse_context_expr();
 	} else if (is_keyword(KeywordKind::STRUCT)) {
 		return parse_struct_expr();
+	} else if (is_keyword(KeywordKind::PROC)) {
+		return parse_proc();
 	}
 	return {};
 }

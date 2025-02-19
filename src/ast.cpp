@@ -119,6 +119,20 @@ void AstIfStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
 	}
 }
 
+void AstProc::dump(const Ast& ast, StringBuilder& builder) const {
+	builder.put("proc(");
+	if (params) {
+		for(int i = 0; i < params->length(); i++) {
+			ast[(*params)[i]].dump(ast, builder, 0);
+			builder.put(", ");
+		}
+	}
+	builder.put(") ");
+	builder.put("-> ");
+	ast[ret].dump(ast, builder);
+	ast[body].dump(ast, builder, 0);
+}
+
 void AstDeferStmt::dump(const Ast& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("defer");

@@ -35,6 +35,7 @@ struct Parser {
 	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
 	AstRef<AstIfStmt>          parse_if_stmt();
 	AstRef<AstDeferStmt>       parse_defer_stmt();
+	AstRef<AstProc>            parse_proc();
 
 	[[nodiscard]] Ast& ast() { return ast_; }
 	[[nodiscard]] const Ast& ast() const { return ast_; }
