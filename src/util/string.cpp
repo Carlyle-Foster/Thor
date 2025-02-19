@@ -1,4 +1,6 @@
 #include <string.h> // TODO(dweiler): remove
+#include <stdlib.h> // TODO(dweiler): remove
+#include <float.h>
 
 #include "util/string.h"
 
@@ -11,13 +13,62 @@ void StringBuilder::put(char ch) {
 
 void StringBuilder::put(StringView view) {
 	const auto offset = build_.length();
-	if (build_.resize(offset + view.length())) {
-		const auto len = view.length();
-		for (Ulen i = 0; i < len; i++) {
-			build_[offset + i] = view[i];
-		}
-	} else {
+	if (!build_.resize(offset + view.length())) {
 		error_ = true;
+		return;
+	}
+	const auto len = view.length();
+	for (Ulen i = 0; i < len; i++) {
+		build_[offset + i] = view[i];
+	}
+}
+
+void StringBuilder::put(Float32 value) {
+	char buffer[FLT_MANT_DIG + FLT_DECIMAL_DIG * 2 + 1];
+	auto n = snprintf(buffer, sizeof buffer, "%f", value);
+	if (n <= 0) {
+		error_ = true;
+		return;
+	}
+	put(StringView { buffer, Ulen(n) });
+}
+
+void StringBuilder::put(Float64 value) {
+	char buffer[DBL_MANT_DIG + DBL_DECIMAL_DIG * 2 + 1];
+	auto n = snprintf(buffer, sizeof buffer, "%f", value);
+	if (n <= 0) {
+		error_ = true;
+		return;
+	}
+	put(StringView { buffer, Ulen(n) });
+}
+
+void StringBuilder::put(Uint64 value) {
+	if (value == 0) {
+		return put('0');
+	}
+
+	Uint64 length = 0;
+	for (Uint64 v = value; v; v /= 10, length++);
+
+	Ulen offset = build_.length();
+	if (!build_.resize(offset + length)) {
+		error_ = true;
+		return;
+	}
+
+	char *const fill = build_.data() + offset;
+	for (; value; value /= 10) {
+		fill[--length] = '0' + (value % 10);
+	}
+}
+
+void StringBuilder::put(Sint64 value) {
+	if (value < 0) {
+		put('-');
+		put(Uint64(-value));
+	} else {
+		put(Uint64(value));
 	}
 }
 
@@ -109,14 +160,6 @@ Bool StringTable::grow(Ulen additional) {
 	data_ = data;
 	capacity_ = new_capacity;
 	return true;
-}
-
-char *cstr_from_stingview(Allocator& allocator, StringView stringview) {
-	char *result = (char*)allocator.alloc(stringview.length(), true);
-	for(Ulen i = 0; i < stringview.length(); i++) {
-		result[i] = stringview[i];
-	}
-	return result;
 }
 
 } // namespace Thor

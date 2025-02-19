@@ -148,9 +148,9 @@ struct AstIdentExpr : AstExpr {
 	StringRef ident;
 };
 
-struct AstInteger : AstExpr {
+struct AstIntExpr : AstExpr {
 	static constexpr const auto KIND = Kind::INTEGER;
-	constexpr AstInteger(Uint64 value)
+	constexpr AstIntExpr(Uint64 value)
 		: AstExpr{KIND}
 		, value{value}
 	{
@@ -159,9 +159,9 @@ struct AstInteger : AstExpr {
 	Uint64 value;
 };
 
-struct AstFloat : AstExpr {
+struct AstFloatExpr : AstExpr {
 	static constexpr const auto KIND = Kind::FLOAT;
-	constexpr AstFloat(Float64 value)
+	constexpr AstFloatExpr(Float64 value)
 		: AstExpr{KIND}
 		, value{value}
 	{

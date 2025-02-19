@@ -620,14 +620,17 @@ AstRef<AstStructExpr> Parser::parse_struct_expr() {
 }
 
 AstRef<AstExpr> Parser::parse_value_literal() {
-	StringView token_as_string = lexer_.string(token_);
-	char *token_cstr = cstr_from_stingview(temporary_, token_as_string);
+	InlineAllocator<1024> allocator;
+	auto string = lexer_.string(token_);
+	auto terminated = allocator.allocate<char>(string.length() + 1, false);
+	memcpy(terminated, string.data(), string.length());
+	terminated[string.length()] = '\0';
 	if(is_literal(LiteralKind::INTEGER)) {
-		Uint64 value = strtoul(token_cstr, nullptr, 10);
-		return ast_.create<AstInteger>(value);
+		Uint64 value = strtoul(terminated, nullptr, 10);
+		return ast_.create<AstIntExpr>(value);
 	} else if(is_literal(LiteralKind::FLOAT)) {
-		Float64 value = strtod(token_cstr, nullptr);
-		return ast_.create<AstFloat>(value);
+		Float64 value = strtod(terminated, nullptr);
+		return ast_.create<AstFloatExpr>(value);
 	}
 	return {};
 }

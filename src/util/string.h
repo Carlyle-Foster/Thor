@@ -19,6 +19,13 @@ struct StringBuilder {
 	}
 	void put(char ch);
 	void put(StringView view);
+	void put(Float32 v);
+	void put(Float64 v);
+	void put(Uint8 v) { put(Uint8(v)); }
+	void put(Uint16 v) { put(Uint32(v)); }
+	void put(Uint32 v) { put(Uint64(v)); }
+	void put(Uint64 v);
+	void put(Sint64 v);
 	void rep(Ulen n, char ch = ' ');
 	void lpad(Ulen n, char ch, char pad = ' ');
 	void lpad(Ulen n, StringView view, char pad = ' ');
@@ -86,8 +93,6 @@ private:
 	Uint32                     capacity_ = 0;
 	Uint32                     length_   = 0;
 };
-
-char *cstr_from_stingview(Allocator& allocator, StringView stringview);
 
 } // namespace Thor
 

@@ -124,6 +124,9 @@ struct Array {
 		capacity_ = 0;
 	}
 
+	constexpr T* data() { return data_; }
+	constexpr const T* data() const { return data_; }
+
 	constexpr T& last() { return data_[length_ - 1]; }
 	constexpr const T& last() const { return data_[length_ - 1]; }
 
