@@ -97,11 +97,13 @@ Bool StringTable::grow(Ulen additional) {
 	if (!data) {
 		return false;
 	}
-	map_.each([&](StringView k, StringRef v) {
+	for (const auto kv : map_) {
+		auto k = kv.k;
+		auto v = kv.v;
 		auto beg = data + v.offset;
 		memcpy(beg, k.data(), k.length());
 		map.insert(StringView { beg, v.length }, v);
-	});
+	}
 	drop();
 	map_ = move(map);
 	data_ = data;
