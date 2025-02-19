@@ -1,2 +1,2 @@
 @echo off
-cl.exe /I src /std:c++23preview unity.cpp /out:thor.exe
+cl.exe /I src /std:c++20 unity.cpp /out:thor.exe

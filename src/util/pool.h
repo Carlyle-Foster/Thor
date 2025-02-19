@@ -21,7 +21,7 @@ struct Pool {
 	static Maybe<Pool> create(Allocator& allocator, Ulen size, Ulen capacity);
 
 	Pool(Pool&& other);
-	constexpr ~Pool() { drop(); }
+	~Pool() { drop(); }
 
 	constexpr auto length() const { return length_; }
 	constexpr auto is_empty() const { return length_ == 0; }

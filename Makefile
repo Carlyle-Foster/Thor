@@ -61,7 +61,7 @@ CXXFLAGS := -Isrc
 CXXFLAGS += -pipe
 CXXFLAGS += -Wall
 CXXFLAGS += -Wextra
-CXXFLAGS += -std=c++23
+CXXFLAGS += -std=c++20
 CXXFLAGS += -fno-exceptions
 CXXFLAGS += -fno-rtti
 # For reasons unknown, glibcxx decides to override C headers like <stdlib.h>, so

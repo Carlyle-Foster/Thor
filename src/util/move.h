@@ -5,7 +5,7 @@
 namespace Thor {
 
 template<typename T>
-RemoveReference<T>&& move(T&& arg) {
+constexpr RemoveReference<T>&& move(T&& arg) {
 	return static_cast<RemoveReference<T>&&>(arg);
 }
 

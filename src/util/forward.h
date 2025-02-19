@@ -5,12 +5,12 @@
 namespace Thor {
 
 template<typename T>
-T&& forward(RemoveReference<T>&& arg) {
+constexpr T&& forward(RemoveReference<T>&& arg) {
 	return static_cast<T&&>(arg);
 }
 
 template<typename T>
-T&& forward(RemoveReference<T>& arg) {
+constexpr T&& forward(RemoveReference<T>& arg) {
 	return static_cast<T&&>(arg);
 }
 

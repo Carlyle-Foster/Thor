@@ -144,7 +144,7 @@ private:
 	Token advance();
 	Token scan_string();
 	void scan_escape();
-	constexpr Lexer(Array<Uint8>&& map)
+	Lexer(Array<Uint8>&& map)
 		: map_{move(map)}
 		, input_{map_.slice().cast<const char>()}
 	{
