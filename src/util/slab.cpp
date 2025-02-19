@@ -16,8 +16,8 @@ Maybe<SlabRef> Slab::allocate() {
 		return {};
 	}
 	// Search for an empty Pool in the caches array
-	for (Ulen i = 0; i < n_caches; i++) {
-		if (auto& cache = caches_[i]; !cache.is_valid()) {
+	for (auto& cache : caches_) {
+		if (!cache.is_valid()) {
 			cache = move(*pool);
 			return allocate();
 		}

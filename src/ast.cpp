@@ -20,9 +20,8 @@ void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
 	builder.put('\n');
-	const auto n_stmts = stmts.length();
-	for (Ulen i = 0; i < n_stmts; i++) {
-		ast[stmts[i]].dump(ast, builder, nest+1);
+	for (auto stmt : stmts) {
+		ast[stmt].dump(ast, builder, nest+1);
 		builder.put('\n');
 	}
 	builder.rep(nest * 2, ' ');
@@ -80,22 +79,26 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	};
 
 	builder.rep(nest * 2, ' ');
-	for (Ulen i = 0; i < lhs.length(); i++) {
-		if (i != 0) {
+	Bool first = true;
+	for (auto value : lhs) {
+		if (!first) {
 			builder.put(", ");
 		}
-		ast[lhs[i]].dump(ast, builder);
+		ast[value].dump(ast, builder);
+		first = false;
 	}
 
 	builder.put(' ');
 	builder.put(OP[Uint32(token.as_assign)]);
 	builder.put(' ');
 
-	for (Ulen i = 0; i < rhs.length(); i++) {
-		if (i != 0) {
+	first = true;
+	for (auto value : rhs) {
+		if (!first) {
 			builder.put(", ");
 		}
-		ast[rhs[i]].dump(ast, builder);
+		ast[value].dump(ast, builder);
+		first = false;
 	}
 
 	builder.put(';');
@@ -121,9 +124,8 @@ void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("proc");
 	builder.put('(');
 	if (params) {
-		const auto n_params = params->length();
-		for (Ulen i = 0; i < n_params; i++) {
-			ast[(*params)[i]].dump(ast, builder, 0);
+		for (auto param : *params) {
+			ast[param].dump(ast, builder, 0);
 			builder.put(',');
 			builder.put(' ');
 		}
@@ -150,25 +152,27 @@ void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 }
 
 void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	Bool first = true;
 	builder.rep(nest * 2, ' ');
-	const auto n_lhs = lhs.length();
-	for (Ulen i = 0; i < n_lhs; i++) {
-		ast[lhs[i]].dump(ast, builder);
-		if (i != n_lhs - 1) {
+	for (auto value : lhs) {
+		if (!first) {
 			builder.put(',');
 			builder.put(' ');
 		}
+		ast[value].dump(ast, builder);
+		first = false;
 	}
 	builder.put(':');
 	ast[type].dump(ast, builder);
 	if (rhs) {
-		const auto n_rhs = rhs->length();
 		builder.put(':');
-		for (Ulen i = 0; i < n_rhs; i++) {
-			ast[(*rhs)[i]].dump(ast, builder);
-			if (i != n_rhs - 1) {
+		Bool first = false;
+		for (auto value : *rhs) {
+			if (!first) {
 				builder.put(',');
 			}
+			ast[value].dump(ast, builder);
+			first = false;
 		}
 	}
 }
@@ -230,9 +234,8 @@ void AstStructExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(' ');
 	builder.put('{');
 	builder.put('\n');
-	const auto n_decls = decls.length();
-	for (Ulen i = 0; i < n_decls; i++) {
-		ast[decls[i]].dump(ast, builder, 0);
+	for (auto decl : decls) {
+		ast[decl].dump(ast, builder, 0);
 		builder.put(',');
 		builder.put('\n');
 	}

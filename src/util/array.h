@@ -139,6 +139,11 @@ struct Array {
 	constexpr Slice<T> slice() { return { data_, length_ }; }
 	constexpr Slice<const T> slice() const { return { data_, length_ }; }
 
+	// Just enough to make range based for loops work
+	[[nodiscard]] constexpr T* begin() { return data_; }
+	[[nodiscard]] constexpr const T* begin() const { return data_; }
+	[[nodiscard]] constexpr T* end() { return data_ + length_; }
+	[[nodiscard]] constexpr const T* end() const { return data_ + length_; }
 private:
 	void destruct() {
 		for (Ulen i = length_ - 1; i < length_; i--) {
