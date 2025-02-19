@@ -629,6 +629,7 @@ AstRef<AstExpr> Parser::parse_value_literal() {
 		Float64 value = strtod(token_cstr, nullptr);
 		return ast_.create<AstFloat>(value);
 	}
+	return {};
 }
 
 AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
