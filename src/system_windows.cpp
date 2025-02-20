@@ -8,15 +8,112 @@
 
 namespace Thor {
 
+static Ulen convert_utf8_to_utf16(Slice<const Uint8> utf8, Slice<Uint16> utf16) {
+	Uint32 cp = 0;
+	Ulen len = 0;
+	auto out = utf16.data();
+	for (Ulen i = 0; i < utf8.length(); i++) {
+		auto element = &utf8[i];
+		auto ch = *element;
+		if (ch <= 0x7f) {
+			cp = ch;
+		} else if (ch <= 0xbf) {
+			cp = (cp << 6) | (ch & 0x3f);
+		} else if (ch <= 0xdf) {
+			cp = ch & 0x1f;
+		} else if (ch <= 0xef) {
+			cp = ch & 0x0f;
+		} else {
+			cp = ch & 0x07;
+		}
+		element++;
+		if ((*element & 0xc0) != 0x80 && cp <= 0x10ffff) {
+			if (cp > 0xffff) {
+				len += 2;
+				if (out) {
+					*out++ = static_cast<Uint16>(0xd800 | (cp >> 10));
+					*out++ = static_cast<Uint16>(0xdc00 | (cp & 0x03ff));
+				}
+			} else if (cp < 0xd800 || cp >= 0xe000) {
+				len += 1;
+				if (out) {
+					*out++ = static_cast<Uint16>(cp);
+				}
+			}
+		}
+	}
+	return len;
+}
+
+static Ulen convert_utf16_to_utf8(Slice<const Uint16> utf16, Slice<Uint8> utf8) {
+	Uint32 cp = 0;
+	Ulen len = 0;
+	auto out = utf8.data();
+	for (Ulen i = 0; i < utf16.length(); i++) {
+		auto element = &utf16[i];
+		auto ch = *element;
+		if (ch >= 0xd800 && ch <= 0xdbff) {
+			cp = ((ch - 0xd800) << 10) | 0x10000;
+		} else {
+			if (ch >= 0xdc00 && ch <= 0xdfff) {
+				cp |= ch - 0xdc00;
+			} else {
+				cp = ch;
+			}
+			if (cp < 0x7f) {
+				len += 1;
+				if (out) {
+					*out++ = static_cast<Uint8>(cp);
+				}
+			} else if (cp < 0x7ff) {
+				len += 2;
+				if (out) {
+					*out++ = static_cast<Uint8>(0xc0 | ((cp >> 6) & 0x1f));
+					*out++ = static_cast<Uint8>(0x80 | (cp & 0x3f));
+				}
+			} else if (cp < 0xffff) {
+				len += 3;
+				if (out) {
+					*out++ = static_cast<Uint8>(0xe0 | ((cp >> 12) & 0x0f));
+					*out++ = static_cast<Uint8>(0x80 | ((cp >> 6) & 0x3f));
+					*out++ = static_cast<Uint8>(0x80 | (cp & 0x3f));
+				}
+			} else {
+				len += 4;
+				if (out) {
+					*out++ = static_cast<Uint8>(0xf0 | ((cp >> 18) & 0x07));
+					*out++ = static_cast<Uint8>(0x80 | ((cp >> 12) & 0x3f));
+					*out++ = static_cast<Uint8>(0x80 | ((cp >> 6) & 0x3f));
+					*out++ = static_cast<Uint8>(0x80 | (cp & 0x3f));
+				}
+			}
+			cp = 0;
+		}
+	}
+	return len;
+}
+
 // We need a mechanism to convert between UTF-8 and UTF-16 here, using only the
 // provided allocator. The rest of this code is untested.
-static Slice<Uint16> utf8_to_utf16(Allocator&, Slice<const Uint8>) {
-	// TODO: implement
-	return {};
+static Slice<Uint16> utf8_to_utf16(Allocator& allocator, Slice<const Uint8> utf8) {
+	const auto len = convert_utf8_to_utf16(utf8, {});
+	const auto data = allocator.allocate<Uint16>(len, false);
+	if (!data) {
+		return {};
+	}
+	Slice<Uint16> utf16{ data, len };
+	convert_utf8_to_utf16(utf8, utf16);
+	return utf16;
 }
-static Slice<Uint8> utf16_to_utf8(Allocator&, Slice<const Uint16>) {
-	// TODO: implement
-	return {};
+static Slice<Uint8> utf16_to_utf8(Allocator& allocator, Slice<const Uint16> utf16) {
+	const auto len = convert_utf16_to_utf8(utf16, {});
+	const auto data = allocator.allocate<Uint8>(len, false);
+	if (!data) {
+		return {};
+	}
+	Slice<Uint8> utf8{ data, len };
+	convert_utf16_to_utf8(utf16, utf8);
+	return utf8;
 }
 
 static Filesystem::File* filesystem_open_file(System& sys, StringView name, Filesystem::Access access) {
