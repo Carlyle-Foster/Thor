@@ -119,7 +119,7 @@ static Slice<Uint8> utf16_to_utf8(Allocator& allocator, Slice<const Uint16> utf1
 static Filesystem::File* filesystem_open_file(System& sys, StringView name, Filesystem::Access access) {
 	ScratchAllocator<1024> scratch{sys.allocator};
 	auto filename = utf8_to_utf16(scratch, name.cast<const Uint8>());
-	if (!filename) {
+	if (filename.is_empty()) {
 		return nullptr;
 	}
 	DWORD dwDesiredAccess = 0;
@@ -138,7 +138,7 @@ static Filesystem::File* filesystem_open_file(System& sys, StringView name, File
 		dwCreationDisposition = CREATE_ALWAYS;
 		break;
 	}
-	auto handle = CreateFileW(reinterpret_cast<LPCWSTR>(filename.data()).
+	auto handle = CreateFileW(reinterpret_cast<LPCWSTR>(filename.data()),
 	                          dwDesiredAccess,
 	                          dwShareMode,
 	                          nullptr,
@@ -179,7 +179,7 @@ static Uint64 filesystem_write_file(System&, Filesystem::File* file, Uint64 offs
 	auto result = WriteFile(reinterpret_cast<HANDLE>(file),
 	                       data.data(),
 	                       static_cast<DWORD>(min(data.length(), 0xffffffff_ulen)),
-	                       &rd,
+	                       &wr,
 	                       &overlapped);
 	return static_cast<Uint64>(wr);
 }
@@ -215,7 +215,7 @@ Filesystem::Directory* filesystem_open_dir(System& sys, StringView name) {
 		return nullptr;
 	}
 	auto path = utf8_to_utf16(find->allocator, name.cast<const Uint8>());
-	if (!path) {
+	if (path.is_empty()) {
 		sys.allocator.destroy(find);
 		return nullptr;
 	}
@@ -243,15 +243,14 @@ Bool filesystem_read_dir(System&, Filesystem::Directory* handle, Filesystem::Ite
 		if (!FindNextFileW(find->handle, &find->data)) {
 			return false;
 		}
-		continue;
 	}
 	Slice<const Uint16> utf16 {
 		reinterpret_cast<const Uint16*>(find->data.cFileName),
 		wcslen(find->data.cFileName)
 	};
 	auto utf8 = utf16_to_utf8(find->allocator, utf16);
-	if (!utf8) {
-		return nullptr;
+	if (utf8.is_empty()) {
+		return false;
 	}
 	if (find->data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 		item = { utf8.cast<const char>(), Filesystem::Item::Kind::DIR };
@@ -276,7 +275,7 @@ static void* heap_allocate(System&, Ulen length, Bool) {
 	return VirtualAlloc(nullptr, length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 }
 
-static void heap_deallocate(System&, void *, Ulen) {
+static void heap_deallocate(System&, void *address, Ulen length) {
 	VirtualFree(address, length, MEM_RELEASE);
 }
 
@@ -285,9 +284,9 @@ extern const Heap STD_HEAP = {
 	.deallocate = heap_deallocate,
 };
 
-static void console_write(System&, StringView) {
-	auto stdout = GetStdConsole(STD_OUTPUT_HANDLE);
-	WriteConsoleA(stdout, data.data(), data.length(), nullptr, nullptr);
+static void console_write(System&, StringView data) {
+	auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	WriteConsoleA(handle, data.data(), data.length(), nullptr, nullptr);
 }
 
 extern const Console STD_CONSOLE = {
