@@ -158,7 +158,7 @@ static void filesystem_close_file(System&, Filesystem::File* file) {
 }
 
 static Uint64 filesystem_read_file(System&, Filesystem::File* file, Uint64 offset, Slice<Uint8> data) {
-	OVERLAPPED overlapped;
+	OVERLAPPED overlapped{};
 	overlapped.OffsetHigh = static_cast<Uint32>((offset & 0xffffffff00000000_u64) >> 32);
 	overlapped.Offset     = static_cast<Uint32>((offset & 0x00000000ffffffff_u64));
 	DWORD rd = 0;
@@ -174,7 +174,7 @@ static Uint64 filesystem_read_file(System&, Filesystem::File* file, Uint64 offse
 }
 
 static Uint64 filesystem_write_file(System&, Filesystem::File* file, Uint64 offset, Slice<const Uint8> data) {
-	OVERLAPPED overlapped;
+	OVERLAPPED overlapped{};
 	overlapped.OffsetHigh = static_cast<Uint32>((offset & 0xffffffff00000000_u64) >> 32);
 	overlapped.Offset     = static_cast<Uint32>((offset & 0x00000000ffffffff_u64));
 	DWORD wr = 0;
