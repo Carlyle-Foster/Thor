@@ -21,19 +21,16 @@ Bool Rune::is_digit() const {
 	return false;
 }
 
-Bool Rune::is_digit(Sint32 base) const {
+Bool Rune::is_digit(Uint32 base) const {
 	if (v_ < 0x80) {
-		Sint32 value = 16; // Base should never be more than this... assert?
 		switch (v_) {
 		case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-			value = v_ - '0';
+			return v_ - '0' < base;
 		case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-			value = v_ - 'a' + 10;
+			return v_ - 'a' + 10 < base;
 		case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-			value = v_ - 'A' + 10;
+			return v_ - 'A' + 10 < base;
 		}
-
-		return value < base;
 	}
 	// TODO(dweiler): ND => true
 	return false;

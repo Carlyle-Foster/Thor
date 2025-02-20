@@ -119,61 +119,65 @@ Token Lexer::scan_number(Bool leading_period) {
 	const auto beg = position_.this_offset;
 	Token token = { TokenKind::LITERAL, beg, 1_u16 };
 
-	Bool scan_exponent = false;
-	Bool scan_fraction = false;
-
-	if(leading_period) {
-		token.as_literal == LiteralKind::FLOAT;
+	if (leading_period) {
+		token.as_literal = LiteralKind::FLOAT;
 	}
 
-	if(rune_ == '0') {
+	if (rune_ == '0') {
 		eat(); // Eat '0'
-		switch(rune_) {
+		switch (rune_) {
 		case 'b':
 			eat();
 			while(rune_.is_digit(2) || rune_ == '_') eat();
+			break;
 		case 'o':
 			eat();
 			while(rune_.is_digit(8) || rune_ == '_') eat();
+			break;
 		case 'd':
 			eat();
 			while(rune_.is_digit(10) || rune_ == '_') eat();
+			break;
 		case 'z':
 			eat();
 			while(rune_.is_digit(12) || rune_ == '_') eat();
+			break;
 		case 'x':
 			eat();
 			while(rune_.is_digit(16) || rune_ == '_') eat();
+			break;
 		case 'h':
 			eat();
 			while(rune_.is_digit(16) || rune_ == '_') eat();
+			break;
 			// TODO(Oliver): hexadecimal floats
 		default:
 			while(rune_.is_digit(16) || rune_ == '_') eat();
+			break;
 		}
 	}
 
 	if (rune_ == '.') {
 		eat(); // Eat '.'
-		while(rune_.is_digit(10) || rune_ == '_') eat();
+		while (rune_.is_digit(10) || rune_ == '_') eat();
 	}
 
 	if(rune_ == 'e' || rune_ == 'E') {
 		token.as_literal = LiteralKind::FLOAT;
 		eat(); // Eat 'e' or 'E'
-		if(rune_ == '-' || rune_ == '+') {
+		if (rune_ == '-' || rune_ == '+') {
 			eat(); // Eat '-' or '+'
 		}
-		while(rune_.is_digit(10) || rune_ == '_') eat();
+		while (rune_.is_digit(10) || rune_ == '_') eat();
 	}
 
-	switch(rune_) {
-		case 'i':
-		case 'j':
-		case 'k':
+	switch (rune_) {
+	case 'i':
+	case 'j':
+	case 'k':
 		eat();
 		token.as_literal = LiteralKind::IMAGINARY;
-		default:
+	default:
 		break;
 	}
 

@@ -8,7 +8,7 @@ struct Rune {
 	constexpr Rune(Uint32 v) : v_{v} {}
 	[[nodiscard]] Bool is_char() const;
 	[[nodiscard]] Bool is_digit() const;
-	[[nodiscard]] Bool is_digit(Sint32 base) const;
+	[[nodiscard]] Bool is_digit(Uint32 base) const;
 	[[nodiscard]] Bool is_alpha() const;
 	[[nodiscard]] Bool is_white() const;
 	operator Uint32() const { return v_; }

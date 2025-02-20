@@ -7,7 +7,6 @@
 namespace Thor {
 
 struct AstFile;
-struct System;
 
 struct AstSlabID {
 	// Only 6-bit slab index (2^6 = 64)
