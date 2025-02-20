@@ -9,11 +9,17 @@
 namespace Thor {
 
 struct Debug {
-	Debug(const char* name, int line) {
-		for (int i = 0; i < s_depth; i++) {
-			printf("  ");
+	Debug(System& sys, StringView name, Sint32 line) {
+		ScratchAllocator<1024> scratch{sys.allocator};
+		StringBuilder builder{scratch};
+		builder.rep(s_depth*2, ' ');
+		builder.put(name);
+		builder.put(':');
+		builder.put(line);
+		builder.put('\n');
+		if (auto result = builder.result()) {
+			sys.console.write(sys, *result);
 		}
-		printf("%s:%d\n", name, line);
 		s_depth++;
 	}
 	~Debug() {
@@ -24,7 +30,7 @@ struct Debug {
 
 // #define TRACE()
 #define TRACE() \
-	auto debug_ ## __LINE__ = Debug{__func__, __LINE__}
+	auto debug_ ## __LINE__ = Debug{sys_, __func__, __LINE__}
 
 Maybe<Parser> Parser::open(System& sys, StringView filename) {
 	auto lexer = Lexer::open(sys, filename);

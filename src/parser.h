@@ -70,7 +70,6 @@ private:
 		} else {
 			sys_.console.write(sys_, StringView { "Out of memory" });
 		}
-		sys_.console.flush(sys_);
 	}
 	constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;

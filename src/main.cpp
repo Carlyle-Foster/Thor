@@ -38,7 +38,4 @@ int main(int, char **) {
 	if (auto result = builder.result()) {
 		sys.console.write(sys, *result);
 	}
-
-	auto data = ast.string_table().data();
-	printf("\n\nSTRING TABLE CONTENTS:\n\n%.*s\n\n", Sint32(data.length()), data.data());
 }

@@ -1,14 +1,7 @@
 #ifndef THOR_TYPES_H
 #define THOR_TYPES_H
 
-// Work out the compiler being used.
-#if defined(__clang__)
-	#define THOR_COMPILER_CLANG
-#elif defined(__GNUC__) || defined(__GNUG__)
-	#define THOR_COMPILER_GCC
-#elif defined(_MSC_VER)
-	#define THOR_COMPILER_MSVC
-#endif
+#include "util/info.h"
 
 struct Nat {};
 inline void *operator new(decltype(sizeof 0), void* ptr, Nat) {

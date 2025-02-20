@@ -26,6 +26,9 @@ struct StringBuilder {
 	void put(Uint32 v) { put(Uint64(v)); }
 	void put(Uint64 v);
 	void put(Sint64 v);
+	void put(Sint32 v) { put(Sint64(v)); }
+	void put(Sint16 v) { put(Sint32(v)); }
+	void put(Sint8 v) { put(Sint16(v)); }
 	void rep(Ulen n, char ch = ' ');
 	void lpad(Ulen n, char ch, char pad = ' ');
 	void lpad(Ulen n, StringView view, char pad = ' ');

@@ -8,12 +8,28 @@ struct System;
 
 struct Filesystem {
 	struct File;
+	struct Directory;
+
+	struct Item {
+		enum class Kind {
+			FILE,
+			LINK,
+			DIR,
+		};
+		StringView name;
+		Kind       kind;
+	};
+
 	enum class Access : Uint8 { RD, WR };
-	File* (*open)(System& sys, StringView name, Access access);
-	void (*close)(System& sys, File* file);
-	Uint64 (*read)(System& sys, File* file, Uint64 offset, Slice<Uint8> data);
-	Uint64 (*write)(System& sys, File* file, Uint64 offset, Slice<const Uint8> data);
-	Uint64 (*tell)(System& sys, File* file);
+	File* (*open_file)(System& sys, StringView name, Access access);
+	void (*close_file)(System& sys, File* file);
+	Uint64 (*read_file)(System& sys, File* file, Uint64 offset, Slice<Uint8> data);
+	Uint64 (*write_file)(System& sys, File* file, Uint64 offset, Slice<const Uint8> data);
+	Uint64 (*tell_file)(System& sys, File* file);
+
+	Directory* (*open_dir)(System& sys, StringView name);
+	void (*close_dir)(System& sys, Directory*);
+	Bool (*read_dir)(System& sys, Directory*, Item& item);
 };
 
 struct Heap {
@@ -23,7 +39,6 @@ struct Heap {
 
 struct Console {
 	void (*write)(System& sys, StringView data);
-	void (*flush)(System& sys);
 };
 
 struct System {
