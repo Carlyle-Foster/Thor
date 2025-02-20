@@ -97,22 +97,24 @@ static Ulen convert_utf16_to_utf8(Slice<const Uint16> utf16, Slice<Uint8> utf8) 
 // provided allocator. The rest of this code is untested.
 static Slice<Uint16> utf8_to_utf16(Allocator& allocator, Slice<const Uint8> utf8) {
 	const auto len = convert_utf8_to_utf16(utf8, {});
-	const auto data = allocator.allocate<Uint16>(len, false);
+	const auto data = allocator.allocate<Uint16>(len + 1, false);
 	if (!data) {
 		return {};
 	}
 	Slice<Uint16> utf16{ data, len };
 	convert_utf8_to_utf16(utf8, utf16);
+	data[len] = 0;
 	return utf16;
 }
 static Slice<Uint8> utf16_to_utf8(Allocator& allocator, Slice<const Uint16> utf16) {
 	const auto len = convert_utf16_to_utf8(utf16, {});
-	const auto data = allocator.allocate<Uint8>(len, false);
+	const auto data = allocator.allocate<Uint8>(len + 1, false);
 	if (!data) {
 		return {};
 	}
 	Slice<Uint8> utf8{ data, len };
 	convert_utf16_to_utf8(utf16, utf8);
+	data[len] = 0;
 	return utf8;
 }
 
