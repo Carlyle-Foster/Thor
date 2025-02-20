@@ -21,7 +21,7 @@ struct StringBuilder {
 	void put(StringView view);
 	void put(Float32 v);
 	void put(Float64 v);
-	void put(Uint8 v) { put(Uint8(v)); }
+	void put(Uint8 v) { put(Uint16(v)); }
 	void put(Uint16 v) { put(Uint32(v)); }
 	void put(Uint32 v) { put(Uint64(v)); }
 	void put(Uint64 v);
