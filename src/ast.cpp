@@ -22,6 +22,23 @@ AstFile::~AstFile() {
 }
 
 // Stmt
+void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	using enum Kind;
+	switch (kind) {
+	case EMPTY:       return to_stmt<const AstEmptyStmt>()->dump(ast, builder, nest);
+	case EXPR:        return to_stmt<const AstExprStmt>()->dump(ast, builder, nest);
+	case ASSIGN:      return to_stmt<const AstAssignStmt>()->dump(ast, builder, nest);
+	case BLOCK:       return to_stmt<const AstBlockStmt>()->dump(ast, builder, nest);
+	case IMPORT:      return to_stmt<const AstImportStmt>()->dump(ast, builder, nest);
+	case PACKAGE:     return to_stmt<const AstPackageStmt>()->dump(ast, builder, nest);
+	case DEFER:       return to_stmt<const AstDeferStmt>()->dump(ast, builder, nest);
+	case BREAK:       return to_stmt<const AstBreakStmt>()->dump(ast, builder, nest);
+	case CONTINUE:    return to_stmt<const AstContinueStmt>()->dump(ast, builder, nest);
+	case FALLTHROUGH: return to_stmt<const AstFallthroughStmt>()->dump(ast, builder, nest);
+	case IF:          return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
+	case DECL:        return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
+	}
+}
 void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put(';');
@@ -134,6 +151,23 @@ void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) cons
 	if (on_false) {
 		builder.put("else");
 		ast[*on_false].dump(ast, builder, nest);
+	}
+}
+
+void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	using enum Kind;
+	switch (kind) {
+	case BIN:     return to_expr<const AstBinExpr>()->dump(ast, builder);
+	case UNARY:   return to_expr<const AstUnaryExpr>()->dump(ast, builder);
+	case TERNARY: return to_expr<const AstTernaryExpr>()->dump(ast, builder);
+	case IDENT:   return to_expr<const AstIdentExpr>()->dump(ast, builder);
+	case UNDEF:   return to_expr<const AstUndefExpr>()->dump(ast, builder);
+	case CONTEXT: return to_expr<const AstContextExpr>()->dump(ast, builder);
+	case STRUCT:  return to_expr<const AstStructExpr>()->dump(ast, builder);
+	case TYPE:    return to_expr<const AstTypeExpr>()->dump(ast, builder);
+	case PROC:    return to_expr<const AstProcExpr>()->dump(ast, builder);
+	case INTEGER: return to_expr<const AstIntExpr>()->dump(ast, builder);
+	case FLOAT:   return to_expr<const AstFloatExpr>()->dump(ast, builder);
 	}
 }
 

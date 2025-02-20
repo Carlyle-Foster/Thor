@@ -90,7 +90,19 @@ struct AstExpr : AstNode {
 		: kind{kind}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const = 0;
+	template<typename T>
+	[[nodiscard]] Bool is_expr() const
+		requires DerivedFrom<T, AstExpr>
+	{
+		return kind == T::KIND;
+	}
+	template<typename T>
+	[[nodiscard]] const T* to_expr() const
+		requires DerivedFrom<T, AstExpr>
+	{
+		return is_expr<T>() ? static_cast<const T*>(this) : nullptr;
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Kind kind;
 };
 
@@ -103,7 +115,7 @@ struct AstBinExpr : AstExpr {
 		, op{op}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> lhs;
 	AstRef<AstExpr> rhs;
 	OperatorKind    op;
@@ -117,7 +129,7 @@ struct AstUnaryExpr : AstExpr {
 		, op{op}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> operand;
 	OperatorKind    op;
 };
@@ -131,7 +143,7 @@ struct AstTernaryExpr : AstExpr {
 		, on_false{on_false}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> cond;
 	AstRef<AstExpr> on_true;
 	AstRef<AstExpr> on_false;
@@ -144,7 +156,7 @@ struct AstIdentExpr : AstExpr {
 		, ident{ident}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	StringRef ident;
 };
 
@@ -155,7 +167,7 @@ struct AstIntExpr : AstExpr {
 		, value{value}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Uint64 value;
 };
 
@@ -166,7 +178,7 @@ struct AstFloatExpr : AstExpr {
 		, value{value}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Float64 value;
 };
 
@@ -176,7 +188,7 @@ struct AstUndefExpr : AstExpr {
 		: AstExpr{KIND}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstContextExpr : AstExpr {
@@ -185,7 +197,7 @@ struct AstContextExpr : AstExpr {
 		: AstExpr{KIND}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstDeclStmt;
@@ -197,7 +209,7 @@ struct AstStructExpr : AstExpr {
 		, decls{move(decls)}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Array<AstRef<AstDeclStmt>> decls;
 };
 
@@ -208,7 +220,7 @@ struct AstTypeExpr : AstExpr {
 		, expr{expr}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> expr;
 };
 
@@ -225,7 +237,7 @@ struct AstProcExpr : AstExpr {
 		, ret{ret}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder) const;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Maybe<Array<AstRef<AstDeclStmt>>> params;
 	AstRef<AstBlockStmt>              body;
 	AstRef<AstTypeExpr>               ret;
@@ -253,11 +265,20 @@ struct AstStmt : AstNode {
 	}
 
 	template<typename T>
-	[[nodiscard]] constexpr Bool is_stmt() const {
+	[[nodiscard]] constexpr Bool is_stmt() const
+		requires DerivedFrom<T, AstStmt>
+	{
 		return kind == T::KIND;
 	}
 
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const = 0;
+	template<typename T>
+	const T* to_stmt() const
+		requires DerivedFrom<T, AstStmt>
+	{
+		return is_stmt<T>() ? static_cast<const T*>(this) : nullptr;
+	}
+
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 
 	Kind kind;
 };
@@ -268,7 +289,7 @@ struct AstEmptyStmt : AstStmt {
 		: AstStmt{KIND}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 };
 
 struct AstExprStmt : AstStmt {
@@ -278,7 +299,7 @@ struct AstExprStmt : AstStmt {
 		, expr{expr}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstExpr> expr;
 };
 
@@ -293,7 +314,7 @@ struct AstAssignStmt : AstStmt {
 		, token{token}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Array<AstRef<AstExpr>> lhs;
 	Array<AstRef<AstExpr>> rhs;
 	Token                  token;
@@ -306,7 +327,7 @@ struct AstBlockStmt : AstStmt {
 		, stmts{move(stmts)}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Array<AstRef<AstStmt>> stmts;
 };
 
@@ -317,7 +338,7 @@ struct AstImportStmt : AstStmt {
 		, path{path}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	StringRef path;
 };
 
@@ -328,7 +349,7 @@ struct AstPackageStmt : AstStmt {
 		, name{name}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	StringRef name;
 };
 
@@ -339,7 +360,7 @@ struct AstDeferStmt : AstStmt {
 		, stmt{stmt}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstStmt> stmt;
 };
 
@@ -350,7 +371,7 @@ struct AstBreakStmt : AstStmt {
 		, label{label}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	StringRef label;
 };
 
@@ -361,7 +382,7 @@ struct AstContinueStmt : AstStmt {
 		, label{label}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	StringRef label;
 };
 
@@ -371,7 +392,7 @@ struct AstFallthroughStmt : AstStmt {
 		: AstStmt{KIND}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 };
 
 struct AstIfStmt : AstStmt {
@@ -387,7 +408,7 @@ struct AstIfStmt : AstStmt {
 		, on_false{move(on_false)}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	Maybe<AstRef<AstStmt>> init;
 	AstRef<AstExpr>        cond;
 	AstRef<AstStmt>        on_true;
@@ -406,7 +427,7 @@ struct AstDeclStmt : AstStmt {
 		, rhs{move(rhs)}
 	{
 	}
-	virtual void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	List                lhs;
 	AstRef<AstTypeExpr> type;
 	Maybe<List>         rhs;
