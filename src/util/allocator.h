@@ -33,6 +33,21 @@ struct Allocator {
 		auto addr = reinterpret_cast<Address>(ptr);
 		free(addr, count * sizeof(T));
 	}
+
+	// Helpers for allocating+construct and destruct+deallocate objects.
+	template<typename T, typename... Ts>
+	T* create(Ts&&... args) {
+		if (auto data = allocate<T>(1, false)) {
+			return new (data, Nat{}) T{forward<Ts>(args)...};
+		}
+		return nullptr;
+	}
+
+	template<typename T>
+	void destroy(T* obj) {
+		obj->~T();
+		deallocate(obj, 1);
+	}
 };
 
 struct ArenaAllocator : Allocator {
