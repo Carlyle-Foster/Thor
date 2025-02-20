@@ -161,9 +161,10 @@ struct Lexer {
 	}
 
 private:
-	Token advance();
-	Token scan_string();
-	void scan_escape();
+	Token  advance();
+	Token  scan_string();
+	void   scan_escape();
+	Token  scan_number(Bool leading_period);
 	Lexer(Array<Uint8>&& map)
 		: map_{move(map)}
 		, input_{map_.slice().cast<const char>()}

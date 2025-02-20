@@ -114,6 +114,73 @@ Token Lexer::scan_string() {
 	return { LiteralKind::STRING, beg, position_.delta(beg) };
 }
 
+Token Lexer::scan_number(Bool leading_period) {
+
+	const auto beg = position_.this_offset;
+	Token token = { TokenKind::LITERAL, beg, 1_u16 };
+
+	Bool scan_exponent = false;
+	Bool scan_fraction = false;
+
+	if(leading_period) {
+		token.as_literal == LiteralKind::FLOAT;
+	}
+
+	if(rune_ == '0') {
+		eat(); // Eat '0'
+		switch(rune_) {
+		case 'b':
+			eat();
+			while(rune_.is_digit(2) || rune_ == '_') eat();
+		case 'o':
+			eat();
+			while(rune_.is_digit(8) || rune_ == '_') eat();
+		case 'd':
+			eat();
+			while(rune_.is_digit(10) || rune_ == '_') eat();
+		case 'z':
+			eat();
+			while(rune_.is_digit(12) || rune_ == '_') eat();
+		case 'x':
+			eat();
+			while(rune_.is_digit(16) || rune_ == '_') eat();
+		case 'h':
+			eat();
+			while(rune_.is_digit(16) || rune_ == '_') eat();
+			// TODO(Oliver): hexadecimal floats
+		default:
+			while(rune_.is_digit(16) || rune_ == '_') eat();
+		}
+	}
+
+	if (rune_ == '.') {
+		eat(); // Eat '.'
+		while(rune_.is_digit(10) || rune_ == '_') eat();
+	}
+
+	if(rune_ == 'e' || rune_ == 'E') {
+		token.as_literal = LiteralKind::FLOAT;
+		eat(); // Eat 'e' or 'E'
+		if(rune_ == '-' || rune_ == '+') {
+			eat(); // Eat '-' or '+'
+		}
+		while(rune_.is_digit(10) || rune_ == '_') eat();
+	}
+
+	switch(rune_) {
+		case 'i':
+		case 'j':
+		case 'k':
+		eat();
+		token.as_literal = LiteralKind::IMAGINARY;
+		default:
+		break;
+	}
+
+	token.length = position_.delta(beg);
+	return token;
+}
+
 Token Lexer::advance() {
 	// Skip whitespace
 	for (;;) {
@@ -168,8 +235,7 @@ Token Lexer::advance() {
 	switch (rune_) {
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-		while (rune_.is_digit()) eat();
-		return { LiteralKind::INTEGER, beg, position_.delta(beg) };
+		return scan_number(false);
 	case 0:
 		// EOF
 		eat(); // Eat EOF
@@ -324,8 +390,7 @@ Token Lexer::advance() {
 			return { OperatorKind::ELLIPSIS, beg, 2_u16 }; // '..'
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
-			while (rune_.is_digit()) eat();
-			return { LiteralKind::INTEGER, beg, position_.delta(beg) };
+			return scan_number(true);
 		}
 		return { OperatorKind::PERIOD, beg, 1_u16 }; // '.'
 	case '<':
