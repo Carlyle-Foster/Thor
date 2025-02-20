@@ -8,4 +8,5 @@
 #include "src/lexer.cpp"
 #include "src/main.cpp"
 #include "src/parser.cpp"
-#include "src/system.cpp"
+#include "src/system_posix.cpp"
+#include "src/system_windows.cpp"
