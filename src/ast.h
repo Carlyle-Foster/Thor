@@ -433,6 +433,39 @@ struct AstDeclStmt : AstStmt {
 	Maybe<List>         rhs;
 };
 
+// It is important that none of the Ast node types are polymorphic because they
+// can be serialized as nothing more than a flat array of bytes. This series of
+// static asserts checks that. If you're reading this it's because you added a
+// virtual function to one of the derived or base classes and this is strictly
+// not supported. You can switch on the kind member to emulate the polymorphic 
+// behavior.
+static_assert(!is_polymorphic<AstExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstBinExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstUnaryExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstTernaryExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstIdentExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstUndefExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstContextExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstStructExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstTypeExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstProcExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstIntExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstFloatExpr>, "Cannot be polymorphic");
+
+static_assert(!is_polymorphic<AstStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstEmptyStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstExprStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstAssignStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstBlockStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstImportStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstPackageStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstDeferStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstBreakStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstContinueStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstFallthroughStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstIfStmt>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstDeclStmt>, "Cannot be polymorphic");
+
 struct AstFile {
 	static Maybe<AstFile> create(Allocator& allocator, StringView filename);
 
