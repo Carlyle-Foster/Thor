@@ -21,8 +21,6 @@ struct Parser {
 	AstRef<AstExpr>       parse_unary_expr(Bool lhs);
 	AstRef<AstExpr>       parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 	AstRef<AstExpr>       parse_value_literal();
-	AstRef<AstStructExpr> parse_struct_expr();
-	AstRef<AstTypeExpr>   parse_type_expr();
 	AstRef<AstProcExpr>   parse_proc_expr();
 
 	// Statement parsers
@@ -41,24 +39,27 @@ struct Parser {
 	// Type parsers
 	AstRef<AstType> parse_type();
 	AstRef<AstUnionType> parse_union_type();
+	AstRef<AstEnumType> parse_enum_type();
 	AstRef<AstPtrType> parse_ptr_type();
 	AstRef<AstMultiPtrType> parse_multiptr_type();
 	AstRef<AstSliceType> parse_slice_type();
 	AstRef<AstArrayType> parse_array_type();
 	AstRef<AstNamedType> parse_named_type();
+	AstRef<AstParenType> parse_paren_type();
 
 	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
 	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
 private:
 	Maybe<Array<AstRef<AstExpr>>> parse_expr_list(Bool lhs);
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
+	AstRef<AstEnum> parse_enum();
 
 	Bool skip_possible_newline_for_literal();
 
 	Parser(System& sys, Lexer&& lexer, AstFile&& ast);
 
 	template<Ulen E, typename... Ts>
-	void error(const char (&msg)[E], Ts&&...) {
+	Unit error(const char (&msg)[E], Ts&&...) {
 		ScratchAllocator<1024> scratch{sys_.allocator};
 		StringBuilder builder{scratch};
 		auto position = lexer_.position(token_);
@@ -79,6 +80,7 @@ private:
 		} else {
 			sys_.console.write(sys_, StringView { "Out of memory" });
 		}
+		return {};
 	}
 	constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;
@@ -101,9 +103,7 @@ private:
 	constexpr Bool is_assignment(AssignKind kind) const {
 		return is_kind(TokenKind::ASSIGNMENT) && token_.as_assign == kind;
 	}
-	void eat() {
-		token_ = lexer_.next();
-	}
+	void eat();
 	System&            sys_;
 	TemporaryAllocator temporary_;
 	AstFile            ast_;

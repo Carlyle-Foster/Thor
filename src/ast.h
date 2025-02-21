@@ -9,13 +9,18 @@ namespace Thor {
 struct AstExpr;
 struct AstStmt;
 struct AstType;
+struct AstEnum;
 struct AstFile;
+struct AstProcType;
+struct AstBlockStmt;
+struct AstDeclStmt;
 
 using AstStringRef = StringRef;
 
 // The following type represents a list of IDs.
 struct AstIDArray {
 	constexpr AstIDArray() = default;
+	constexpr AstIDArray(Unit) : AstIDArray{} {}
 	constexpr AstIDArray(Uint64 offset, Uint64 length)
 		: offset_{offset}
 		, length_{length}
@@ -39,6 +44,7 @@ static_assert(sizeof(AstIDArray) == 16);
 template<typename T>
 struct AstRefArray {
 	constexpr AstRefArray() = default;
+	constexpr AstRefArray(Unit) : AstRefArray{} {}
 	constexpr AstRefArray(AstIDArray id)
 		: id_{id}
 	{
@@ -71,6 +77,7 @@ struct AstID {
 	// Only 14-bit pool index (2^14 = 16384)
 	static inline constexpr const auto MAX = 16384_u32;
 	constexpr AstID() = default;
+	constexpr AstID(Unit) : AstID{} {}
 	constexpr AstID(Uint32 value)
 		: value_{value}
 	{
@@ -92,6 +99,7 @@ static_assert(sizeof(AstID) == 4);
 template<typename T>
 struct AstRef {
 	constexpr AstRef() = default;
+	constexpr AstRef(Unit) : AstRef{} {}
 	constexpr AstRef(AstID id)
 		: id_{id}
 	{
@@ -113,6 +121,19 @@ private:
 	AstID id_;
 };
 
+// Enum
+struct AstEnum : AstNode {
+	constexpr AstEnum(AstStringRef name, AstRef<AstExpr> expr)
+		: name{name}
+		, expr{expr}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstStringRef    name;
+	AstRef<AstExpr> expr;
+};
+
+// Expr
 struct AstExpr : AstNode {
 	enum class Kind : Uint8 {
 		BIN,
@@ -121,11 +142,10 @@ struct AstExpr : AstNode {
 		IDENT,
 		UNDEF,
 		CONTEXT,
-		STRUCT,
-		TYPE,
 		PROC,
 		INTEGER,
 		FLOAT,
+		CAST,
 	};
 	constexpr AstExpr(Kind kind)
 		: kind{kind}
@@ -201,6 +221,37 @@ struct AstIdentExpr : AstExpr {
 	AstStringRef ident;
 };
 
+struct AstUndefExpr : AstExpr {
+	static constexpr const auto KIND = Kind::UNDEF;
+	constexpr AstUndefExpr()
+		: AstExpr{KIND}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+};
+
+struct AstContextExpr : AstExpr {
+	static constexpr const auto KIND = Kind::CONTEXT;
+	constexpr AstContextExpr()
+		: AstExpr{KIND}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+};
+
+struct AstProcExpr : AstExpr {
+	static constexpr const auto KIND = Kind::PROC;
+	constexpr AstProcExpr(AstRef<AstProcType> type, AstRef<AstBlockStmt> body)
+		: AstExpr{KIND}
+		, type{type}
+		, body{body}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstProcType>   type;
+	AstRef<AstBlockStmt>  body;
+};
+
 struct AstIntExpr : AstExpr {
 	static constexpr const auto KIND = Kind::INTEGER;
 	constexpr AstIntExpr(Uint64 value)
@@ -223,65 +274,17 @@ struct AstFloatExpr : AstExpr {
 	Float64 value;
 };
 
-struct AstUndefExpr : AstExpr {
-	static constexpr const auto KIND = Kind::UNDEF;
-	constexpr AstUndefExpr()
+struct AstCastExpr : AstExpr {
+	static constexpr const auto KIND = Kind::CAST;
+	constexpr AstCastExpr(AstRef<AstType> type, AstRef<AstExpr> expr)
 		: AstExpr{KIND}
-	{
-	}
-	void dump(const AstFile& ast, StringBuilder& builder) const;
-};
-
-struct AstContextExpr : AstExpr {
-	static constexpr const auto KIND = Kind::CONTEXT;
-	constexpr AstContextExpr()
-		: AstExpr{KIND}
-	{
-	}
-	void dump(const AstFile& ast, StringBuilder& builder) const;
-};
-
-struct AstDeclStmt;
-
-struct AstStructExpr : AstExpr {
-	static constexpr const auto KIND = Kind::STRUCT;
-	constexpr AstStructExpr(AstRefArray<AstDeclStmt> decls)
-		: AstExpr{KIND}
-		, decls{decls}
-	{
-	}
-	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRefArray<AstDeclStmt> decls;
-};
-
-struct AstTypeExpr : AstExpr {
-	static constexpr const auto KIND = Kind::TYPE;
-	constexpr AstTypeExpr(AstRef<AstExpr> expr)
-		: AstExpr{KIND}
+		, type{type}
 		, expr{expr}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> type; // When !type this is an auto_cast
 	AstRef<AstExpr> expr;
-};
-
-struct AstBlockStmt;
-
-struct AstProcExpr : AstExpr {
-	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProcExpr(Maybe<AstRefArray<AstDeclStmt>>&& params,
-		                    AstRef<AstBlockStmt>              body,
-		                    AstRef<AstTypeExpr>               ret)
-		: AstExpr{KIND}
-		, params{move(params)}
-		, body{body}
-		, ret{ret}
-	{
-	}
-	void dump(const AstFile& ast, StringBuilder& builder) const;
-	Maybe<AstRefArray<AstDeclStmt>> params;
-	AstRef<AstBlockStmt>            body;
-	AstRef<AstTypeExpr>             ret;
 };
 
 // The reference Odin compiler treats all types as expressions in the ast. Here,
@@ -316,6 +319,7 @@ struct AstProcExpr : AstExpr {
 //	intrinsics.something(T)
 //
 // * AnyType is any of the types above excluding Type itself
+
 struct AstType : AstNode {
 	enum class Kind : Uint8 {
 		STRUCT,
@@ -326,8 +330,8 @@ struct AstType : AstNode {
 		MULTIPTR,
 		SLICE,
 		ARRAY,
-		PARAM,
 		NAMED,
+		PARAM,
 		PAREN,
 	};
 	constexpr AstType(Kind kind)
@@ -359,6 +363,26 @@ struct AstUnionType : AstType {
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRefArray<AstType> types;
+};
+
+struct AstEnumType : AstType {
+	static constexpr const auto KIND = Kind::ENUM;
+	constexpr AstEnumType(AstRef<AstType> base, AstRefArray<AstEnum> enums)
+		: AstType{KIND}
+		, base{base}
+		, enums{enums}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType>      base;
+	AstRefArray<AstEnum> enums;
+};
+
+struct AstProcType : AstType {
+	static constexpr const auto KIND = Kind::PROC;
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	// TODO(dweiler): FieldList args
+	// TODO(dweiler): FieldList rets
 };
 
 struct AstPtrType : AstType {
@@ -431,6 +455,17 @@ struct AstParamType : AstType {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstNamedType> name;
 	AstRefArray<AstExpr> exprs;
+};
+
+struct AstParenType : AstType {
+	static constexpr const auto KIND = Kind::PAREN;
+	constexpr AstParenType(AstRef<AstType> type)
+		: AstType{KIND}
+		, type{type}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> type;
 };
 
 struct AstStmt : AstNode {
@@ -610,7 +645,7 @@ struct AstExpr;
 struct AstDeclStmt : AstStmt {
 	static constexpr const auto KIND = Kind::DECL;
 	using List = AstRefArray<AstExpr>;
-	constexpr AstDeclStmt(List lhs, AstRef<AstTypeExpr> type, Maybe<List>&& rhs)
+	constexpr AstDeclStmt(List lhs, AstRef<AstType> type, Maybe<List>&& rhs)
 		: AstStmt{KIND}
 		, lhs{move(lhs)}
 		, type{type}
@@ -618,9 +653,9 @@ struct AstDeclStmt : AstStmt {
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	List                lhs;
-	AstRef<AstTypeExpr> type;
-	Maybe<List>         rhs;
+	List            lhs;
+	AstRef<AstType> type;
+	Maybe<List>     rhs;
 };
 
 // It is important that none of the Ast node types are polymorphic because they
@@ -636,8 +671,6 @@ static_assert(!is_polymorphic<AstTernaryExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstIdentExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstUndefExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstContextExpr>, "Cannot be polymorphic");
-static_assert(!is_polymorphic<AstStructExpr>, "Cannot be polymorphic");
-static_assert(!is_polymorphic<AstTypeExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstProcExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstIntExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstFloatExpr>, "Cannot be polymorphic");

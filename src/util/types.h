@@ -24,6 +24,7 @@ using Ulen = decltype(sizeof 0);
 using Bool = bool;
 using Address = unsigned long long;
 using Hash = Uint64;
+using Unit = struct {};
 
 constexpr Uint8 operator""_u8(unsigned long long int v) { return v; }
 constexpr Uint16 operator""_u16(unsigned long long int v) { return v; }

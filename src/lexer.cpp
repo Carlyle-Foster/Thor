@@ -378,9 +378,9 @@ Token Lexer::advance() {
 	case '=':
 		eat(); // Eat '='
 		if (rune_ == '=') {
-			return { AssignKind::EQ, beg, 2_u16 };
+			return { OperatorKind::EQ, beg, 2_u16 };
 		}
-		return { OperatorKind::EQ, beg, 1_u16 };
+		return { AssignKind::EQ, beg, 1_u16 };
 	case '.':
 		eat(); // Eat '.'
 		switch (rune_) {

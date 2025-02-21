@@ -59,62 +59,6 @@ void AstExprStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	builder.put(';');
 }
 
-void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put('{');
-	builder.put('\n');
-	for (auto stmt : ast[stmts]) {
-		ast[stmt].dump(ast, builder, nest+1);
-		builder.put('\n');
-	}
-	builder.rep(nest * 2, ' ');
-	builder.put('}');
-}
-
-void AstPackageStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("package");
-	builder.put(' ');
-	builder.put(ast[name]);
-	builder.put(';');
-	builder.put('\n');
-}
-
-void AstImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("import");
-	builder.put(' ');
-	builder.put(ast[path]);
-	builder.put(';');
-	builder.put('\n');
-}
-
-void AstBreakStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("break");
-	if (label) {
-		builder.put(' ');
-		builder.put(ast[label]);
-	}
-	builder.put(';');
-}
-
-void AstContinueStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("continue");
-	if (label) {
-		builder.put(' ');
-		builder.put(ast[label]);
-	}
-	builder.put(';');
-}
-
-void AstFallthroughStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("fallthrough");
-	builder.put(';');
-}
-
 void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	static constexpr const StringView OP[] = {
 		#define ASSIGN(ENUM, NAME, MATCH) MATCH,
@@ -147,6 +91,75 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	builder.put(';');
 }
 
+void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put('{');
+	builder.put('\n');
+	for (auto stmt : ast[stmts]) {
+		ast[stmt].dump(ast, builder, nest+1);
+		builder.put('\n');
+	}
+	builder.rep(nest * 2, ' ');
+	builder.put('}');
+}
+
+void AstImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("import");
+	builder.put(' ');
+	builder.put(ast[path]);
+	builder.put(';');
+	builder.put('\n');
+}
+
+void AstPackageStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("package");
+	builder.put(' ');
+	builder.put(ast[name]);
+	builder.put(';');
+	builder.put('\n');
+}
+
+void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("defer");
+	builder.put(' ');
+	const auto& defer = ast[stmt];
+	if (defer.is_stmt<AstBlockStmt>()) {
+		builder.put('\n');
+		defer.dump(ast, builder, nest);
+	} else {
+		defer.dump(ast, builder, 0);
+	}
+}
+
+void AstBreakStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("break");
+	if (label) {
+		builder.put(' ');
+		builder.put(ast[label]);
+	}
+	builder.put(';');
+}
+
+void AstContinueStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("continue");
+	if (label) {
+		builder.put(' ');
+		builder.put(ast[label]);
+	}
+	builder.put(';');
+}
+
+void AstFallthroughStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("fallthrough");
+	builder.put(';');
+}
+
 void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("if");
@@ -160,54 +173,6 @@ void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) cons
 	if (on_false) {
 		builder.put("else");
 		ast[*on_false].dump(ast, builder, nest);
-	}
-}
-
-void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	using enum Kind;
-	switch (kind) {
-	case BIN:     return to_expr<const AstBinExpr>()->dump(ast, builder);
-	case UNARY:   return to_expr<const AstUnaryExpr>()->dump(ast, builder);
-	case TERNARY: return to_expr<const AstTernaryExpr>()->dump(ast, builder);
-	case IDENT:   return to_expr<const AstIdentExpr>()->dump(ast, builder);
-	case UNDEF:   return to_expr<const AstUndefExpr>()->dump(ast, builder);
-	case CONTEXT: return to_expr<const AstContextExpr>()->dump(ast, builder);
-	case STRUCT:  return to_expr<const AstStructExpr>()->dump(ast, builder);
-	case TYPE:    return to_expr<const AstTypeExpr>()->dump(ast, builder);
-	case PROC:    return to_expr<const AstProcExpr>()->dump(ast, builder);
-	case INTEGER: return to_expr<const AstIntExpr>()->dump(ast, builder);
-	case FLOAT:   return to_expr<const AstFloatExpr>()->dump(ast, builder);
-	}
-}
-
-void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put("proc");
-	builder.put('(');
-	if (params) {
-		for (auto param : ast[*params]) {
-			ast[param].dump(ast, builder, 0);
-			builder.put(',');
-			builder.put(' ');
-		}
-	}
-	builder.put(')');
-	builder.put(' ');
-	builder.put("->");
-	builder.put(' ');
-	ast[ret].dump(ast, builder);
-	ast[body].dump(ast, builder, 0);
-}
-
-void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
-	builder.put("defer");
-	builder.put(' ');
-	const auto& defer = ast[stmt];
-	if (defer.is_stmt<AstBlockStmt>()) {
-		builder.put('\n');
-		defer.dump(ast, builder, nest);
-	} else {
-		defer.dump(ast, builder, 0);
 	}
 }
 
@@ -238,6 +203,22 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 }
 
 // Expr
+void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	using enum Kind;
+	switch (kind) {
+	case BIN:     return to_expr<const AstBinExpr>()->dump(ast, builder);
+	case UNARY:   return to_expr<const AstUnaryExpr>()->dump(ast, builder);
+	case TERNARY: return to_expr<const AstTernaryExpr>()->dump(ast, builder);
+	case IDENT:   return to_expr<const AstIdentExpr>()->dump(ast, builder);
+	case UNDEF:   return to_expr<const AstUndefExpr>()->dump(ast, builder);
+	case CONTEXT: return to_expr<const AstContextExpr>()->dump(ast, builder);
+	case PROC:    return to_expr<const AstProcExpr>()->dump(ast, builder);
+	case INTEGER: return to_expr<const AstIntExpr>()->dump(ast, builder);
+	case FLOAT:   return to_expr<const AstFloatExpr>()->dump(ast, builder);
+	case CAST:    return to_expr<const AstCastExpr>()->dump(ast, builder);
+	}
+}
+
 void AstBinExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('(');
 	static constexpr const StringView OP[] = {
@@ -281,14 +262,6 @@ void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(ast[ident]);
 }
 
-void AstIntExpr::dump(const AstFile&, StringBuilder& builder) const {
-	builder.put(value);
-}
-
-void AstFloatExpr::dump(const AstFile&, StringBuilder& builder) const {
-	builder.put(value);
-}
-
 void AstUndefExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put("---");
 }
@@ -297,22 +270,29 @@ void AstContextExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put("context");
 }
 
-void AstStructExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put("struct");
-	builder.put(' ');
-	builder.put('{');
-	builder.put('\n');
-	for (auto decl : ast[decls]) {
-		ast[decl].dump(ast, builder, 0);
-		builder.put(',');
-		builder.put('\n');
-	}
-	builder.put('}');
-	builder.put('\n');
+void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[type].dump(ast, builder);
+	ast[body].dump(ast, builder, 0);
 }
 
-void AstTypeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	if (expr) {
+void AstIntExpr::dump(const AstFile&, StringBuilder& builder) const {
+	builder.put(value);
+}
+
+void AstFloatExpr::dump(const AstFile&, StringBuilder& builder) const {
+	builder.put(value);
+}
+
+void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	if (type) {
+		builder.put('(');
+		ast[type].dump(ast, builder);
+		builder.put(')');
+		builder.put('(');
+		ast[expr].dump(ast, builder);
+		builder.put(')');
+	} else {
+		builder.put("auto_cast");
 		ast[expr].dump(ast, builder);
 	}
 }
@@ -322,12 +302,14 @@ void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
 	switch (kind) {
 	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
+	case ENUM:     return to_type<const AstEnumType>()->dump(ast, builder);
 	case PTR:      return to_type<const AstPtrType>()->dump(ast, builder);
 	case MULTIPTR: return to_type<const AstMultiPtrType>()->dump(ast, builder);
 	case SLICE:    return to_type<const AstSliceType>()->dump(ast, builder);
 	case ARRAY:    return to_type<const AstArrayType>()->dump(ast, builder);
 	case NAMED:    return to_type<const AstNamedType>()->dump(ast, builder);
 	case PARAM:    return to_type<const AstParamType>()->dump(ast, builder);
+	case PAREN:    return to_type<const AstParenType>()->dump(ast, builder);
 	default:
 		break;
 	}
@@ -349,6 +331,32 @@ void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {
 	}
 	builder.put(' ');
 	builder.put('}');
+}
+
+void AstEnumType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("enum");
+	builder.put(' ');
+	if (base) {
+		ast[base].dump(ast, builder);
+		builder.put(' ');
+	}
+	builder.put('{');
+	Bool first = true;
+	for (const auto e : ast[enums]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[e].dump(ast, builder);
+		first = false;
+	}
+	builder.put('}');
+}
+
+void AstProcType::dump(const AstFile& ast, StringBuilder& builder) const {
+	// TODO(dweiler):
+	(void)ast;
+	(void)builder;
 }
 
 void AstPtrType::dump(const AstFile& ast, StringBuilder& builder) const {
@@ -377,6 +385,14 @@ void AstArrayType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[base].dump(ast, builder);
 }
 
+void AstNamedType::dump(const AstFile& ast, StringBuilder& builder) const {
+	if (pkg) {
+		builder.put(ast[pkg]);
+		builder.put('.');
+	}
+	builder.put(ast[name]);
+}
+
 void AstParamType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[name].dump(ast, builder);
 	builder.put('(');
@@ -392,12 +408,21 @@ void AstParamType::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
-void AstNamedType::dump(const AstFile& ast, StringBuilder& builder) const {
-	if (pkg) {
-		builder.put(ast[pkg]);
-		builder.put('.');
-	}
+void AstParenType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('(');
+	ast[type].dump(ast, builder);
+	builder.put(')');
+}
+
+// Enum
+void AstEnum::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(ast[name]);
+	if (expr) {
+		builder.put(' ');
+		builder.put('=');
+		builder.put(' ');
+		ast[expr].dump(ast, builder);
+	}
 }
 
 } // namespace Thor

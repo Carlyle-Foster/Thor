@@ -85,7 +85,7 @@ ifeq ($(DEBUG),1)
 else
 	# Options for release builds
 	CXXFLAGS += -DNDEBUG
-	CXXFLAGS += -Os
+	CXXFLAGS += -O3
 	CXXFLAGS += -fno-stack-protector
 	CXXFLAGS += -fno-stack-check
 	CXXFLAGS += -fno-unwind-tables
