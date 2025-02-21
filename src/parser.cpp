@@ -60,25 +60,13 @@ Parser::Parser(System& sys, Lexer&& lexer, AstFile&& ast)
 	eat();
 }
 
-StringView Parser::parse_ident() {
-	const auto result = lexer_.string(token_);
-	eat(); // Eat <ident>
-	return result;
-}
-
-Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
-	TRACE();
-	Array<AstRef<AstExpr>> exprs{temporary_};
-	for (;;) {
-		auto expr = parse_expr(lhs);
-		if (!expr || !exprs.push_back(expr)) {
-			return {};
-		}
-		if (!is_kind(TokenKind::COMMA) || is_kind(TokenKind::ENDOF)) {
-			break;
-		}
+AstStringRef Parser::parse_ident() {
+	if (!is_kind(TokenKind::IDENTIFIER)) {
+		return error("Expected identifier");
 	}
-	return exprs;
+	auto str = lexer_.string(token_);
+	eat(); // Eat <ident>
+	return ast_.insert(str);
 }
 
 AstRef<AstProcExpr> Parser::parse_proc_expr() {
@@ -255,12 +243,9 @@ AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	TRACE();
 	eat(); // Eat 'package'
 	if (is_kind(TokenKind::IDENTIFIER)) {
-		const auto ident = lexer_.string(token_);
-		eat(); // Eat <ident>
-		if (auto ref = ast_.insert(ident)) {
-			return ast_.create<AstPackageStmt>(ref);
+		if (auto name = parse_ident()) {
+			return ast_.create<AstPackageStmt>(name);
 		} else {
-			// Out of memory.
 			return {};
 		}
 	}
@@ -288,9 +273,9 @@ AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 		return error("Expected 'break'");
 	}
 	eat(); // Eat 'break'
-	StringRef label;
+	AstStringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
-		label = ast_.insert(parse_ident());
+		label = parse_ident();
 	}
 	return ast_.create<AstBreakStmt>(label);
 }
@@ -301,9 +286,9 @@ AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 		return error("Expected 'continue'");
 	}
 	eat(); // Eat 'continue'
-	StringRef label;
+	AstStringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
-		label = ast_.insert(parse_ident());
+		label = parse_ident();
 	}
 	return ast_.create<AstContinueStmt>(label);
 }
@@ -481,11 +466,10 @@ AstRef<AstReturnStmt> Parser::parse_return_stmt() {
 
 AstRef<AstIdentExpr> Parser::parse_ident_expr() {
 	TRACE();
-	if (!is_kind(TokenKind::IDENTIFIER)) {
-		return error("Expected identifier");
+	if (auto ident = parse_ident()) {
+		return ast_.create<AstIdentExpr>(ident);
 	}
-	const auto ident = ast_.insert(parse_ident());
-	return ast_.create<AstIdentExpr>(ident);
+	return {};
 }
 
 AstRef<AstUndefExpr> Parser::parse_undef_expr() {
@@ -831,30 +815,22 @@ AstRef<AstArrayType> Parser::parse_array_type() {
 
 AstRef<AstNamedType> Parser::parse_named_type() {
 	TRACE();
-	if (!is_kind(TokenKind::IDENTIFIER)) {
-		return error("Expected identifier");
-	}
-	const auto name = lexer_.string(token_);
-	StringRef name_ref = ast_.insert(name);
-	StringRef pkg_ref;
+	AstStringRef name_ref = parse_ident();
 	if (!name_ref) {
 		return {};
 	}
-	eat(); // Eat ident
+	AstStringRef pkg_ref;
 	if (is_operator(OperatorKind::PERIOD)) {
 		eat(); // Eat '.'
-		if (!is_kind(TokenKind::IDENTIFIER)) {
-			return error("Expected identifier after '.'");
-		}
-		const auto name = lexer_.string(token_);
-		// Exchange name_ref with pkg_ref since:
-		//   a.b -> a is the package, b is the name
-		pkg_ref = name_ref;
-		name_ref = ast_.insert(name);
+		auto ref = parse_ident();
 		if (!pkg_ref) {
 			return {};
 		}
-		eat(); // Eat ident
+		pkg_ref = name_ref;
+		name_ref = ref;
+		if (!pkg_ref) {
+			return {};
+		}
 	}
 	return ast_.create<AstNamedType>(pkg_ref, name_ref);
 }
@@ -862,15 +838,10 @@ AstRef<AstNamedType> Parser::parse_named_type() {
 AstRef<AstEnum> Parser::parse_enum() {
 	TRACE();
 	// Ident ('=' Expr)?
-	if (!is_kind(TokenKind::IDENTIFIER)) {
-		return error("Expected identifier");
-	}
-	auto name = lexer_.string(token_);
-	auto ref = ast_.insert(name);
-	if (!ref) {
+	auto name = parse_ident();
+	if (!name) {
 		return {};
 	}
-	eat(); // Eat Ident
 	AstRef<AstExpr> expr;
 	if (is_assignment(AssignKind::EQ)) {
 		eat(); // Eat '='
@@ -879,7 +850,7 @@ AstRef<AstEnum> Parser::parse_enum() {
 			return {};
 		}
 	}
-	return ast_.create<AstEnum>(ref, expr);
+	return ast_.create<AstEnum>(name, expr);
 }
 
 AstRef<AstParenType> Parser::parse_paren_type() {

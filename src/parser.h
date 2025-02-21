@@ -8,7 +8,7 @@ namespace Thor {
 
 struct Parser {
 	static Maybe<Parser> open(System& sys, StringView file);
-	StringView parse_ident();
+	AstStringRef parse_ident();
 
 	// Expression parsers
 	AstRef<AstIdentExpr>   parse_ident_expr();
@@ -52,7 +52,6 @@ struct Parser {
 	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
 	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
 private:
-	Maybe<Array<AstRef<AstExpr>>> parse_expr_list(Bool lhs);
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
 	AstRef<AstEnum> parse_enum();
 

@@ -41,6 +41,13 @@ private:
 };
 
 struct StringRef {
+	constexpr StringRef() = default;
+	constexpr StringRef(Unit) : StringRef{}{}
+	constexpr StringRef(Uint32 offset, Uint32 length)
+		: offset{offset}
+		, length{length}
+	{
+	}
 	Uint32 offset = 0;
 	Uint32 length = ~0_u32;
 	constexpr auto is_valid() const {
