@@ -41,13 +41,16 @@ void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const 
 	case IMPORT:      return to_stmt<const AstImportStmt>()->dump(ast, builder, nest);
 	case PACKAGE:     return to_stmt<const AstPackageStmt>()->dump(ast, builder, nest);
 	case DEFER:       return to_stmt<const AstDeferStmt>()->dump(ast, builder, nest);
+	case RETURN:      return to_stmt<const AstReturnStmt>()->dump(ast, builder, nest);
 	case BREAK:       return to_stmt<const AstBreakStmt>()->dump(ast, builder, nest);
 	case CONTINUE:    return to_stmt<const AstContinueStmt>()->dump(ast, builder, nest);
 	case FALLTHROUGH: return to_stmt<const AstFallthroughStmt>()->dump(ast, builder, nest);
 	case IF:          return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
+	case WHEN:        return to_stmt<const AstWhenStmt>()->dump(ast, builder, nest);
 	case DECL:        return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
 	}
 }
+
 void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put(';');
@@ -131,6 +134,21 @@ void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 		defer.dump(ast, builder, nest);
 	} else {
 		defer.dump(ast, builder, 0);
+	}
+}
+
+void AstReturnStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("return");
+	builder.put(' ');
+	Bool first = true;
+	for (auto expr : ast[exprs]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[expr].dump(ast, builder);
+		first = false;
 	}
 }
 

@@ -27,7 +27,6 @@ int main(int, char **) {
 	}
 	auto& ast = parser->ast();
 
-
 	StringBuilder builder{sys.allocator};
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {

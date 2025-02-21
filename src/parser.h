@@ -25,7 +25,7 @@ struct Parser {
 
 	// Statement parsers
 	AstRef<AstStmt>            parse_stmt();
-	AstRef<AstStmt>            parse_simple_stmt();
+	AstRef<AstExprStmt>        parse_expr_stmt();
 	AstRef<AstEmptyStmt>       parse_empty_stmt();
 	AstRef<AstBlockStmt>       parse_block_stmt();
 	AstRef<AstPackageStmt>     parse_package_stmt();
@@ -34,7 +34,9 @@ struct Parser {
 	AstRef<AstContinueStmt>    parse_continue_stmt();
 	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
 	AstRef<AstIfStmt>          parse_if_stmt();
+	AstRef<AstWhenStmt>        parse_when_stmt();
 	AstRef<AstDeferStmt>       parse_defer_stmt();
+	AstRef<AstReturnStmt>      parse_return_stmt();
 
 	// Type parsers
 	AstRef<AstType> parse_type();

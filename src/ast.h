@@ -477,10 +477,12 @@ struct AstStmt : AstNode {
 		IMPORT,
 		PACKAGE,
 		DEFER,
+		RETURN,
 		BREAK,
 		CONTINUE,
 		FALLTHROUGH,
 		IF,
+		WHEN,
 		DECL,
 	};
 
@@ -589,6 +591,17 @@ struct AstDeferStmt : AstStmt {
 	AstRef<AstStmt> stmt;
 };
 
+struct AstReturnStmt : AstStmt {
+	static constexpr const auto KIND = Kind::RETURN;
+	constexpr AstReturnStmt(AstRefArray<AstExpr> exprs)
+		: AstStmt{KIND}
+		, exprs{exprs}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	AstRefArray<AstExpr> exprs;
+};
+
 struct AstBreakStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BREAK;
 	constexpr AstBreakStmt(AstStringRef label)
@@ -638,6 +651,18 @@ struct AstIfStmt : AstStmt {
 	AstRef<AstExpr>        cond;
 	AstRef<AstStmt>        on_true;
 	Maybe<AstRef<AstStmt>> on_false;
+};
+
+struct AstWhenStmt : AstStmt {
+	static constexpr const auto KIND = Kind::WHEN;
+	constexpr AstWhenStmt(AstRef<AstExpr> cond, AstRef<AstBlockStmt> body)
+		: AstStmt{KIND}
+		, cond{cond}
+		, body{body}
+	{
+	}
+	AstRef<AstExpr>      cond;
+	AstRef<AstBlockStmt> body;
 };
 
 struct AstExpr;
