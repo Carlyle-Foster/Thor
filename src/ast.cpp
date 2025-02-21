@@ -21,6 +21,15 @@ AstFile::~AstFile() {
 	// TODO(dweiler): Call destructors on nodes
 }
 
+AstIDArray AstFile::insert(Array<AstID>&& ids) {
+	const auto offset = ids_.length();
+	if (!ids_.resize(ids.length())) {
+		return {};
+	}
+	memcpy(ids_.data() + offset, ids.data(), ids.length() * sizeof(AstID));
+	return AstIDArray { Uint64(offset), Uint64(ids.length()) };
+}
+
 // Stmt
 void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	using enum Kind;
@@ -54,7 +63,7 @@ void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
 	builder.put('\n');
-	for (auto stmt : stmts) {
+	for (auto stmt : ast[stmts]) {
 		ast[stmt].dump(ast, builder, nest+1);
 		builder.put('\n');
 	}
@@ -114,7 +123,7 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 
 	builder.rep(nest * 2, ' ');
 	Bool first = true;
-	for (auto value : lhs) {
+	for (auto value : ast[lhs]) {
 		if (!first) {
 			builder.put(", ");
 		}
@@ -127,7 +136,7 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	builder.put(' ');
 
 	first = true;
-	for (auto value : rhs) {
+	for (auto value : ast[rhs]) {
 		if (!first) {
 			builder.put(", ");
 		}
@@ -175,7 +184,7 @@ void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("proc");
 	builder.put('(');
 	if (params) {
-		for (auto param : *params) {
+		for (auto param : ast[*params]) {
 			ast[param].dump(ast, builder, 0);
 			builder.put(',');
 			builder.put(' ');
@@ -205,7 +214,7 @@ void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	Bool first = true;
 	builder.rep(nest * 2, ' ');
-	for (auto value : lhs) {
+	for (auto value : ast[lhs]) {
 		if (!first) {
 			builder.put(',');
 			builder.put(' ');
@@ -218,7 +227,7 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	if (rhs) {
 		builder.put(':');
 		Bool first = true;
-		for (auto value : *rhs) {
+		for (auto value : ast[*rhs]) {
 			if (!first) {
 				builder.put(',');
 			}
@@ -293,7 +302,7 @@ void AstStructExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(' ');
 	builder.put('{');
 	builder.put('\n');
-	for (auto decl : decls) {
+	for (auto decl : ast[decls]) {
 		ast[decl].dump(ast, builder, 0);
 		builder.put(',');
 		builder.put('\n');
@@ -330,7 +339,7 @@ void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('{');
 	builder.put(' ');
 	Bool first = true;
-	for (const auto type : types) {
+	for (const auto type : ast[types]) {
 		if (!first) {
 			builder.put(',');
 			builder.put(' ');
@@ -372,7 +381,7 @@ void AstParamType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[name].dump(ast, builder);
 	builder.put('(');
 	Bool first = true;
-	for (const auto expr : exprs) {
+	for (const auto expr : ast[exprs]) {
 		if (!first) {
 			builder.put(',');
 			builder.put(' ');

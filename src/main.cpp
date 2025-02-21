@@ -12,6 +12,8 @@ namespace Thor {
 
 using namespace Thor;
 
+#include <stdio.h>
+
 int main(int, char **) {
 	System sys {
 		STD_FILESYSTEM,
@@ -24,6 +26,8 @@ int main(int, char **) {
 		return 1;
 	}
 	auto& ast = parser->ast();
+
+
 	StringBuilder builder{sys.allocator};
 	/*
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
@@ -42,6 +46,7 @@ int main(int, char **) {
 	if (!type) {
 		return 1;
 	}
+
 	ast[type].dump(ast, builder);
 	if (auto result = builder.result()) {
 		sys.console.write(sys, *result);

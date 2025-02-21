@@ -11,6 +11,45 @@ struct AstStmt;
 struct AstType;
 struct AstFile;
 
+using AstStringRef = StringRef;
+
+// The following type represents a list of IDs.
+struct AstIDArray {
+	constexpr AstIDArray() = default;
+	constexpr AstIDArray(Uint64 offset, Uint64 length)
+		: offset_{offset}
+		, length_{length}
+	{
+	}
+	[[nodiscard]] constexpr Bool is_empty() const { return length_ == 0; }
+	[[nodiscard]] constexpr Bool length() const { return length_; }
+private:
+	friend struct AstFile;
+	Uint64 offset_ = 0; // The offset into Ast::ids_
+	Uint64 length_ = 0; // The length of the array.
+	// The actual IDs are essentially:
+	// 	Ast::ids_.slice(offset_).truncate(length_)
+};
+static_assert(sizeof(AstIDArray) == 16);
+
+// This is the same as AstIDArray but carries a compile-time type with it for
+// convenience so that AstFile::operator[] can produce Slice<AstRef<T>> which
+// represents the correct underlying type held in the list which is a list of
+// AstIDs (where AstRef<T> is the typed version of that as well).
+template<typename T>
+struct AstRefArray {
+	constexpr AstRefArray() = default;
+	constexpr AstRefArray(AstIDArray id)
+		: id_{id}
+	{
+	}
+	[[nodiscard]] constexpr Bool is_empty() const { return id_.is_empty(); }
+	[[nodiscard]] constexpr Bool length() const { return id_.length(); }
+private:
+	friend struct AstFile;
+	AstIDArray id_;
+};
+
 struct AstSlabID {
 	// Only 6-bit slab index (2^6 = 64)
 	static inline constexpr const auto MAX = 64_u32;
@@ -153,13 +192,13 @@ struct AstTernaryExpr : AstExpr {
 
 struct AstIdentExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IDENT;
-	constexpr AstIdentExpr(StringRef ident)
+	constexpr AstIdentExpr(AstStringRef ident)
 		: AstExpr{KIND}
 		, ident{ident}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	StringRef ident;
+	AstStringRef ident;
 };
 
 struct AstIntExpr : AstExpr {
@@ -206,13 +245,13 @@ struct AstDeclStmt;
 
 struct AstStructExpr : AstExpr {
 	static constexpr const auto KIND = Kind::STRUCT;
-	constexpr AstStructExpr(Array<AstRef<AstDeclStmt>>&& decls)
+	constexpr AstStructExpr(AstRefArray<AstDeclStmt> decls)
 		: AstExpr{KIND}
-		, decls{move(decls)}
+		, decls{decls}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	Array<AstRef<AstDeclStmt>> decls;
+	AstRefArray<AstDeclStmt> decls;
 };
 
 struct AstTypeExpr : AstExpr {
@@ -230,9 +269,9 @@ struct AstBlockStmt;
 
 struct AstProcExpr : AstExpr {
 	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProcExpr(Maybe<Array<AstRef<AstDeclStmt>>>&&   params,
-		                    AstRef<AstBlockStmt>                body,
-		                    AstRef<AstTypeExpr>                 ret)
+	constexpr AstProcExpr(Maybe<AstRefArray<AstDeclStmt>>&& params,
+		                    AstRef<AstBlockStmt>              body,
+		                    AstRef<AstTypeExpr>               ret)
 		: AstExpr{KIND}
 		, params{move(params)}
 		, body{body}
@@ -240,9 +279,9 @@ struct AstProcExpr : AstExpr {
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	Maybe<Array<AstRef<AstDeclStmt>>> params;
-	AstRef<AstBlockStmt>              body;
-	AstRef<AstTypeExpr>               ret;
+	Maybe<AstRefArray<AstDeclStmt>> params;
+	AstRef<AstBlockStmt>            body;
+	AstRef<AstTypeExpr>             ret;
 };
 
 // The reference Odin compiler treats all types as expressions in the ast. Here,
@@ -313,13 +352,13 @@ struct AstType : AstNode {
 
 struct AstUnionType : AstType {
 	static constexpr const auto KIND = Kind::UNION;
-	constexpr AstUnionType(Array<AstRef<AstType>>&& types)
+	constexpr AstUnionType(AstRefArray<AstType> types)
 		: AstType{KIND}
-		, types{move(types)}
+		, types{types}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	Array<AstRef<AstType>> types;
+	AstRefArray<AstType> types;
 };
 
 struct AstPtrType : AstType {
@@ -370,28 +409,28 @@ struct AstArrayType : AstType {
 
 struct AstNamedType : AstType {
 	static constexpr const auto KIND = Kind::NAMED;
-	constexpr AstNamedType(StringRef pkg, StringRef name)
+	constexpr AstNamedType(AstStringRef pkg, AstStringRef name)
 		: AstType{KIND}
 		, pkg{pkg}
 		, name{name}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	StringRef pkg; // Optional package name
-	StringRef name;
+	AstStringRef pkg; // Optional package name
+	AstStringRef name;
 };
 
 struct AstParamType : AstType {
 	static constexpr const auto KIND = Kind::PARAM;
-	constexpr AstParamType(AstRef<AstNamedType> name, Array<AstRef<AstExpr>>&& exprs)
+	constexpr AstParamType(AstRef<AstNamedType> name, AstRefArray<AstExpr> exprs)
 		: AstType{KIND}
 		, name{name}
-		, exprs{move(exprs)}
+		, exprs{exprs}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstNamedType> name;
-	Array<AstRef<AstExpr>> exprs;
+	AstRefArray<AstExpr> exprs;
 };
 
 struct AstStmt : AstNode {
@@ -456,52 +495,52 @@ struct AstExprStmt : AstStmt {
 
 struct AstAssignStmt : AstStmt {
 	static constexpr const auto KIND = Kind::ASSIGN;
-	constexpr AstAssignStmt(Array<AstRef<AstExpr>>&& lhs,
-	                        Token                    token,
-	                        Array<AstRef<AstExpr>>&& rhs)
+	constexpr AstAssignStmt(AstRefArray<AstExpr> lhs,
+	                        Token                token,
+	                        AstRefArray<AstExpr> rhs)
 		: AstStmt{KIND}
-		, lhs{move(lhs)}
-		, rhs{move(rhs)}
+		, lhs{lhs}
+		, rhs{rhs}
 		, token{token}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	Array<AstRef<AstExpr>> lhs;
-	Array<AstRef<AstExpr>> rhs;
-	Token                  token;
+	AstRefArray<AstExpr> lhs;
+	AstRefArray<AstExpr> rhs;
+	Token                token;
 };
 
 struct AstBlockStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BLOCK;
-	constexpr AstBlockStmt(Array<AstRef<AstStmt>>&& stmts)
+	constexpr AstBlockStmt(AstRefArray<AstStmt> stmts)
 		: AstStmt{KIND}
-		, stmts{move(stmts)}
+		, stmts{stmts}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	Array<AstRef<AstStmt>> stmts;
+	AstRefArray<AstStmt> stmts;
 };
 
 struct AstImportStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IMPORT;
-	constexpr AstImportStmt(StringRef path)
+	constexpr AstImportStmt(AstStringRef path)
 		: AstStmt{KIND}
 		, path{path}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	StringRef path;
+	AstStringRef path;
 };
 
 struct AstPackageStmt : AstStmt {
 	static constexpr const auto KIND = Kind::PACKAGE;
-	constexpr AstPackageStmt(StringRef name)
+	constexpr AstPackageStmt(AstStringRef name)
 		: AstStmt{KIND}
 		, name{name}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	StringRef name;
+	AstStringRef name;
 };
 
 struct AstDeferStmt : AstStmt {
@@ -517,24 +556,24 @@ struct AstDeferStmt : AstStmt {
 
 struct AstBreakStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BREAK;
-	constexpr AstBreakStmt(StringRef label)
+	constexpr AstBreakStmt(AstStringRef label)
 		: AstStmt{KIND}
 		, label{label}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	StringRef label;
+	AstStringRef label;
 };
 
 struct AstContinueStmt : AstStmt {
 	static constexpr const auto KIND = Kind::CONTINUE;
-	constexpr AstContinueStmt(StringRef label)
+	constexpr AstContinueStmt(AstStringRef label)
 		: AstStmt{KIND}
 		, label{label}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	StringRef label;
+	AstStringRef label;
 };
 
 struct AstFallthroughStmt : AstStmt {
@@ -570,8 +609,8 @@ struct AstExpr;
 
 struct AstDeclStmt : AstStmt {
 	static constexpr const auto KIND = Kind::DECL;
-	using List = Array<AstRef<AstExpr>>;
-	constexpr AstDeclStmt(List&& lhs, AstRef<AstTypeExpr> type, Maybe<List>&& rhs)
+	using List = AstRefArray<AstExpr>;
+	constexpr AstDeclStmt(List lhs, AstRef<AstTypeExpr> type, Maybe<List>&& rhs)
 		: AstStmt{KIND}
 		, lhs{move(lhs)}
 		, type{type}
@@ -654,13 +693,26 @@ struct AstFile {
 		return *reinterpret_cast<const T*>((*slabs_[slab_idx])[SlabRef { slab_ref }]);
 	}
 
-	// Lookup a StrinfView by StringRef
-	[[nodiscard]] constexpr StringView operator[](StringRef ref) const {
+	// Lookup a StringView by AstStringRef
+	[[nodiscard]] constexpr StringView operator[](AstStringRef ref) const {
 		return string_table_[ref];
 	}
+	// Lookup a Slice<AstRef<T>> by AstRefArray
+	template<typename T>
+	[[nodiscard]] constexpr Slice<const AstRef<T>> operator[](AstRefArray<T> ref) const {
+		return ids_.slice()
+		           .slice(ref.id_.offset_)
+		           .truncate(ref.id_.length_)
+		           .template cast<const AstRef<T>>();
+	}
 
-	[[nodiscard]] StringRef insert(StringView view) {
+	[[nodiscard]] AstStringRef insert(StringView view) {
 		return string_table_.insert(view);
+	}
+
+	template<typename T>
+	[[nodiscard]] AstRefArray<T> insert(Array<AstRef<T>>&& refs) {
+		return insert(move(reinterpret_cast<Array<AstID>&&>(refs)));
 	}
 
 	[[nodiscard]] const StringTable& string_table() const {
@@ -668,16 +720,36 @@ struct AstFile {
 	}
 
 private:
-	AstFile(StringTable&& string_table, Allocator& allocator, StringRef filename)
+	[[nodiscard]] AstIDArray insert(Array<AstID>&& ids);
+
+	AstFile(StringTable&& string_table, Allocator& allocator, AstStringRef filename)
 		: string_table_{move(string_table)}
 		, slabs_{allocator}
+		, ids_{allocator}
 		, filename_{filename}
 	{
 	}
 
+	// The flattened Ast structure is held here with nodes indexing these. In
+	// detail:
+	//  * AstStringRef is an offset into [string_table_] which is just a list of
+	//    UTF-8 characters. The AstStringRef also stores a Uint32 length for when
+	//    to stop reading the string in the table.
+	//  * AstRef<T> is a typed AstID which indexes [slab_] based on the type,
+	//    which then further indexes [Slab::caches_], which then further indexes
+	//    [Pool::data_]. The triple indirection works by decomposing a single
+	//    Uint32 index into a 6-bit [slab_] index. A 12-bit [Slab::caches_] index,
+	//    and a 14-bit [Pool::data_] index. You can think of reading the data for
+	//    a AstRef<T> or AstID as slabs_[d0(id)].caches_[d1(id)].data_[d2(id)]
+	//    where d0, d1, and d2 are decoding functions which take 6, 12 and 14 bits
+	//    from the 32-bit [id] respectively.
+	//  * AstRefArray<T> is a typed AstIDArray which indexes [ids_] based on an
+	//    offset and length stored in the AstRefArray itself. The [ids_] array is
+	//    just an array of AstID, i.e Uint32.
 	StringTable        string_table_;
 	Array<Maybe<Slab>> slabs_;
-	StringRef          filename_;
+	Array<AstID>       ids_;
+	AstStringRef       filename_;
 };
 
 } // namespace Thor

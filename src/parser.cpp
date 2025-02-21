@@ -77,7 +77,6 @@ Maybe<Array<AstRef<AstExpr>>> Parser::parse_expr_list(Bool lhs) {
 
 AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	eat(); // Eat 'proc'
-	Maybe<Array<AstRef<AstDeclStmt>>> params{temporary_};
 	for (;;) {
 		if(is_operator(OperatorKind::RPAREN)) break;
 		eat();
@@ -87,7 +86,8 @@ AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	eat(); // Eat '>'
 	auto ret = parse_type_expr();
 	auto body = parse_block_stmt();
-	return ast_.create<AstProcExpr>(move(params), body, ret);
+	// return ast_.create<AstProcExpr>({}, body, ret);
+	return {};
 }
 
 AstRef<AstStmt> Parser::parse_simple_stmt() {
@@ -96,14 +96,19 @@ AstRef<AstStmt> Parser::parse_simple_stmt() {
 	if (is_operator(OperatorKind::COLON)) {
 		eat(); // Eat ':'
 		auto type = parse_type_expr();
-		Maybe<Array<AstRef<AstExpr>>> values;
+		Maybe<AstRefArray<AstExpr>> rhs_refs;
 		if (is_operator(OperatorKind::EQ) ||
 		    is_operator(OperatorKind::COLON))
 		{
 			eat(); // Eat ':' or '='
-			values = parse_expr_list(false);
+			auto values = parse_expr_list(false);
+			if (!values) {
+				return {};
+			}
+			rhs_refs = ast_.insert(move(*values));
 		}
-		return ast_.create<AstDeclStmt>(move(*lhs), type, move(values));
+		auto lhs_refs = ast_.insert(move(*lhs));
+		return ast_.create<AstDeclStmt>(lhs_refs, type, move(rhs_refs));
 	} else if (is_assignment()) {
 		Token token = token_;
 		eat();
@@ -116,7 +121,9 @@ AstRef<AstStmt> Parser::parse_simple_stmt() {
 			error("No left-hand side assignments");
 			return {};
 		}
-		return ast_.create<AstAssignStmt>(move(*lhs), token, move(*rhs));
+		auto lhs_refs = ast_.insert(move(*lhs));
+		auto rhs_refs = ast_.insert(move(*rhs));
+		return ast_.create<AstAssignStmt>(lhs_refs, token, rhs_refs);
 
 	}
 	if (!lhs || lhs->length() > 1) {
@@ -209,7 +216,8 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 		return {};
 	}
 	eat(); // Eat '}'
-	return ast_.create<AstBlockStmt>(move(stmts));
+	auto refs = ast_.insert(move(stmts));
+	return ast_.create<AstBlockStmt>(refs);
 }
 
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
@@ -618,10 +626,10 @@ AstRef<AstStructExpr> Parser::parse_struct_expr() {
 		if (!type) {
 			return {};
 		}
-		auto decl = ast_.create<AstDeclStmt>(move(lhs), type, Maybe<Array<AstRef<AstExpr>>>{});
-		if (!decl || !fields.push_back(decl)) {
-			return {};
-		}
+		// auto decl = ast_.create<AstDeclStmt>(move(lhs), type, Maybe<Array<AstRef<AstExpr>>>{});
+		// if (!decl || !fields.push_back(decl)) {
+		// 	return {};
+		// }
 		if (!is_kind(TokenKind::COMMA)) {
 			break;
 		}
@@ -635,7 +643,8 @@ AstRef<AstStructExpr> Parser::parse_struct_expr() {
 		return {};
 	}
 	eat(); // Eat '}'
-	return ast_.create<AstStructExpr>(move(fields));
+	auto refs = ast_.insert(move(fields));
+	return ast_.create<AstStructExpr>(refs);
 }
 
 AstRef<AstExpr> Parser::parse_value_literal() {
@@ -688,7 +697,7 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 		error("Expected '{'");
 		return {};
 	}
-	Array<AstRef<AstType>> types{sys_.allocator};
+	Array<AstRef<AstType>> types{temporary_};
 	eat(); // Eat '}'
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
 		auto type = parse_type();
@@ -705,7 +714,8 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 		return {};
 	}
 	eat(); // '}'
-	return ast_.create<AstUnionType>(move(types));
+	auto refs = ast_.insert(move(types));
+	return ast_.create<AstUnionType>(refs);
 }
 
 AstRef<AstPtrType> Parser::parse_ptr_type() {
@@ -832,7 +842,7 @@ AstRef<AstType> Parser::parse_type() {
 		}
 		if (is_operator(OperatorKind::LPAREN)) {
 			eat(); // Eat '('
-			Array<AstRef<AstExpr>> exprs{sys_.allocator};
+			Array<AstRef<AstExpr>> exprs{temporary_};
 			while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
 				auto expr = parse_expr(false);
 				if (!expr || !exprs.push_back(expr)) {
@@ -849,7 +859,8 @@ AstRef<AstType> Parser::parse_type() {
 				return {};
 			}
 			eat(); // Eat ')'
-			return ast_.create<AstParamType>(named, move(exprs));
+			auto refs = ast_.insert(move(exprs));
+			return ast_.create<AstParamType>(named, refs);
 		} else {
 			return named;
 		}
