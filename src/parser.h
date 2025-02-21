@@ -38,6 +38,15 @@ struct Parser {
 	AstRef<AstIfStmt>          parse_if_stmt();
 	AstRef<AstDeferStmt>       parse_defer_stmt();
 
+	// Type parsers
+	AstRef<AstType> parse_type();
+	AstRef<AstUnionType> parse_union_type();
+	AstRef<AstPtrType> parse_ptr_type();
+	AstRef<AstMultiPtrType> parse_multiptr_type();
+	AstRef<AstSliceType> parse_slice_type();
+	AstRef<AstArrayType> parse_array_type();
+	AstRef<AstNamedType> parse_named_type();
+
 	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
 	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
 private:

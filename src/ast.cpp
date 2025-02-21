@@ -309,5 +309,86 @@ void AstTypeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 }
 
 // Type
+void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
+	using enum Kind;
+	switch (kind) {
+	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
+	case PTR:      return to_type<const AstPtrType>()->dump(ast, builder);
+	case MULTIPTR: return to_type<const AstMultiPtrType>()->dump(ast, builder);
+	case SLICE:    return to_type<const AstSliceType>()->dump(ast, builder);
+	case ARRAY:    return to_type<const AstArrayType>()->dump(ast, builder);
+	case NAMED:    return to_type<const AstNamedType>()->dump(ast, builder);
+	case PARAM:    return to_type<const AstParamType>()->dump(ast, builder);
+	default:
+		break;
+	}
+}
+
+void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("union");
+	builder.put(' ');
+	builder.put('{');
+	builder.put(' ');
+	Bool first = true;
+	for (const auto type : types) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[type].dump(ast, builder);
+		first = false;
+	}
+	builder.put(' ');
+	builder.put('}');
+}
+
+void AstPtrType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('^');
+	ast[base].dump(ast, builder);
+}
+
+void AstMultiPtrType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("[^]");
+	ast[base].dump(ast, builder);
+}
+
+void AstSliceType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("[]");
+	ast[base].dump(ast, builder);
+}
+
+void AstArrayType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('[');
+	if (size) {
+		ast[size].dump(ast, builder);
+	} else {
+		builder.put('?');
+	}
+	builder.put(']');
+	ast[base].dump(ast, builder);
+}
+
+void AstParamType::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[name].dump(ast, builder);
+	builder.put('(');
+	Bool first = true;
+	for (const auto expr : exprs) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[expr].dump(ast, builder);
+		first = false;
+	}
+	builder.put(')');
+}
+
+void AstNamedType::dump(const AstFile& ast, StringBuilder& builder) const {
+	if (pkg) {
+		builder.put(ast[pkg]);
+		builder.put('.');
+	}
+	builder.put(ast[name]);
+}
 
 } // namespace Thor

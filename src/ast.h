@@ -6,6 +6,9 @@
 
 namespace Thor {
 
+struct AstExpr;
+struct AstStmt;
+struct AstType;
 struct AstFile;
 
 struct AstSlabID {
@@ -240,6 +243,155 @@ struct AstProcExpr : AstExpr {
 	Maybe<Array<AstRef<AstDeclStmt>>> params;
 	AstRef<AstBlockStmt>              body;
 	AstRef<AstTypeExpr>               ret;
+};
+
+// The reference Odin compiler treats all types as expressions in the ast. Here,
+// we prefer a more typed ast where types are their own category.
+//
+// There are a few places in the Odin language where an expression evaluates to
+// a type, but these expressions are regular and can be separately described by
+// their own grammar independent from an expression.
+//
+// StructType   := 'struct' '{' (Field (',' Field)*)? '}'
+// UnionType    := 'union' '{' (Type (',' Type)*)? '}'
+// EnumType     := 'enum' '{' (EnumValue (',' EnumValue)*)? '}'
+// EnumValue    := Ident ('=' Expr)?
+// ProcType     := 'proc' StrLit? '(' (Field (',' Field)*)? ')' ('->' (Type | (Field (',' Field)+))
+// PtrType      := '^' Type
+// MultiPtrType := '[^]' Type
+// SliceType    := '[]' Type
+// ArrayType    := '[' (Expr | '?') ']' Type
+// NamedType    := Ident ('.' Ident)?
+// ParamType    := NamedType '(' (Expr (',' Expr)*)? ')'
+// ParenType    := '(' Type ')'
+// Type         := Directive* AnyType
+// Directive    := '#' Ident ('(' (Expr (',' Expr)*)? ')')?
+//
+// ParamType is the interesting one as it handles all "parameterized" types. The
+// types where the reference compiler represents with an expression node. Some
+// examples of a parameterized types include:
+//
+//	ParaPolyStruct(int)
+//	ParaPolyUnion(123, 456)
+//	type_of(expr)
+//	intrinsics.something(T)
+//
+// * AnyType is any of the types above excluding Type itself
+struct AstType : AstNode {
+	enum class Kind : Uint8 {
+		STRUCT,
+		UNION,
+		ENUM,
+		PROC,
+		PTR,
+		MULTIPTR,
+		SLICE,
+		ARRAY,
+		PARAM,
+		NAMED,
+		PAREN,
+	};
+	constexpr AstType(Kind kind)
+		: kind{kind}
+	{
+	}
+	template<typename T>
+	[[nodiscard]] constexpr Bool is_type() const
+		requires DerivedFrom<T, AstType>
+	{
+		return kind == T::KIND;
+	}
+	template<typename T>
+	[[nodiscard]] const T* to_type() const
+		requires DerivedFrom<T, AstType>
+	{
+		return is_type<T>() ? static_cast<const T*>(this) : nullptr;
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	Kind kind;
+};
+
+struct AstUnionType : AstType {
+	static constexpr const auto KIND = Kind::UNION;
+	constexpr AstUnionType(Array<AstRef<AstType>>&& types)
+		: AstType{KIND}
+		, types{move(types)}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	Array<AstRef<AstType>> types;
+};
+
+struct AstPtrType : AstType {
+	static constexpr const auto KIND = Kind::PTR;
+	constexpr AstPtrType(AstRef<AstType> base)
+		: AstType{KIND}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> base;
+};
+
+struct AstMultiPtrType : AstType {
+	static constexpr const auto KIND = Kind::MULTIPTR;
+	constexpr AstMultiPtrType(AstRef<AstType> base)
+		: AstType{KIND}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> base;
+};
+
+struct AstSliceType : AstType {
+	static constexpr const auto KIND = Kind::SLICE;
+	constexpr AstSliceType(AstRef<AstType> base)
+		: AstType{KIND}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> base;
+};
+
+struct AstArrayType : AstType {
+	static constexpr const auto KIND = Kind::ARRAY;
+	constexpr AstArrayType(AstRef<AstExpr> size, AstRef<AstType> base)
+		: AstType{KIND}
+		, size{size}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> size; // Optional, empty represents [?]T
+	AstRef<AstType> base;
+};
+
+struct AstNamedType : AstType {
+	static constexpr const auto KIND = Kind::NAMED;
+	constexpr AstNamedType(StringRef pkg, StringRef name)
+		: AstType{KIND}
+		, pkg{pkg}
+		, name{name}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	StringRef pkg; // Optional package name
+	StringRef name;
+};
+
+struct AstParamType : AstType {
+	static constexpr const auto KIND = Kind::PARAM;
+	constexpr AstParamType(AstRef<AstNamedType> name, Array<AstRef<AstExpr>>&& exprs)
+		: AstType{KIND}
+		, name{name}
+		, exprs{move(exprs)}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstNamedType> name;
+	Array<AstRef<AstExpr>> exprs;
 };
 
 struct AstStmt : AstNode {

@@ -1,3 +1,6 @@
+union { int, f32, a.b, ^int, [^]T, []f32, []f32, [?]f32, x.y(10) }
+
+/*
 package ks
 
 import "core:fmt"
@@ -6,6 +9,11 @@ Item :: struct {
 	name:   string,
 	weight: int,
 	value:  int
+}
+
+T :: struct {
+	x, y: int,
+	z: f32
 }
 
 ks :: proc(items: []Item, w: int) -> []bool {
@@ -72,3 +80,4 @@ main :: proc() {
 	}
 	fmt.printf("%-22s % 5d % 5d\n", "totals:", tw, tv)
 }
+*/

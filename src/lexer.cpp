@@ -117,8 +117,7 @@ Token Lexer::scan_string() {
 Token Lexer::scan_number(Bool leading_period) {
 
 	const auto beg = position_.this_offset;
-	Token token = { TokenKind::LITERAL, beg, 1_u16 };
-
+	Token token = { LiteralKind::INTEGER, beg, 1_u16 };
 	if (leading_period) {
 		token.as_literal = LiteralKind::FLOAT;
 	}
@@ -128,41 +127,44 @@ Token Lexer::scan_number(Bool leading_period) {
 		switch (rune_) {
 		case 'b':
 			eat();
-			while(rune_.is_digit(2) || rune_ == '_') eat();
+			while (rune_.is_digit(2) || rune_ == '_') eat();
 			break;
 		case 'o':
 			eat();
-			while(rune_.is_digit(8) || rune_ == '_') eat();
+			while (rune_.is_digit(8) || rune_ == '_') eat();
 			break;
 		case 'd':
 			eat();
-			while(rune_.is_digit(10) || rune_ == '_') eat();
+			while (rune_.is_digit(10) || rune_ == '_') eat();
 			break;
 		case 'z':
 			eat();
-			while(rune_.is_digit(12) || rune_ == '_') eat();
+			while (rune_.is_digit(12) || rune_ == '_') eat();
 			break;
 		case 'x':
 			eat();
-			while(rune_.is_digit(16) || rune_ == '_') eat();
+			while (rune_.is_digit(16) || rune_ == '_') eat();
 			break;
 		case 'h':
 			eat();
-			while(rune_.is_digit(16) || rune_ == '_') eat();
+			while (rune_.is_digit(16) || rune_ == '_') eat();
 			break;
 			// TODO(Oliver): hexadecimal floats
 		default:
-			while(rune_.is_digit(16) || rune_ == '_') eat();
+			while (rune_.is_digit(16) || rune_ == '_') eat();
 			break;
 		}
+	} else {
+		while (rune_.is_digit(10) || rune_ == '_') eat();
 	}
 
 	if (rune_ == '.') {
 		eat(); // Eat '.'
+		token.as_literal = LiteralKind::FLOAT;
 		while (rune_.is_digit(10) || rune_ == '_') eat();
 	}
 
-	if(rune_ == 'e' || rune_ == 'E') {
+	if (rune_ == 'e' || rune_ == 'E') {
 		token.as_literal = LiteralKind::FLOAT;
 		eat(); // Eat 'e' or 'E'
 		if (rune_ == '-' || rune_ == '+') {
@@ -271,6 +273,7 @@ Token Lexer::advance() {
 	case ']': eat(); return { OperatorKind::RBRACKET, beg, 1_u16 };
 	case '?': eat(); return { OperatorKind::QUESTION, beg, 1_u16 };
 	case ':': eat(); return { OperatorKind::COLON,    beg, 1_u16 };
+	case '^': eat(); return { OperatorKind::POINTER,  beg, 1_u16 };
 	case '%':
 		eat(); // Eat '%'
 		switch (rune_) {

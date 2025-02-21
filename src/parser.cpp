@@ -1,12 +1,11 @@
-#include <stdio.h>
-
+#include <stdlib.h>
 #include "parser.h"
 #include "util/allocator.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 namespace Thor {
+
+// Field     := (Ident (',' Ident)* ':')? Type
+// FieldList := Field (',' Field)* Field?
 
 struct Debug {
 	Debug(System& sys, StringView name, Sint32 line) {
@@ -428,6 +427,10 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 		#include "lexer.inl"
 	};
 	auto expr = parse_unary_expr(lhs);
+	if (!expr) {
+		error("Could not parse unary prefix");
+		return {};
+	}
 	for (;;) {
 		if (!is_kind(TokenKind::OPERATOR)) {
 			// error("Expected operator in binary expression");
@@ -438,6 +441,7 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 			break;
 		}
 		if (is_operator(OperatorKind::QUESTION)) {
+			eat(); // Eat '?'
 			auto on_true = parse_expr(lhs);
 			if (!is_operator(OperatorKind::COLON)) {
 				error("Expected ':' after ternary condition");
@@ -447,12 +451,14 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 			auto on_false = parse_expr(lhs);
 			expr = ast_.create<AstTernaryExpr>(expr, on_true, on_false);
 		} else {
+			auto kind = token_.as_operator;
+			eat(); // Eat operator
 			auto rhs = parse_bin_expr(false, prec+1);
 			if (!rhs) {
 				error("Expected expression on right-hand side of binary operator");
 				return {};
 			}
-			expr = ast_.create<AstBinExpr>(expr, rhs, token_.as_operator);
+			expr = ast_.create<AstBinExpr>(expr, rhs, kind);
 		}
 		lhs = false;
 	}
@@ -638,12 +644,17 @@ AstRef<AstExpr> Parser::parse_value_literal() {
 	auto terminated = allocator.allocate<char>(string.length() + 1, false);
 	memcpy(terminated, string.data(), string.length());
 	terminated[string.length()] = '\0';
-	if(is_literal(LiteralKind::INTEGER)) {
+	if (is_literal(LiteralKind::INTEGER)) {
+		eat(); // Eat literal
 		Uint64 value = strtoul(terminated, nullptr, 10);
 		return ast_.create<AstIntExpr>(value);
-	} else if(is_literal(LiteralKind::FLOAT)) {
+	} else if (is_literal(LiteralKind::FLOAT)) {
+		eat(); // Eat literal
 		Float64 value = strtod(terminated, nullptr);
 		return ast_.create<AstFloatExpr>(value);
+	} else {
+		*(volatile int *)0 = 0;
+		error("What the hell am I parsing");
 	}
 	return {};
 }
@@ -664,6 +675,186 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	} else if (is_keyword(KeywordKind::PROC)) {
 		return parse_proc_expr();
 	}
+	return {};
+}
+
+AstRef<AstUnionType> Parser::parse_union_type() {
+	if (!is_keyword(KeywordKind::UNION)) {
+		error("Expected 'union'");
+		return {};
+	}
+	eat(); // Eat 'union'
+	if (!is_kind(TokenKind::LBRACE)) {
+		error("Expected '{'");
+		return {};
+	}
+	Array<AstRef<AstType>> types{sys_.allocator};
+	eat(); // Eat '}'
+	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+		auto type = parse_type();
+		if (!type || !types.push_back(type)) {
+			return {};
+		}
+		if (!is_kind(TokenKind::COMMA)) {
+			break;
+		}
+		eat(); // Eat ','
+	}
+	if (!is_kind(TokenKind::RBRACE)) {
+		error("Expected '}'");
+		return {};
+	}
+	eat(); // '}'
+	return ast_.create<AstUnionType>(move(types));
+}
+
+AstRef<AstPtrType> Parser::parse_ptr_type() {
+	if (!is_operator(OperatorKind::POINTER)) {
+		error("Expected '^'");
+		return {};
+	}
+	eat(); // Eat '^'
+	auto base = parse_type();
+	if (!base) {
+		return {};
+	}
+	return ast_.create<AstPtrType>(base);
+}
+
+AstRef<AstMultiPtrType> Parser::parse_multiptr_type() {
+	if (!is_operator(OperatorKind::POINTER)) {
+		error("Expected '^'");
+		return {};
+	}
+	eat(); // Eat '^'
+	if (!is_operator(OperatorKind::RBRACKET)) {
+		error("Expected ']'");
+		return {};
+	}
+	eat(); // Eat ']'
+	auto base = parse_type();
+	if (!base) {
+		return {};
+	}
+	return ast_.create<AstMultiPtrType>(base);
+}
+
+AstRef<AstSliceType> Parser::parse_slice_type() {
+	if (!is_operator(OperatorKind::RBRACKET)) {
+		error("Expected ']'");
+		return {};
+	}
+	eat(); // Eat ']'
+	auto base = parse_type();
+	if (!base) {
+		return {};
+	}
+	return ast_.create<AstSliceType>(base);
+}
+
+AstRef<AstArrayType> Parser::parse_array_type() {
+	AstRef<AstExpr> size;
+	if (is_operator(OperatorKind::QUESTION)) {
+		eat(); // Eat '?'
+	} else {
+		size = parse_expr(false);
+		if (!size) {
+			return {};
+		}
+	}
+	if (!is_operator(OperatorKind::RBRACKET)) {
+		StringBuilder builder{temporary_};
+		builder.put(Uint32(token_.kind));
+		builder.put('\n');
+		builder.put(Uint32(token_.as_operator));
+		// error("Expected ']' (here)");
+		// error(*builder.result())
+		sys_.console.write(sys_, *builder.result());
+		return {};
+	}
+	eat(); // Eat ']'
+	auto base = parse_type();
+	if (!base) {
+		return {};
+	}
+	return ast_.create<AstArrayType>(size, base);
+}
+
+AstRef<AstNamedType> Parser::parse_named_type() {
+	if (!is_kind(TokenKind::IDENTIFIER)) {
+		error("Expected identifier");
+		return {};
+	}
+	const auto name = lexer_.string(token_);
+	StringRef name_ref = ast_.insert(name);
+	StringRef pkg_ref;
+	if (!name_ref) {
+		return {};
+	}
+	eat(); // Eat ident
+	if (is_operator(OperatorKind::PERIOD)) {
+		eat(); // Eat '.'
+		if (!is_kind(TokenKind::IDENTIFIER)) {
+			error("Expected identifier after '.'");
+			return {};
+		}
+		const auto name = lexer_.string(token_);
+		// Exchange name_ref with pkg_ref since:
+		//   a.b -> a is the package, b is the name
+		pkg_ref = name_ref;
+		name_ref = ast_.insert(name);
+		if (!pkg_ref) {
+			return {};
+		}
+		eat(); // Eat ident
+	}
+	return ast_.create<AstNamedType>(pkg_ref, name_ref);
+}
+
+AstRef<AstType> Parser::parse_type() {
+	if (is_keyword(KeywordKind::UNION)) {
+		return parse_union_type();
+	} else if (is_operator(OperatorKind::POINTER)) {
+		return parse_ptr_type();
+	} else if (is_operator(OperatorKind::LBRACKET)) {
+		eat(); // Eat '['
+		if (is_operator(OperatorKind::POINTER)) {
+			return parse_multiptr_type(); // assuming '[' has already been consumed
+		} else if (is_operator(OperatorKind::RBRACKET)) {
+			return parse_slice_type(); // assuming '[' has already been consumed
+		} else {
+			return parse_array_type(); // assuming '[' has already been consumed
+		}
+	} else if (is_kind(TokenKind::IDENTIFIER)) {
+		auto named = parse_named_type();
+		if (!named) {
+			return {};
+		}
+		if (is_operator(OperatorKind::LPAREN)) {
+			eat(); // Eat '('
+			Array<AstRef<AstExpr>> exprs{sys_.allocator};
+			while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
+				auto expr = parse_expr(false);
+				if (!expr || !exprs.push_back(expr)) {
+					return {};
+				}
+				if (is_kind(TokenKind::COMMA)) {
+					eat(); // Eat ','
+				} else {
+					break;
+				}
+			}
+			if (!is_operator(OperatorKind::RPAREN)) {
+				error("Expected ')'");
+				return {};
+			}
+			eat(); // Eat ')'
+			return ast_.create<AstParamType>(named, move(exprs));
+		} else {
+			return named;
+		}
+	}
+	error("Unexpected token while parsing type");
 	return {};
 }
 

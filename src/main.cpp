@@ -24,6 +24,8 @@ int main(int, char **) {
 		return 1;
 	}
 	auto& ast = parser->ast();
+	StringBuilder builder{sys.allocator};
+	/*
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {
 		auto stmt = parser->parse_stmt();
@@ -34,8 +36,16 @@ int main(int, char **) {
 	StringBuilder builder{sys.allocator};
 	for (auto stmt : stmts) {
 		ast[stmt].dump(ast, builder, 0);
+	}*/
+
+	auto type = parser->parse_type();
+	if (!type) {
+		return 1;
 	}
+	ast[type].dump(ast, builder);
 	if (auto result = builder.result()) {
 		sys.console.write(sys, *result);
+		sys.console.write(sys, StringView { "\n" });
 	}
+	return 0;
 }
