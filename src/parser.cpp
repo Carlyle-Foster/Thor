@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "parser.h"
+#include "ast.h"
 #include "util/allocator.h"
 
 namespace Thor {
@@ -652,10 +653,6 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 	return expr;
 }
 
-AstRef<AstExpr> Parser::parse_range_expr() {
-	return {};
-}
-
 AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 	TRACE();
 	if (!operand) {
@@ -672,21 +669,32 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 			// operand->expr()
 		} else if (is_operator(OperatorKind::LBRACKET)) {
 			eat(); // Eat '['
+
+			// We don't know if we need the expression yet
 			auto expr = parse_expr(false);
-			if(!expr) {
-				// TODO(Oliver): handle ?, ..., :
-				return {};
-			}
 
 			if(is_operator(OperatorKind::RANGEHALF) ||
 			   is_operator(OperatorKind::RANGEFULL)) {
 
 				Bool inclusive = is_operator(OperatorKind::RANGEFULL);
 
-				auto start_expr = expr;
-				auto end_expr = parse_expr(false);
+				auto start = expr;
 
-				return ast_.create<AstRangeExpr>(start_expr, end_expr, inclusive);
+				if(!start) {
+					error("Expected a start range");
+					return {};
+				}
+
+				auto end = parse_expr(false);
+
+				return ast_.create<AstRangeExpr>(start, end, inclusive);
+			}
+
+			if(is_operator(OperatorKind::COLON)) {
+				auto low = expr;
+				auto high = parse_expr(false);
+
+				return ast_.create<AstSliceRangeExpr>(low, high);
 			}
 			// operand[a]
 			// operand[:]

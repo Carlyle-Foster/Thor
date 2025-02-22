@@ -171,6 +171,7 @@ struct AstExpr : AstNode {
 		CONTEXT,
 		PROC,
 		RANGE,
+		SLICERANGE,
 		INTEGER,
 		FLOAT,
 		STRING,
@@ -294,6 +295,19 @@ struct AstRangeExpr : AstExpr {
 	AstRef<AstExpr> start;
 	AstRef<AstExpr> end;
 	Bool            inclusive;
+};
+
+struct AstSliceRangeExpr : AstExpr {
+	static constexpr const auto KIND = Kind::RANGE;
+	constexpr AstSliceRangeExpr(AstRef<AstExpr> low, AstRef<AstExpr> high)
+		: AstExpr{KIND}
+		, low{low}
+		, high{high}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> low;
+	AstRef<AstExpr> high;
 };
 
 struct AstIntExpr : AstExpr {
