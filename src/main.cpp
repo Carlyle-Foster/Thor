@@ -31,7 +31,10 @@ int main(int, char **) {
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {
 		auto stmt = parser->parse_stmt(false, {}, {});
-		if (!stmt || !stmts.push_back(move(stmt))) {
+		if (!stmt) {
+			break;
+		}
+		if (!stmts.push_back(move(stmt))) {
 			break;
 		}
 	}

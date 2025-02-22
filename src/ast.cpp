@@ -187,7 +187,7 @@ void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) cons
 	builder.rep(nest * 2, ' ');
 	builder.put("if");
 	if (init) {
-		ast[*init].dump(ast, builder, nest);
+		ast[init].dump(ast, builder, nest);
 		builder.put(' ');
 		builder.put(';');
 	}
@@ -195,7 +195,18 @@ void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) cons
 	ast[on_true].dump(ast, builder, nest);
 	if (on_false) {
 		builder.put("else");
-		ast[*on_false].dump(ast, builder, nest);
+		ast[on_false].dump(ast, builder, 0);
+	}
+}
+
+void AstWhenStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("when");
+	ast[cond].dump(ast, builder);
+	ast[on_true].dump(ast, builder, nest+1);
+	if (on_false) {
+		builder.put("else");
+		ast[on_false].dump(ast, builder, 0);
 	}
 }
 
@@ -229,7 +240,7 @@ void AstUsingStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 	builder.rep(nest * 2, ' ');
 	builder.put("using");
 	builder.put(' ');
-	builder.put(ast[name]);
+	ast[expr].dump(ast, builder);
 }
 
 // Expr

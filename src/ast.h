@@ -731,34 +731,37 @@ struct AstFallthroughStmt : AstStmt {
 
 struct AstIfStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IF;
-	constexpr AstIfStmt(Maybe<AstRef<AstStmt>>&& init,
-	                    AstRef<AstExpr>          cond,
-	                    AstRef<AstStmt>          on_true,
-	                    Maybe<AstRef<AstStmt>>&& on_false)
+	constexpr AstIfStmt(AstRef<AstStmt> init,
+	                    AstRef<AstExpr> cond,
+	                    AstRef<AstStmt> on_true,
+	                    AstRef<AstStmt> on_false)
 		: AstStmt{KIND}
-		, init{move(init)}
+		, init{init} 
 		, cond{cond}
 		, on_true{on_true}
-		, on_false{move(on_false)}
+		, on_false{on_false}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	Maybe<AstRef<AstStmt>> init;
-	AstRef<AstExpr>        cond;
-	AstRef<AstStmt>        on_true;
-	Maybe<AstRef<AstStmt>> on_false;
+	AstRef<AstStmt> init; // Optional
+	AstRef<AstExpr> cond;
+	AstRef<AstStmt> on_true;
+	AstRef<AstStmt> on_false; // Optional
 };
 
 struct AstWhenStmt : AstStmt {
 	static constexpr const auto KIND = Kind::WHEN;
-	constexpr AstWhenStmt(AstRef<AstExpr> cond, AstRef<AstBlockStmt> body)
+	constexpr AstWhenStmt(AstRef<AstExpr> cond, AstRef<AstBlockStmt> on_true, AstRef<AstBlockStmt> on_false)
 		: AstStmt{KIND}
 		, cond{cond}
-		, body{body}
+		, on_true{on_true}
+		, on_false{on_false}
 	{
 	}
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRef<AstExpr>      cond;
-	AstRef<AstBlockStmt> body;
+	AstRef<AstBlockStmt> on_true;
+	AstRef<AstBlockStmt> on_false; // Optional
 };
 
 struct AstExpr;
@@ -781,13 +784,13 @@ struct AstDeclStmt : AstStmt {
 
 struct AstUsingStmt : AstStmt {
 	static constexpr const auto KIND = Kind::USING;
-	constexpr AstUsingStmt(AstStringRef name)
+	constexpr AstUsingStmt(AstRef<AstExpr> expr)
 		: AstStmt{KIND}
-		, name{name}
+		, expr{expr}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	AstStringRef name;
+	AstRef<AstExpr> expr;
 };
 
 // It is important that none of the Ast node types are polymorphic because they
