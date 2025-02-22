@@ -215,7 +215,12 @@ AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, Attribu
 	} else if (is_keyword(KeywordKind::FALLTHROUGH)) {
 		stmt = parse_fallthrough_stmt();
 	} else if (is_keyword(KeywordKind::FOREIGN)) {
-		// TODO
+		eat(); // Eat 'foreign'
+		if (is_keyword(KeywordKind::IMPORT)) {
+			return parse_foreign_import_stmt();
+		} else {
+			// TODO(dweiler): foreign bindings
+		}
 	} else if (is_keyword(KeywordKind::IF)) {
 		stmt = parse_if_stmt();
 	} else if (is_keyword(KeywordKind::WHEN)) {
@@ -350,6 +355,51 @@ AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
 	return ast_.create<AstFallthroughStmt>();
 }
 
+// ForeignImportStmt := 'foreign' 'import' Ident? StringLit
+//                    | 'foreign' 'import' Ident? '{' (Expr ',')+ '}'
+AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
+	TRACE();
+	if (!is_keyword(KeywordKind::IMPORT)) {
+		return error("Expected 'import'");
+	}
+	eat(); // Eat 'import'
+	AstStringRef ident;
+	if (is_kind(TokenKind::IDENTIFIER)) {
+		ident = parse_ident();
+		if (!ident) {
+			return {};
+		}
+	}
+	Array<AstRef<AstExpr>> exprs{temporary_};
+	if (is_kind(TokenKind::LBRACE)) {
+		eat(); // Eat '{'
+		while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+			auto expr = parse_expr(false);
+			if (!expr || !exprs.push_back(expr)) {
+				return {};
+			}
+			if (is_kind(TokenKind::COMMA)) {
+				eat(); // Eat ','
+			} else {
+				break;
+			}
+		}
+		if (!is_kind(TokenKind::RBRACE)) {
+			return error("Expected '}'");
+		}
+		eat(); // Eat '}'
+	} else {
+		// We expect it to be a string literal
+		auto expr = parse_string_expr();
+		if (!expr || !exprs.push_back(expr)) {
+			return {};
+		}
+	}
+
+	auto refs = ast_.insert(move(exprs));
+
+	return ast_.create<AstForeignImportStmt>(ident, refs);
+}
 // IfStmt := TODO(dweiler): EBNF
 AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	TRACE();
@@ -513,7 +563,7 @@ AstRef<AstUsingStmt> Parser::parse_using_stmt() {
 	if (!is_kind(TokenKind::IDENTIFIER)) {
 		return error("Expected identifier");
 	}
-	auto expr = parse_expr();
+	auto expr = parse_expr(false);
 	if (!expr) {
 		return {};
 	}

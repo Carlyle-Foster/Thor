@@ -1,68 +1,70 @@
-Stmt            := EmptyStmt ';'
-                 | BlockStmt ';'
-                 | PackageStmt ';'
-                 | ImportStmt ';'
-                 | DeferStmt ';'
-                 | ReturnStmt ';'
-                 | BreakStmt ';'
-                 | ContinueStmt ';'
-                 | FallthroughStmt ';'
-                 | ForeignStmt ';'
-                 | IfStmt ';'
-                 | WhenStmt ';'
-                 | ForStmt ';'
-                 | SwitchStmt ';'
-                 | UsingStmt ';'
-                 | DeclStmt ';'
+Stmt              := EmptyStmt ';'
+                   | BlockStmt ';'
+                   | PackageStmt ';'
+                   | ImportStmt ';'
+                   | DeferStmt ';'
+                   | ReturnStmt ';'
+                   | BreakStmt ';'
+                   | ContinueStmt ';'
+                   | FallthroughStmt ';'
+                   | ForeignStmt ';'
+                   | IfStmt ';'
+                   | WhenStmt ';'
+                   | ForStmt ';'
+                   | SwitchStmt ';'
+                   | UsingStmt ';'
+                   | DeclStmt ';'
 
-EmptyStmt       := ';'
-BlockStmt       := '{' Stmt* '}'
-PackageStmt     := 'package' Ident
-ImportStmt      := 'import' Ident? StringExpr
-BreakStmt       := 'break' Ident?
-ContinueStmt    := 'continue' Ident?
-FallthroughStmt := 'fallthrough'
-ExprStmt        := Expr
-WhenStmt        := 'when' Expr BlockStmt ('else' BlockStmt)?
-DeferStmt       := 'defer' Stmt
-ReturnStmt      := 'return' (Expr (',' Expr)*)?
-UsingStmt       := 'using' Expr
-IdentExpr       := Ident
-UndefExpr       := '---'
-ContextExpr     := 'context'
-IntExpr         := IntLit
-FloatExpr       := FloatLit
-StringExpr      := StringLit
+EmptyStmt         := ';'
+BlockStmt         := '{' Stmt* '}'
+PackageStmt       := 'package' Ident
+ImportStmt        := 'import' Ident? StringExpr
+BreakStmt         := 'break' Ident?
+ContinueStmt      := 'continue' Ident?
+FallthroughStmt   := 'fallthrough'
+ForeignImportStmt := 'foreign' 'import' Ident? StringLit
+                   | 'foreign' 'import' Ident? '{' (Expr ',')+ '}'
+ExprStmt          := Expr
+WhenStmt          := 'when' Expr BlockStmt ('else' BlockStmt)?
+DeferStmt         := 'defer' Stmt
+ReturnStmt        := 'return' (Expr (',' Expr)*)?
+UsingStmt         := 'using' Expr
+IdentExpr         := Ident
+UndefExpr         := '---'
+ContextExpr       := 'context'
+IntExpr           := IntLit
+FloatExpr         := FloatLit
+StringExpr        := StringLit
 
-Type            := UnionType
-                 | EnumType
-                 | PtrType
-                 | MultiPtrType
-                 | SliceType
-                 | DynArrayType
-                 | ArrayType
-                 | MapType
-                 | MatrixType
-                 | NamedType
-                 | ParamType
-                 | ParenType
-                 | DistinctType
-UnionType        := 'union' '{' (Type ',')* Type? '}'
-EnumType         := 'enum' Type? '{' (Enum ',')* Enum? '}'
-Enum             := Ident ('=' Expr)?
-PtrType          := '^' Type
-MultiPtrType     := '[' '^' ']' Type
-SliceType        := '[' ']' Type
-ArrayType        := '[' (Expr | '?') ']' Type
-DynArrayType     := '[' 'dynamic' ']' Type
-MapType          := 'map' [' Type ']' Type
-MatrixType       := 'matrix' '[' Expr ',' Expr ']' Type
-NamedType        := Ident ('.' Ident)?
-ParenType        := '(' Type ')'
-DistinctType     := 'distinct' Type
+Type              := UnionType
+                   | EnumType
+                   | PtrType
+                   | MultiPtrType
+                   | SliceType
+                   | DynArrayType
+                   | ArrayType
+                   | MapType
+                   | MatrixType
+                   | NamedType
+                   | ParamType
+                   | ParenType
+                   | DistinctType
+UnionType          := 'union' '{' (Type ',')* Type? '}'
+EnumType           := 'enum' Type? '{' (Enum ',')* Enum? '}'
+Enum               := Ident ('=' Expr)?
+PtrType            := '^' Type
+MultiPtrType       := '[' '^' ']' Type
+SliceType          := '[' ']' Type
+ArrayType          := '[' (Expr | '?') ']' Type
+DynArrayType       := '[' 'dynamic' ']' Type
+MapType            := 'map' [' Type ']' Type
+MatrixType         := 'matrix' '[' Expr ',' Expr ']' Type
+NamedType          := Ident ('.' Ident)?
+ParenType          := '(' Type ')'
+DistinctType       := 'distinct' Type
 
-AttributeList    := '@' Attribute
-                  | '@' '(' Attribute* ')'
-DirectiveList    := Directive*
-Attribute        := Ident ('=' Expr)?
-Directive        := '#' Ident '(' Expr (',' Expr)* ')'
+AttributeList      := '@' Attribute
+                    | '@' '(' Attribute* ')'
+DirectiveList      := Directive*
+Attribute          := Ident ('=' Expr)?
+Directive          := '#' Ident '(' Expr (',' Expr)* ')'

@@ -29,8 +29,8 @@ struct AstIDArray {
 		, length_{length}
 	{
 	}
-	[[nodiscard]] constexpr Bool is_empty() const { return length_ == 0; }
-	[[nodiscard]] constexpr Bool length() const { return length_; }
+	[[nodiscard]] constexpr auto is_empty() const { return length_ == 0; }
+	[[nodiscard]] constexpr auto length() const { return length_; }
 private:
 	friend struct AstFile;
 	Uint64 offset_ = 0; // The offset into Ast::ids_
@@ -52,8 +52,8 @@ struct AstRefArray {
 		: id_{id}
 	{
 	}
-	[[nodiscard]] constexpr Bool is_empty() const { return id_.is_empty(); }
-	[[nodiscard]] constexpr Bool length() const { return id_.length(); }
+	[[nodiscard]] constexpr auto is_empty() const { return id_.is_empty(); }
+	[[nodiscard]] constexpr auto length() const { return id_.length(); }
 private:
 	friend struct AstFile;
 	AstIDArray id_;
@@ -574,6 +574,7 @@ struct AstStmt : AstNode {
 		BREAK,
 		CONTINUE,
 		FALLTHROUGH,
+		FOREIGNIMPORT,
 		IF,
 		WHEN,
 		DECL,
@@ -729,6 +730,19 @@ struct AstFallthroughStmt : AstStmt {
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 };
 
+struct AstForeignImportStmt : AstStmt {
+	static constexpr const auto KIND = Kind::FOREIGNIMPORT;
+	constexpr AstForeignImportStmt(AstStringRef ident, AstRefArray<AstExpr> names)
+		: AstStmt{KIND}
+		, ident{ident}
+		, names{names}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	AstStringRef         ident; // Optional
+	AstRefArray<AstExpr> names;
+};
+
 struct AstIfStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IF;
 	constexpr AstIfStmt(AstRef<AstStmt> init,
@@ -880,7 +894,8 @@ struct AstFile {
 
 	template<typename T>
 	[[nodiscard]] AstRefArray<T> insert(Array<AstRef<T>>&& refs) {
-		return insert(move(reinterpret_cast<Array<AstID>&&>(refs)));
+		const auto ids = refs.slice().template cast<const AstID>();
+		return insert(ids);
 	}
 
 	[[nodiscard]] const StringTable& string_table() const {
@@ -888,7 +903,7 @@ struct AstFile {
 	}
 
 private:
-	[[nodiscard]] AstIDArray insert(Array<AstID>&& ids);
+	[[nodiscard]] AstIDArray insert(Slice<const AstID> ids);
 
 	AstFile(StringTable&& string_table, Allocator& allocator, AstStringRef filename)
 		: string_table_{move(string_table)}

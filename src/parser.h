@@ -30,20 +30,21 @@ struct Parser {
 	AstRef<AstProcExpr>   parse_proc_expr();
 
 	// Statement parsers
-	AstRef<AstStmt>            parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes);
-	AstRef<AstExprStmt>        parse_expr_stmt();
-	AstRef<AstEmptyStmt>       parse_empty_stmt();
-	AstRef<AstBlockStmt>       parse_block_stmt();
-	AstRef<AstPackageStmt>     parse_package_stmt();
-	AstRef<AstImportStmt>      parse_import_stmt();
-	AstRef<AstBreakStmt>       parse_break_stmt();
-	AstRef<AstContinueStmt>    parse_continue_stmt();
+	AstRef<AstStmt> parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes);
+	AstRef<AstExprStmt> parse_expr_stmt();
+	AstRef<AstEmptyStmt> parse_empty_stmt();
+	AstRef<AstBlockStmt> parse_block_stmt();
+	AstRef<AstPackageStmt> parse_package_stmt();
+	AstRef<AstImportStmt> parse_import_stmt();
+	AstRef<AstBreakStmt> parse_break_stmt();
+	AstRef<AstContinueStmt> parse_continue_stmt();
 	AstRef<AstFallthroughStmt> parse_fallthrough_stmt();
-	AstRef<AstIfStmt>          parse_if_stmt();
-	AstRef<AstWhenStmt>        parse_when_stmt();
-	AstRef<AstDeferStmt>       parse_defer_stmt();
-	AstRef<AstReturnStmt>      parse_return_stmt();
-	AstRef<AstUsingStmt>       parse_using_stmt();
+	AstRef<AstForeignImportStmt> parse_foreign_import_stmt();
+	AstRef<AstIfStmt> parse_if_stmt();
+	AstRef<AstWhenStmt> parse_when_stmt();
+	AstRef<AstDeferStmt> parse_defer_stmt();
+	AstRef<AstReturnStmt> parse_return_stmt();
+	AstRef<AstUsingStmt> parse_using_stmt();
 
 	// Type parsers
 	AstRef<AstType> parse_type();

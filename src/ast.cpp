@@ -21,7 +21,7 @@ AstFile::~AstFile() {
 	// TODO(dweiler): Call destructors on nodes
 }
 
-AstIDArray AstFile::insert(Array<AstID>&& ids) {
+AstIDArray AstFile::insert(Slice<const AstID> ids) {
 	const auto offset = ids_.length();
 	if (!ids_.resize(ids.length())) {
 		return {};
@@ -34,27 +34,28 @@ AstIDArray AstFile::insert(Array<AstID>&& ids) {
 void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	using enum Kind;
 	switch (kind) {
-	case EMPTY:       return to_stmt<const AstEmptyStmt>()->dump(ast, builder, nest);
-	case EXPR:        return to_stmt<const AstExprStmt>()->dump(ast, builder, nest);
-	case ASSIGN:      return to_stmt<const AstAssignStmt>()->dump(ast, builder, nest);
-	case BLOCK:       return to_stmt<const AstBlockStmt>()->dump(ast, builder, nest);
-	case IMPORT:      return to_stmt<const AstImportStmt>()->dump(ast, builder, nest);
-	case PACKAGE:     return to_stmt<const AstPackageStmt>()->dump(ast, builder, nest);
-	case DEFER:       return to_stmt<const AstDeferStmt>()->dump(ast, builder, nest);
-	case RETURN:      return to_stmt<const AstReturnStmt>()->dump(ast, builder, nest);
-	case BREAK:       return to_stmt<const AstBreakStmt>()->dump(ast, builder, nest);
-	case CONTINUE:    return to_stmt<const AstContinueStmt>()->dump(ast, builder, nest);
-	case FALLTHROUGH: return to_stmt<const AstFallthroughStmt>()->dump(ast, builder, nest);
-	case IF:          return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
-	case WHEN:        return to_stmt<const AstWhenStmt>()->dump(ast, builder, nest);
-	case DECL:        return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
-	case USING:       return to_stmt<const AstUsingStmt>()->dump(ast, builder, nest);
+	case EMPTY:         return to_stmt<const AstEmptyStmt>()->dump(ast, builder, nest);
+	case EXPR:          return to_stmt<const AstExprStmt>()->dump(ast, builder, nest);
+	case ASSIGN:        return to_stmt<const AstAssignStmt>()->dump(ast, builder, nest);
+	case BLOCK:         return to_stmt<const AstBlockStmt>()->dump(ast, builder, nest);
+	case IMPORT:        return to_stmt<const AstImportStmt>()->dump(ast, builder, nest);
+	case PACKAGE:       return to_stmt<const AstPackageStmt>()->dump(ast, builder, nest);
+	case DEFER:         return to_stmt<const AstDeferStmt>()->dump(ast, builder, nest);
+	case RETURN:        return to_stmt<const AstReturnStmt>()->dump(ast, builder, nest);
+	case BREAK:         return to_stmt<const AstBreakStmt>()->dump(ast, builder, nest);
+	case CONTINUE:      return to_stmt<const AstContinueStmt>()->dump(ast, builder, nest);
+	case FALLTHROUGH:   return to_stmt<const AstFallthroughStmt>()->dump(ast, builder, nest);
+	case FOREIGNIMPORT: return to_stmt<const AstForeignImportStmt>()->dump(ast, builder, nest);
+	case IF:            return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
+	case WHEN:          return to_stmt<const AstWhenStmt>()->dump(ast, builder, nest);
+	case DECL:          return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
+	case USING:         return to_stmt<const AstUsingStmt>()->dump(ast, builder, nest);
 	}
 }
 
 void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
-	builder.put(';');
+	// builder.put(';');
 }
 
 void AstExprStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -181,6 +182,35 @@ void AstFallthroughStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest)
 	builder.rep(nest * 2, ' ');
 	builder.put("fallthrough");
 	builder.put(';');
+}
+
+void AstForeignImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("foreign import");
+	builder.put(' ');
+	if (ident) {
+		builder.put(ast[ident]);
+		builder.put(' ');
+	}
+	if (names.length() == 1) {
+		ast[ast[names][0]].dump(ast, builder);
+	} else {
+		builder.put('{');
+		builder.put('\n');
+		Bool first = true;
+		for (auto expr : ast[names]) {
+			if (!first) {
+				builder.put(',');
+				builder.put('\n');
+			}
+			builder.rep((nest + 1) * 2, ' ');
+			ast[expr].dump(ast, builder);
+			first = false;
+		}
+		builder.put('\n');
+		builder.put('}');
+	}
+	builder.put('\n');
 }
 
 void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
