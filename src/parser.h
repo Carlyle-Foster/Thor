@@ -14,20 +14,21 @@ struct Parser {
 	using AttributeList = Maybe<Array<AstRef<AstAttribute>>>;
 
 	// Expression parsers
-	AstRef<AstIdentExpr>   parse_ident_expr();
-	AstRef<AstUndefExpr>   parse_undef_expr();
-	AstRef<AstContextExpr> parse_context_expr();
-
 	AstRef<AstExpr>       parse_expr(Bool lhs);
 	AstRef<AstExpr>       parse_operand();
 	AstRef<AstExpr>       parse_bin_expr(Bool lhs, Uint32 prec);
 	AstRef<AstExpr>       parse_unary_expr(Bool lhs);
 	AstRef<AstExpr>       parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 
-	AstRef<AstIntExpr>    parse_int_expr();
-	AstRef<AstFloatExpr>  parse_float_expr();
+	AstRef<AstIntExpr> parse_int_expr();
+	AstRef<AstFloatExpr> parse_float_expr();
 	AstRef<AstStringExpr> parse_string_expr();
-	AstRef<AstProcExpr>   parse_proc_expr();
+	AstRef<AstProcExpr> parse_proc_expr();
+	AstRef<AstIdentExpr> parse_ident_expr();
+	AstRef<AstUndefExpr> parse_undef_expr();
+	AstRef<AstContextExpr> parse_context_expr();
+	AstRef<AstIfExpr> parse_if_expr(AstRef<AstExpr> expr);
+	AstRef<AstWhenExpr> parse_when_expr(AstRef<AstExpr> on_true);
 
 	// Statement parsers
 	AstRef<AstStmt> parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes);
@@ -48,6 +49,7 @@ struct Parser {
 
 	// Type parsers
 	AstRef<AstType> parse_type();
+	AstRef<AstTypeIDType> parse_typeid_type();
 	AstRef<AstUnionType> parse_union_type();
 	AstRef<AstEnumType> parse_enum_type();
 	AstRef<AstPtrType> parse_ptr_type();

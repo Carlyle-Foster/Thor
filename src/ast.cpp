@@ -279,7 +279,8 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	switch (kind) {
 	case BIN:     return to_expr<const AstBinExpr>()->dump(ast, builder);
 	case UNARY:   return to_expr<const AstUnaryExpr>()->dump(ast, builder);
-	case TERNARY: return to_expr<const AstTernaryExpr>()->dump(ast, builder);
+	case IF:      return to_expr<const AstIfExpr>()->dump(ast, builder);
+	case WHEN:    return to_expr<const AstWhenExpr>()->dump(ast, builder);
 	case IDENT:   return to_expr<const AstIdentExpr>()->dump(ast, builder);
 	case UNDEF:   return to_expr<const AstUndefExpr>()->dump(ast, builder);
 	case CONTEXT: return to_expr<const AstContextExpr>()->dump(ast, builder);
@@ -316,18 +317,28 @@ void AstUnaryExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
-void AstTernaryExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put('(');
-	ast[cond].dump(ast, builder);
-	builder.put(' ');
-	builder.put('?');
-	builder.put(' ');
+void AstIfExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[on_true].dump(ast, builder);
 	builder.put(' ');
-	builder.put(':');
+	builder.put("if");
+	builder.put(' ');
+	ast[cond].dump(ast, builder);
+	builder.put(' ');
+	builder.put("else");
 	builder.put(' ');
 	ast[on_false].dump(ast, builder);
-	builder.put(')');
+}
+
+void AstWhenExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[on_true].dump(ast, builder);
+	builder.put(' ');
+	builder.put("when");
+	builder.put(' ');
+	ast[cond].dump(ast, builder);
+	builder.put(' ');
+	builder.put("else");
+	builder.put(' ');
+	ast[on_false].dump(ast, builder);
 }
 
 void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
@@ -379,6 +390,7 @@ void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
 	switch (kind) {
+	case TYPEID:   return to_type<const AstTypeIDType>()->dump(ast, builder);
 	case STRUCT:   /* TODO */ break;
 	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
 	case ENUM:     return to_type<const AstEnumType>()->dump(ast, builder);
@@ -395,6 +407,10 @@ void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	case PAREN:    return to_type<const AstParenType>()->dump(ast, builder);
 	case DISTINCT: return to_type<const AstDistinctType>()->dump(ast, builder);
 	}
+}
+
+void AstTypeIDType::dump(const AstFile&, StringBuilder& builder) const {
+	builder.put("typeid");
 }
 
 void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {

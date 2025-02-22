@@ -570,6 +570,61 @@ AstRef<AstUsingStmt> Parser::parse_using_stmt() {
 	return ast_.create<AstUsingStmt>(expr);
 }
 
+// IntExpr := IntLit
+AstRef<AstIntExpr> Parser::parse_int_expr() {
+	TRACE();
+	if (!is_literal(LiteralKind::INTEGER)) {
+		return error("Expected integer literal");
+	}
+	auto string = lexer_.string(token_);
+	eat(); // Eat literal
+	char buf[1024];
+	memcpy(buf, string.data(), string.length());
+	buf[string.length()] = '\0';
+	char* end = nullptr;
+	auto value = strtoul(buf, &end, 10);
+	if (*end != '\0') {
+		return error("Malformed integer literal");
+	}
+	return ast_.create<AstIntExpr>(value);
+}
+
+// FloatExpr := FloatLit
+AstRef<AstFloatExpr> Parser::parse_float_expr() {
+	TRACE();
+	if (!is_literal(LiteralKind::FLOAT)) {
+		return error("Expected floating-point literal");
+	}
+	auto string = lexer_.string(token_);
+	eat(); // Eat literal
+	char buf[1024];
+	memcpy(buf, string.data(), string.length());
+	buf[string.length()] = '\0';
+	char* end = nullptr;
+	auto value = strtod(buf, &end);
+	if (*end != '\0') {
+		return error("Malformed floating-point literal");
+	}
+	return ast_.create<AstFloatExpr>(value);
+}
+
+// StringExpr := StringLit
+AstRef<AstStringExpr> Parser::parse_string_expr() {
+	TRACE();
+	if (!is_literal(LiteralKind::STRING)) {
+		return error("Expected string literal");
+	}
+	auto strip = lexer_.string(token_);
+	strip = strip.slice(1);                     // Remove '"' (or '`')
+	strip = strip.truncate(strip.length() - 1); // Remove '"' (or '`')
+	auto ref = ast_.insert(strip);
+	if (!ref) {
+		return {};
+	}
+	eat(); // Eat literal
+	return ast_.create<AstStringExpr>(ref);
+}
+
 // IdentExpr := Ident
 AstRef<AstIdentExpr> Parser::parse_ident_expr() {
 	TRACE();
@@ -599,6 +654,69 @@ AstRef<AstContextExpr> Parser::parse_context_expr() {
 	return ast_.create<AstContextExpr>();
 }
 
+// IfExpr := Expr 'if' Expr 'else' Expr
+//         | Expr '?' Expr ':' Expr
+AstRef<AstIfExpr> Parser::parse_if_expr(AstRef<AstExpr> expr) {
+	AstRef<AstExpr> cond;
+	AstRef<AstExpr> on_true;
+	AstRef<AstExpr> on_false;
+	if (is_keyword(KeywordKind::IF)) {
+		on_true = expr;
+		eat(); // Eat 'if'
+		cond = parse_expr(false);
+		if (!cond) {
+			return {};
+		}
+		if (!is_keyword(KeywordKind::ELSE)) {
+			return error("Expected 'else' in 'if' expression");
+		}
+		eat(); // Eat 'else'
+		on_false = parse_expr(false);
+		if (!on_false) {
+			return {};
+		}
+	} else if (is_operator(OperatorKind::QUESTION)) {
+		cond = expr;
+		eat(); // Eat '?'
+		on_true = parse_expr(false);
+		if (!on_true) {
+			return {};
+		}
+		if (!is_operator(OperatorKind::COLON)) {
+			return error("Expected ':' after ternary condition");
+		}
+		eat(); // Eat ':'
+		auto on_false = parse_expr(false);
+		if (!on_false) {
+			return {};
+		}
+	} else {
+		return error("Expected 'if' or '?'");
+	}
+	return ast_.create<AstIfExpr>(cond, on_true, on_false);
+}
+
+// WhenExpr := Expr 'when' Expr 'else' Expr
+AstRef<AstWhenExpr> Parser::parse_when_expr(AstRef<AstExpr> on_true) {
+	if (!is_keyword(KeywordKind::WHEN)) {
+		return error("Expected 'when'");
+	}
+	eat(); // Eat 'when'
+	auto cond = parse_expr(false);
+	if (!cond) {
+		return {};
+	}
+	if (!is_keyword(KeywordKind::ELSE)) {
+		return error("Expected 'else' in 'when' expression");
+	}
+	eat(); // Eat 'else'
+	auto on_false = parse_expr(false);
+	if (!on_false) {
+		return {};
+	}
+	return ast_.create<AstWhenExpr>(cond, on_true, on_false);
+}
+
 AstRef<AstExpr> Parser::parse_expr(Bool lhs) {
 	TRACE();
 	return parse_bin_expr(lhs, 1);
@@ -616,7 +734,12 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 	}
 	for (;;) {
 		if (!is_kind(TokenKind::OPERATOR)) {
-			// error("Expected operator in binary expression");
+			// Could be if or when ternary expressions
+			if (is_keyword(KeywordKind::IF)) {
+				expr = parse_if_expr(expr);
+			} else if (is_keyword(KeywordKind::WHEN)) {
+				expr = parse_when_expr(expr);
+			}
 			break;
 		}
 		if (PREC[Uint32(token_.as_operator)] < prec) {
@@ -624,20 +747,7 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 			break;
 		}
 		if (is_operator(OperatorKind::QUESTION)) {
-			eat(); // Eat '?'
-			auto on_true = parse_expr(lhs);
-			if (!on_true) {
-				return {};
-			}
-			if (!is_operator(OperatorKind::COLON)) {
-				return error("Expected ':' after ternary condition");
-			}
-			eat(); // Eat ':'
-			auto on_false = parse_expr(lhs);
-			if (!on_false) {
-				return {};
-			}
-			expr = ast_.create<AstTernaryExpr>(expr, on_true, on_false);
+			expr = parse_if_expr(expr);
 		} else {
 			auto kind = token_.as_operator;
 			eat(); // Eat operator
@@ -746,61 +856,6 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 	return parse_unary_atom(operand, lhs);
 }
 
-// IntExpr := IntLit
-AstRef<AstIntExpr> Parser::parse_int_expr() {
-	TRACE();
-	if (!is_literal(LiteralKind::INTEGER)) {
-		return error("Expected integer literal");
-	}
-	auto string = lexer_.string(token_);
-	eat(); // Eat literal
-	char buf[1024];
-	memcpy(buf, string.data(), string.length());
-	buf[string.length()] = '\0';
-	char* end = nullptr;
-	auto value = strtoul(buf, &end, 10);
-	if (*end != '\0') {
-		return error("Malformed integer literal");
-	}
-	return ast_.create<AstIntExpr>(value);
-}
-
-// FloatExpr := FloatLit
-AstRef<AstFloatExpr> Parser::parse_float_expr() {
-	TRACE();
-	if (!is_literal(LiteralKind::FLOAT)) {
-		return error("Expected floating-point literal");
-	}
-	auto string = lexer_.string(token_);
-	eat(); // Eat literal
-	char buf[1024];
-	memcpy(buf, string.data(), string.length());
-	buf[string.length()] = '\0';
-	char* end = nullptr;
-	auto value = strtod(buf, &end);
-	if (*end != '\0') {
-		return error("Malformed floating-point literal");
-	}
-	return ast_.create<AstFloatExpr>(value);
-}
-
-// StringExpr := StringLit
-AstRef<AstStringExpr> Parser::parse_string_expr() {
-	TRACE();
-	if (!is_literal(LiteralKind::STRING)) {
-		return error("Expected string literal");
-	}
-	auto strip = lexer_.string(token_);
-	strip = strip.slice(1);                     // Remove '"' (or '`')
-	strip = strip.truncate(strip.length() - 1); // Remove '"' (or '`')
-	auto ref = ast_.insert(strip);
-	if (!ref) {
-		return {};
-	}
-	eat(); // Eat literal
-	return ast_.create<AstStringExpr>(ref);
-}
-
 AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	TRACE();
 	(void)lhs;
@@ -824,13 +879,16 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	return {};
 }
 
-// Type := UnionType
+// Type := TypeIDType
+//       | StructType
+//       | UnionType
 //       | EnumType
+//       | ProcType
 //       | PtrType
 //       | MultiPtrType
 //       | SliceType
-//       | DynArrayType
 //       | ArrayType
+//       | DynArrayType
 //       | MapType
 //       | MatrixType
 //       | NamedType
@@ -839,7 +897,9 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 //       | DistinctType
 AstRef<AstType> Parser::parse_type() {
 	TRACE();
-	if (is_keyword(KeywordKind::UNION)) {
+	if (is_keyword(KeywordKind::TYPEID)) {
+		return parse_typeid_type();
+	} else if (is_keyword(KeywordKind::UNION)) {
 		return parse_union_type();
 	} else if (is_keyword(KeywordKind::ENUM)) {
 		return parse_enum_type();
@@ -894,6 +954,16 @@ AstRef<AstType> Parser::parse_type() {
 		return parse_distinct_type();
 	}
 	return error("Unexpected token while parsing type");
+}
+
+// TypeIDType := 'typeid'
+AstRef<AstTypeIDType> Parser::parse_typeid_type() {
+	TRACE();
+	if (!is_keyword(KeywordKind::TYPEID)) {
+		return error("Expected 'typeid'");
+	}
+	eat(); // Eat 'typeid'
+	return ast_.create<AstTypeIDType>();
 }
 
 // UnionType := 'union' '{' (Type ',')* Type? '}'
