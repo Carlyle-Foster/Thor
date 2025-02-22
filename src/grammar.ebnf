@@ -36,6 +36,24 @@ IntExpr           := IntLit
 FloatExpr         := FloatLit
 StringExpr        := StringLit
 
+Expr              := IntExpr
+                   | FloatExpr
+                   | StringExpr
+                   | IdentExpr
+                   | UndefExpr
+                   | ContextExpr
+                   | IfExpr
+                   | WhenExpr
+IntExpr           := IntLit
+FloatExpr         := FloatLit
+StringExpr        := StringLit
+IdentExpr         := Ident
+UndefExpr         := '---'
+ContextExpr       := 'context'
+IfExpr            := Expr 'if' Expr 'else' Expr
+                   | Expr '?' Expr ':' Expr
+WhenExpr          := Expr 'when' Expr 'else' Expr
+
 Type              := UnionType
                    | EnumType
                    | PtrType

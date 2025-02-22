@@ -65,6 +65,10 @@ struct AstSlabID {
 	template<typename T>
 	static Uint32 id() {
 		static const Uint32 id = s_id++;
+		printf("IDS = %d\n", Sint32(id));
+		if (id >= MAX) {
+			*(volatile int *)0 = 0;
+		}
 		return id;
 	}
 private:
@@ -165,7 +169,8 @@ struct AstExpr : AstNode {
 	enum class Kind : Uint8 {
 		BIN,
 		UNARY,
-		TERNARY,
+		IF,
+		WHEN,
 		IDENT,
 		UNDEF,
 		CONTEXT,
@@ -225,9 +230,27 @@ struct AstUnaryExpr : AstExpr {
 	OperatorKind    op;
 };
 
-struct AstTernaryExpr : AstExpr {
-	static constexpr const auto KIND = Kind::TERNARY;
-	constexpr AstTernaryExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+// IfExpr := Expr '?' Expr ':' Expr
+//         | Expr 'if' Expr 'else' Expr
+struct AstIfExpr : AstExpr {
+	static constexpr const auto KIND = Kind::IF;
+	constexpr AstIfExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+		: AstExpr{KIND}
+		, cond{cond}
+		, on_true{on_true}
+		, on_false{on_false}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> cond;
+	AstRef<AstExpr> on_true;
+	AstRef<AstExpr> on_false;
+};
+
+// WhenExpr := Expr 'when' Expr 'else' Expr
+struct AstWhenExpr : AstExpr {
+	static constexpr const auto KIND = Kind::WHEN;
+	constexpr AstWhenExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
 		: AstExpr{KIND}
 		, cond{cond}
 		, on_true{on_true}
@@ -363,6 +386,7 @@ struct AstCastExpr : AstExpr {
 // a type, but these expressions are regular and can be separately described by
 // their own grammar independent from an expression.
 //
+// TypeIDType   := 'typeid'
 // StructType   := 'struct' '{' (Field (',' Field)*)? '}'
 // UnionType    := 'union' '{' (Type (',' Type)*)? '}'
 // EnumType     := 'enum' '{' (EnumValue (',' EnumValue)*)? '}'
@@ -372,9 +396,13 @@ struct AstCastExpr : AstExpr {
 // MultiPtrType := '[^]' Type
 // SliceType    := '[]' Type
 // ArrayType    := '[' (Expr | '?') ']' Type
+// DynArrayType := '[' 'dynamic' ']' Type
+// MapType      := 'map' '[' Type ']' Type
+// MatrixType   := 'matrix' '[' Expr ',' Expr ']' Type
 // NamedType    := Ident ('.' Ident)?
 // ParamType    := NamedType '(' (Expr (',' Expr)*)? ')'
 // ParenType    := '(' Type ')'
+// DistinctType := 'distinct' Type
 // Type         := Directive* AnyType
 // Directive    := '#' Ident ('(' (Expr (',' Expr)*)? ')')?
 //
@@ -391,6 +419,7 @@ struct AstCastExpr : AstExpr {
 
 struct AstType : AstNode {
 	enum class Kind : Uint8 {
+		TYPEID,    // typeid
 		STRUCT,    // struct { }
 		UNION,     // union { }
 		ENUM,      // enum { }
@@ -425,6 +454,12 @@ struct AstType : AstNode {
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Kind kind;
+};
+
+struct AstTypeIDType : AstType {
+	static constexpr const auto KIND = Kind::TYPEID;
+	constexpr AstTypeIDType() : AstType{KIND} {}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstUnionType : AstType {
@@ -846,7 +881,8 @@ struct AstUsingStmt : AstStmt {
 static_assert(!is_polymorphic<AstExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstBinExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstUnaryExpr>, "Cannot be polymorphic");
-static_assert(!is_polymorphic<AstTernaryExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstIfExpr>, "Cannot be polymorphic");
+static_assert(!is_polymorphic<AstWhenExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstIdentExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstUndefExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstContextExpr>, "Cannot be polymorphic");
