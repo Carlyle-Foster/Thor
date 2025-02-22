@@ -170,6 +170,7 @@ struct AstExpr : AstNode {
 		UNDEF,
 		CONTEXT,
 		PROC,
+		RANGE,
 		INTEGER,
 		FLOAT,
 		STRING,
@@ -278,6 +279,21 @@ struct AstProcExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstProcType>   type;
 	AstRef<AstBlockStmt>  body;
+};
+
+struct AstRangeExpr : AstExpr {
+	static constexpr const auto KIND = Kind::RANGE;
+	constexpr AstRangeExpr(AstRef<AstExpr> start, AstRef<AstExpr> end, Bool inclusive)
+		: AstExpr{KIND}
+		, start{start}
+		, end{end}
+		, inclusive(inclusive)
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> start;
+	AstRef<AstExpr> end;
+	Bool            inclusive;
 };
 
 struct AstIntExpr : AstExpr {

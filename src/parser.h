@@ -21,6 +21,7 @@ struct Parser {
 	AstRef<AstExpr>       parse_expr(Bool lhs);
 	AstRef<AstExpr>       parse_operand();
 	AstRef<AstExpr>       parse_bin_expr(Bool lhs, Uint32 prec);
+	AstRef<AstExpr>       parse_range_expr();
 	AstRef<AstExpr>       parse_unary_expr(Bool lhs);
 	AstRef<AstExpr>       parse_operand(Bool lhs); // Operand parser for AstBinExpr or AstUnaryExpr
 

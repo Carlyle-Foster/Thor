@@ -652,6 +652,10 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 	return expr;
 }
 
+AstRef<AstExpr> Parser::parse_range_expr() {
+	return {};
+}
+
 AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 	TRACE();
 	if (!operand) {
@@ -667,6 +671,23 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 		} else if (is_operator(OperatorKind::ARROW)) {
 			// operand->expr()
 		} else if (is_operator(OperatorKind::LBRACKET)) {
+			eat(); // Eat '['
+			auto expr = parse_expr(false);
+			if(!expr) {
+				// TODO(Oliver): handle ?, ..., :
+				return {};
+			}
+
+			if(is_operator(OperatorKind::RANGEHALF) ||
+			   is_operator(OperatorKind::RANGEFULL)) {
+
+				Bool inclusive = is_operator(OperatorKind::RANGEFULL);
+
+				auto start_expr = expr;
+				auto end_expr = parse_expr(false);
+
+				return ast_.create<AstRangeExpr>(start_expr, end_expr, inclusive);
+			}
 			// operand[a]
 			// operand[:]
 			// operand[a:]

@@ -284,6 +284,7 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case UNDEF:   return to_expr<const AstUndefExpr>()->dump(ast, builder);
 	case CONTEXT: return to_expr<const AstContextExpr>()->dump(ast, builder);
 	case PROC:    return to_expr<const AstProcExpr>()->dump(ast, builder);
+	case RANGE:   return to_expr<const AstRangeExpr>()->dump(ast, builder);
 	case INTEGER: return to_expr<const AstIntExpr>()->dump(ast, builder);
 	case FLOAT:   return to_expr<const AstFloatExpr>()->dump(ast, builder);
 	case STRING:  return to_expr<const AstStringExpr>()->dump(ast, builder);
@@ -345,6 +346,17 @@ void AstContextExpr::dump(const AstFile&, StringBuilder& builder) const {
 void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[type].dump(ast, builder);
 	ast[body].dump(ast, builder, 0);
+}
+
+void AstRangeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[start].dump(ast, builder);
+	builder.put("..");
+	if(inclusive) {
+		builder.put('=');
+	} else {
+		builder.put('<');
+	}
+	ast[end].dump(ast, builder);
 }
 
 void AstIntExpr::dump(const AstFile&, StringBuilder& builder) const {
