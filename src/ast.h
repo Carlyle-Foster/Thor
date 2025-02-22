@@ -10,6 +10,9 @@ struct AstExpr;
 struct AstStmt;
 struct AstType;
 struct AstEnum;
+struct AstAttribute;
+struct AstDirective;
+
 struct AstFile;
 struct AstProcType;
 struct AstBlockStmt;
@@ -133,6 +136,30 @@ struct AstEnum : AstNode {
 	AstRef<AstExpr> expr;
 };
 
+// Attribute
+struct AstAttribute : AstNode {
+	constexpr AstAttribute(AstStringRef name, AstRef<AstExpr> expr)
+		: name{name}
+		, expr{expr}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstStringRef    name;
+	AstRef<AstExpr> expr; // Optional value associated with attribute
+};
+
+// Directive
+struct AstDirective : AstNode {
+	constexpr AstDirective(AstStringRef name, AstRefArray<AstExpr> args)
+		: name{name}
+		, args{args}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstStringRef         name;
+	AstRefArray<AstExpr> args;
+};
+
 // Expr
 struct AstExpr : AstNode {
 	enum class Kind : Uint8 {
@@ -145,6 +172,7 @@ struct AstExpr : AstNode {
 		PROC,
 		INTEGER,
 		FLOAT,
+		STRING,
 		CAST,
 	};
 	constexpr AstExpr(Kind kind)
@@ -274,6 +302,17 @@ struct AstFloatExpr : AstExpr {
 	Float64 value;
 };
 
+struct AstStringExpr : AstExpr {
+	static constexpr const auto KIND = Kind::STRING;
+	constexpr AstStringExpr(AstStringRef value)
+		: AstExpr{KIND}
+		, value{value}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstStringRef value;
+};
+
 struct AstCastExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CAST;
 	constexpr AstCastExpr(AstRef<AstType> type, AstRef<AstExpr> expr)
@@ -322,17 +361,21 @@ struct AstCastExpr : AstExpr {
 
 struct AstType : AstNode {
 	enum class Kind : Uint8 {
-		STRUCT,
-		UNION,
-		ENUM,
-		PROC,
-		PTR,
-		MULTIPTR,
-		SLICE,
-		ARRAY,
-		NAMED,
-		PARAM,
-		PAREN,
+		STRUCT,    // struct { }
+		UNION,     // union { }
+		ENUM,      // enum { }
+		PROC,      // proc()
+		PTR,       // ^T
+		MULTIPTR,  // [^]T
+		SLICE,     // []T
+		ARRAY,     // [Expr]T or [?]T (could be an EnumType, but enum arrays are in fact not part of the grammar)
+		DYNARRAY,  // [dynamic]T
+		MAP,       // map[K]V
+		MATRIX,    // matrix[r,c]T
+		NAMED,     // Name
+		PARAM,     // T(args)
+		PAREN,     // (T)
+		DISTINCT,  // distinct T
 	};
 	constexpr AstType(Kind kind)
 		: kind{kind}
@@ -431,6 +474,45 @@ struct AstArrayType : AstType {
 	AstRef<AstType> base;
 };
 
+struct AstDynArrayType : AstType {
+	static constexpr const auto KIND = Kind::DYNARRAY;
+	constexpr AstDynArrayType(AstRef<AstType> base)
+		: AstType{KIND}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> base;
+};
+
+struct AstMapType : AstType {
+	static constexpr const auto KIND = Kind::MAP;
+	constexpr AstMapType(AstRef<AstType> kt, AstRef<AstType> vt)
+		: AstType{KIND}
+		, kt{kt}
+		, vt{vt}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> kt;
+	AstRef<AstType> vt;
+};
+
+struct AstMatrixType : AstType {
+	static constexpr const auto KIND = Kind::MATRIX;
+	constexpr AstMatrixType(AstRef<AstExpr> rows, AstRef<AstExpr> cols, AstRef<AstType> base)
+		: AstType{KIND}
+		, rows{rows}
+		, cols{cols}
+		, base{base}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> rows;
+	AstRef<AstExpr> cols;
+	AstRef<AstType> base;
+};
+
 struct AstNamedType : AstType {
 	static constexpr const auto KIND = Kind::NAMED;
 	constexpr AstNamedType(AstStringRef pkg, AstStringRef name)
@@ -468,6 +550,17 @@ struct AstParenType : AstType {
 	AstRef<AstType> type;
 };
 
+struct AstDistinctType : AstType {
+	static constexpr const auto KIND = Kind::DISTINCT;
+	constexpr AstDistinctType(AstRef<AstType> type)
+		: AstType{KIND}
+		, type{type}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> type;
+};
+
 struct AstStmt : AstNode {
 	enum struct Kind : Uint8 {
 		EMPTY,
@@ -484,6 +577,7 @@ struct AstStmt : AstNode {
 		IF,
 		WHEN,
 		DECL,
+		USING,
 	};
 
 	constexpr AstStmt(Kind kind)
@@ -560,13 +654,15 @@ struct AstBlockStmt : AstStmt {
 
 struct AstImportStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IMPORT;
-	constexpr AstImportStmt(AstStringRef path)
+	constexpr AstImportStmt(AstStringRef alias, AstRef<AstStringExpr> expr)
 		: AstStmt{KIND}
-		, path{path}
+		, alias{alias}
+		, expr{expr}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	AstStringRef path;
+	AstStringRef          alias;
+	AstRef<AstStringExpr> expr;
 };
 
 struct AstPackageStmt : AstStmt {
@@ -681,6 +777,17 @@ struct AstDeclStmt : AstStmt {
 	List            lhs;
 	AstRef<AstType> type;
 	Maybe<List>     rhs;
+};
+
+struct AstUsingStmt : AstStmt {
+	static constexpr const auto KIND = Kind::USING;
+	constexpr AstUsingStmt(AstStringRef name)
+		: AstStmt{KIND}
+		, name{name}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	AstStringRef name;
 };
 
 // It is important that none of the Ast node types are polymorphic because they

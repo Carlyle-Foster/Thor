@@ -48,6 +48,7 @@ void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const 
 	case IF:          return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
 	case WHEN:        return to_stmt<const AstWhenStmt>()->dump(ast, builder, nest);
 	case DECL:        return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
+	case USING:       return to_stmt<const AstUsingStmt>()->dump(ast, builder, nest);
 	}
 }
 
@@ -110,7 +111,11 @@ void AstImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	builder.rep(nest * 2, ' ');
 	builder.put("import");
 	builder.put(' ');
-	builder.put(ast[path]);
+	if (alias) {
+		builder.put(ast[alias]);
+		builder.put(' ');
+	}
+	ast[expr].dump(ast, builder);
 	builder.put(';');
 	builder.put('\n');
 }
@@ -220,6 +225,13 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	}
 }
 
+void AstUsingStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("using");
+	builder.put(' ');
+	builder.put(ast[name]);
+}
+
 // Expr
 void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
@@ -233,6 +245,7 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case PROC:    return to_expr<const AstProcExpr>()->dump(ast, builder);
 	case INTEGER: return to_expr<const AstIntExpr>()->dump(ast, builder);
 	case FLOAT:   return to_expr<const AstFloatExpr>()->dump(ast, builder);
+	case STRING:  return to_expr<const AstStringExpr>()->dump(ast, builder);
 	case CAST:    return to_expr<const AstCastExpr>()->dump(ast, builder);
 	}
 }
@@ -301,6 +314,12 @@ void AstFloatExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put(value);
 }
 
+void AstStringExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('"');
+	builder.put(ast[value]);
+	builder.put('"');
+}
+
 void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	if (type) {
 		builder.put('(');
@@ -319,17 +338,21 @@ void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
 	switch (kind) {
+	case STRUCT:   /* TODO */ break;
 	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
 	case ENUM:     return to_type<const AstEnumType>()->dump(ast, builder);
+	case PROC:     /* TODO */ break;
 	case PTR:      return to_type<const AstPtrType>()->dump(ast, builder);
 	case MULTIPTR: return to_type<const AstMultiPtrType>()->dump(ast, builder);
 	case SLICE:    return to_type<const AstSliceType>()->dump(ast, builder);
 	case ARRAY:    return to_type<const AstArrayType>()->dump(ast, builder);
+	case DYNARRAY: return to_type<const AstDynArrayType>()->dump(ast, builder);
+	case MAP:      return to_type<const AstMapType>()->dump(ast, builder);
+	case MATRIX:   return to_type<const AstMatrixType>()->dump(ast, builder);
 	case NAMED:    return to_type<const AstNamedType>()->dump(ast, builder);
 	case PARAM:    return to_type<const AstParamType>()->dump(ast, builder);
 	case PAREN:    return to_type<const AstParenType>()->dump(ast, builder);
-	default:
-		break;
+	case DISTINCT: return to_type<const AstDistinctType>()->dump(ast, builder);
 	}
 }
 
@@ -403,6 +426,32 @@ void AstArrayType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[base].dump(ast, builder);
 }
 
+void AstDynArrayType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('[');
+	builder.put("dynamic");
+	builder.put(']');
+	ast[base].dump(ast, builder);
+}
+
+void AstMapType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("map");
+	builder.put('[');
+	ast[kt].dump(ast, builder);
+	builder.put(']');
+	ast[vt].dump(ast, builder);
+}
+
+void AstMatrixType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("matrix");
+	builder.put('[');
+	ast[rows].dump(ast, builder);
+	builder.put(',');
+	builder.put(' ');
+	ast[cols].dump(ast, builder);
+	builder.put(']');
+	ast[base].dump(ast, builder);
+}
+
 void AstNamedType::dump(const AstFile& ast, StringBuilder& builder) const {
 	if (pkg) {
 		builder.put(ast[pkg]);
@@ -432,6 +481,12 @@ void AstParenType::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(')');
 }
 
+void AstDistinctType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("distinct");
+	builder.put(' ');
+	ast[type].dump(ast, builder);
+}
+
 // Enum
 void AstEnum::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(ast[name]);
@@ -440,6 +495,34 @@ void AstEnum::dump(const AstFile& ast, StringBuilder& builder) const {
 		builder.put('=');
 		builder.put(' ');
 		ast[expr].dump(ast, builder);
+	}
+}
+
+// Attribute
+void AstAttribute::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put(ast[name]);
+	if (expr) {
+		builder.put('=');
+		ast[expr].dump(ast, builder);
+	}
+}
+
+// Directive
+void AstDirective::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('#');
+	builder.put(ast[name]);
+	if (!args.is_empty()) {
+		builder.put('(');
+		Bool first = true;
+		for (auto arg : ast[args]) {
+			if (!first) {
+				builder.put(',');
+				builder.put(' ');
+			}
+			ast[arg].dump(ast, builder);
+			first = false;
+		}
+		builder.put(')');
 	}
 }
 

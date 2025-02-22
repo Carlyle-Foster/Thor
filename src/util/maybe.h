@@ -14,6 +14,10 @@ struct Maybe {
 		: as_nat_{}
 	{
 	}
+	constexpr Maybe(Unit)
+		: as_nat_{}
+	{
+	}
 	constexpr Maybe(T&& value)
 		: as_value_{move(value)}
 		, valid_{true}

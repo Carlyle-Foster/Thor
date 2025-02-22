@@ -30,7 +30,7 @@ int main(int, char **) {
 	StringBuilder builder{sys.allocator};
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {
-		auto stmt = parser->parse_stmt();
+		auto stmt = parser->parse_stmt(false, {}, {});
 		if (!stmt || !stmts.push_back(move(stmt))) {
 			break;
 		}
