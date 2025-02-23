@@ -42,6 +42,6 @@ void __cxa_guard_release(Guard* guard) {
 	guard->done = 1;
 }
 
-#endif
-
 } // extern "C"
+
+#endif

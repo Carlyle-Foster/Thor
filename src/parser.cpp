@@ -922,7 +922,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 			}
 		} else if (is_operator(OperatorKind::ARROW)) {
 			eat(); // Eat '->'
-			operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, name, true);
+			operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, parse_ident(), true);
 		} else if (is_operator(OperatorKind::LBRACKET)) {
 			eat(); // Eat '['
 			if (is_operator(OperatorKind::RBRACKET)) {
