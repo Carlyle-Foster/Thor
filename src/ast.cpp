@@ -363,20 +363,27 @@ void AstUsingStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
 	switch (kind) {
-	case BIN:        return to_expr<const AstBinExpr>()->dump(ast, builder);
-	case UNARY:      return to_expr<const AstUnaryExpr>()->dump(ast, builder);
-	case IF:         return to_expr<const AstIfExpr>()->dump(ast, builder);
-	case WHEN:       return to_expr<const AstWhenExpr>()->dump(ast, builder);
-	case IDENT:      return to_expr<const AstIdentExpr>()->dump(ast, builder);
-	case UNDEF:      return to_expr<const AstUndefExpr>()->dump(ast, builder);
-	case CONTEXT:    return to_expr<const AstContextExpr>()->dump(ast, builder);
-	case PROC:       return to_expr<const AstProcExpr>()->dump(ast, builder);
-	case RANGE:      return to_expr<const AstRangeExpr>()->dump(ast, builder);
-	case SLICERANGE: return to_expr<const AstSliceRangeExpr>()->dump(ast, builder);
-	case INTEGER:    return to_expr<const AstIntExpr>()->dump(ast, builder);
-	case FLOAT:      return to_expr<const AstFloatExpr>()->dump(ast, builder);
-	case STRING:     return to_expr<const AstStringExpr>()->dump(ast, builder);
-	case CAST:       return to_expr<const AstCastExpr>()->dump(ast, builder);
+	case BIN:         return to_expr<const AstBinExpr>()->dump(ast, builder);
+	case UNARY:       return to_expr<const AstUnaryExpr>()->dump(ast, builder);
+	case IF:          return to_expr<const AstIfExpr>()->dump(ast, builder);
+	case WHEN:        return to_expr<const AstWhenExpr>()->dump(ast, builder);
+	case DEREF:       return to_expr<const AstDerefExpr>()->dump(ast, builder);
+	case OR_RETURN:   return to_expr<const AstOrReturnExpr>()->dump(ast, builder);
+	case OR_BREAK:    return to_expr<const AstOrBreakExpr>()->dump(ast, builder);
+	case OR_CONTINUE: return to_expr<const AstOrContinueExpr>()->dump(ast, builder);
+	case OR_ELSE:     return to_expr<const AstOrElseExpr>()->dump(ast, builder);
+	case IDENT:       return to_expr<const AstIdentExpr>()->dump(ast, builder);
+	case UNDEF:       return to_expr<const AstUndefExpr>()->dump(ast, builder);
+	case CONTEXT:     return to_expr<const AstContextExpr>()->dump(ast, builder);
+	case PROC:        return to_expr<const AstProcExpr>()->dump(ast, builder);
+	case RANGE:       return to_expr<const AstRangeExpr>()->dump(ast, builder);
+	case SLICERANGE:  return to_expr<const AstSliceRangeExpr>()->dump(ast, builder);
+	case INT:         return to_expr<const AstIntExpr>()->dump(ast, builder);
+	case FLOAT:       return to_expr<const AstFloatExpr>()->dump(ast, builder);
+	case STRING:      return to_expr<const AstStringExpr>()->dump(ast, builder);
+	case IMAGINARY:   return to_expr<const AstImaginaryExpr>()->dump(ast, builder);
+	case CAST:        return to_expr<const AstCastExpr>()->dump(ast, builder);
+	case TYPE:        return to_expr<const AstTypeExpr>()->dump(ast, builder);
 	}
 }
 
@@ -429,6 +436,37 @@ void AstWhenExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[on_false].dump(ast, builder);
 }
 
+void AstDerefExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put('^');
+}
+
+void AstOrReturnExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put(' ');
+	builder.put("or_return");
+}
+
+void AstOrBreakExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put(' ');
+	builder.put("or_break");
+}
+
+void AstOrContinueExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put(' ');
+	builder.put("or_continue");
+}
+
+void AstOrElseExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put(' ');
+	builder.put("or_else");
+	builder.put(' ');
+	ast[expr].dump(ast, builder);
+}
+
 void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(ast[ident]);
 }
@@ -477,6 +515,11 @@ void AstStringExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put('"');
 }
 
+void AstImaginaryExpr::dump(const AstFile&, StringBuilder& builder) const {
+	builder.put(value);
+	builder.put('i');
+}
+
 void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	if (type) {
 		builder.put('(');
@@ -489,6 +532,10 @@ void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 		builder.put("auto_cast");
 		ast[expr].dump(ast, builder);
 	}
+}
+
+void AstTypeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[type].dump(ast, builder);
 }
 
 // Type

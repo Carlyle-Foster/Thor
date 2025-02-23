@@ -65,7 +65,6 @@ struct AstSlabID {
 	template<typename T>
 	static Uint32 id() {
 		static const Uint32 id = s_id++;
-		printf("IDS = %d\n", Sint32(id));
 		if (id >= MAX) {
 			*(volatile int *)0 = 0;
 		}
@@ -171,16 +170,23 @@ struct AstExpr : AstNode {
 		UNARY,
 		IF,
 		WHEN,
+		DEREF,
+		OR_RETURN,
+		OR_BREAK,
+		OR_CONTINUE,
+		OR_ELSE,
 		IDENT,
 		UNDEF,
 		CONTEXT,
 		PROC,
 		RANGE,
 		SLICERANGE,
-		INTEGER,
+		INT,
 		FLOAT,
 		STRING,
+		IMAGINARY,
 		CAST,
+		TYPE,
 	};
 	constexpr AstExpr(Kind kind)
 		: kind{kind}
@@ -261,6 +267,63 @@ struct AstWhenExpr : AstExpr {
 	AstRef<AstExpr> cond;
 	AstRef<AstExpr> on_true;
 	AstRef<AstExpr> on_false;
+};
+
+struct AstDerefExpr : AstExpr {
+	static constexpr const auto KIND = Kind::DEREF;
+	constexpr AstDerefExpr(AstRef<AstExpr> operand)
+		: AstExpr{KIND}
+		, operand{operand}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+};
+
+struct AstOrReturnExpr : AstExpr {
+	static constexpr const auto KIND = Kind::OR_RETURN;
+	constexpr AstOrReturnExpr(AstRef<AstExpr> operand)
+		: AstExpr{KIND}
+		, operand{operand}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+};
+
+struct AstOrBreakExpr : AstExpr {
+	static constexpr const auto KIND = Kind::OR_BREAK;
+	constexpr AstOrBreakExpr(AstRef<AstExpr> operand)
+		: AstExpr{KIND}
+		, operand{operand}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+};
+
+struct AstOrContinueExpr : AstExpr {
+	static constexpr const auto KIND = Kind::OR_CONTINUE;
+	constexpr AstOrContinueExpr(AstRef<AstExpr> operand)
+		: AstExpr{KIND}
+		, operand{operand}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+};
+
+struct AstOrElseExpr : AstExpr {
+	static constexpr const auto KIND = Kind::OR_ELSE;
+	constexpr AstOrElseExpr(AstRef<AstExpr> operand, AstRef<AstExpr> expr)
+		: AstExpr{KIND}
+		, operand{operand}
+		, expr{expr}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+	AstRef<AstExpr> expr;
 };
 
 struct AstIdentExpr : AstExpr {
@@ -366,6 +429,17 @@ struct AstStringExpr : AstExpr {
 	AstStringRef value;
 };
 
+struct AstImaginaryExpr : AstExpr {
+	static constexpr const auto KIND = Kind::IMAGINARY;
+	constexpr AstImaginaryExpr(Float64 value)
+		: AstExpr{KIND}
+		, value{value}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	Float64 value;
+};
+
 struct AstCastExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CAST;
 	constexpr AstCastExpr(AstRef<AstType> type, AstRef<AstExpr> expr)
@@ -377,6 +451,17 @@ struct AstCastExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstType> type; // When !type this is an auto_cast
 	AstRef<AstExpr> expr;
+};
+
+struct AstTypeExpr : AstExpr {
+	static constexpr const auto KIND = Kind::TYPE;
+	constexpr AstTypeExpr(AstRef<AstType> type)
+		: AstExpr{KIND}
+		, type{type}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstType> type;
 };
 
 // The reference Odin compiler treats all types as expressions in the ast. Here,

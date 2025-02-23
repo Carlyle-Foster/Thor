@@ -23,12 +23,18 @@ struct Parser {
 	AstRef<AstIntExpr> parse_int_expr();
 	AstRef<AstFloatExpr> parse_float_expr();
 	AstRef<AstStringExpr> parse_string_expr();
+	AstRef<AstImaginaryExpr> parse_imaginary_expr();
 	AstRef<AstProcExpr> parse_proc_expr();
 	AstRef<AstIdentExpr> parse_ident_expr();
 	AstRef<AstUndefExpr> parse_undef_expr();
 	AstRef<AstContextExpr> parse_context_expr();
 	AstRef<AstIfExpr> parse_if_expr(AstRef<AstExpr> expr);
 	AstRef<AstWhenExpr> parse_when_expr(AstRef<AstExpr> on_true);
+	AstRef<AstDerefExpr> parse_deref_expr(AstRef<AstExpr> operand);
+	AstRef<AstOrReturnExpr> parse_or_return_expr(AstRef<AstExpr> operand);
+	AstRef<AstOrBreakExpr> parse_or_break_expr(AstRef<AstExpr> operand);
+	AstRef<AstOrContinueExpr> parse_or_continue_expr(AstRef<AstExpr> operand);
+	AstRef<AstOrElseExpr> parse_or_else_expr(AstRef<AstExpr> operand);
 
 	// Statement parsers
 	AstRef<AstStmt> parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes);
