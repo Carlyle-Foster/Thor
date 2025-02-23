@@ -855,7 +855,7 @@ AstRef<AstOrElseExpr> Parser::parse_or_else_expr(AstRef<AstExpr> operand) {
 	return ast_.create<AstOrElseExpr>(operand, expr);
 }
 
-AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
+AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 	TRACE();
 	if (!operand) {
 		return {};
@@ -864,8 +864,32 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 		if (is_operator(OperatorKind::LPAREN)) {
 			// operand(...)
 		} else if (is_operator(OperatorKind::PERIOD)) {
-			// operand.expr
+			eat(); // Eat '.'
+			if (is_kind(TokenKind::IDENTIFIER)) {
+				auto name = parse_ident();
+				if (!name) {
+					return {};
+				}
+				operand = ast_.create<AstAccessExpr>(operand, name);
+			} else if (is_operator(OperatorKind::LPAREN)) {
+				eat(); // Eat '('
+				auto type = parse_type();
+				if (!type) {
+					return {};
+				}
+				if (!is_operator(OperatorKind::RPAREN)) {
+					return error("Expected ')'");
+				}
+				eat(); // Eat ')'
+				operand = ast_.create<AstAssertExpr>(operand, type);
+			} else if (is_operator(OperatorKind::QUESTION)) {
+				eat(); // Eat '?'
+				operand = ast_.create<AstAssertExpr>(operand, AstRef<AstType>{});
+			} else {
+				return error("Unexpected token after '.'");
+			}
 		} else if (is_operator(OperatorKind::ARROW)) {
+			// TODO
 			// (operand->expr)(....)
 			// operand.expr(operand, ...)
 		} else if (is_operator(OperatorKind::LBRACKET)) {
@@ -874,7 +898,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 				return error("Expected expression in '[]'");
 			}
 			// We don't know if we need the expression yet
-			AstRef<AstExpr> lhs = parse_expr(false);
+			AstRef<AstExpr> lhs = parse_expr(is_lhs);
 			AstRef<AstExpr> rhs;
 			Bool is_slice = is_operator(OperatorKind::COLON);
 			if (is_slice || is_kind(TokenKind::COMMA)) {
@@ -902,13 +926,13 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 			return parse_or_else_expr(operand);
 		} else if (is_kind(TokenKind::LBRACE)) {
 			// TODO(dweiler): Parse initializer
-			if (lhs) {
+			if (is_lhs) {
 				break;
 			}
 		} else {
 			break;
 		}
-		lhs = false;
+		is_lhs = false;
 	}
 	return operand;
 }
@@ -953,9 +977,11 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 		}
 	} else if (is_operator(OperatorKind::PERIOD)) {
 		eat(); // Eat '.'
-		// if (auto ident = parse_ident()) {
-		// 	//return ast_.create<AstImplicitSelectorExpr>(ident);
-		// }
+		if (auto ident = parse_ident()) {
+			return ast_.create<AstSelectorExpr>(ident);
+		} else {
+			return error("Expected identifier after '.'");
+		}
 	}
 	auto operand = parse_operand(lhs);
 	return parse_unary_atom(operand, lhs);
@@ -980,6 +1006,17 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 		return parse_context_expr();
 	} else if (is_keyword(KeywordKind::PROC)) {
 		return parse_proc_expr();
+	} else if (is_operator(OperatorKind::LPAREN)) {
+		eat(); // Eat '('
+		auto expr = parse_expr(false);
+		if (!expr) {
+			return {};
+		}
+		if (!is_operator(OperatorKind::RPAREN)) {
+			return error("Expected ')'");
+		}
+		eat(); // Eat ')'
+		return expr;
 	}
 	auto type = parse_type();
 	if (!type) {

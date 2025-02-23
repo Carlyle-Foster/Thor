@@ -383,6 +383,9 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case STRING:      return to_expr<const AstStringExpr>()->dump(ast, builder);
 	case IMAGINARY:   return to_expr<const AstImaginaryExpr>()->dump(ast, builder);
 	case CAST:        return to_expr<const AstCastExpr>()->dump(ast, builder);
+	case SELECTOR:    return to_expr<const AstSelectorExpr>()->dump(ast, builder);
+	case ACCESS:      return to_expr<const AstAccessExpr>()->dump(ast, builder);
+	case ASSERT:      return to_expr<const AstAssertExpr>()->dump(ast, builder);
 	case TYPE:        return to_expr<const AstTypeExpr>()->dump(ast, builder);
 	}
 }
@@ -539,6 +542,29 @@ void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	} else {
 		builder.put("auto_cast");
 		ast[expr].dump(ast, builder);
+	}
+}
+
+void AstSelectorExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('.');
+	builder.put(ast[name]);
+}
+
+void AstAccessExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put('.');
+	builder.put(ast[field]);
+}
+
+void AstAssertExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put('.');
+	if (type) {
+		builder.put('(');
+		ast[type].dump(ast, builder);
+		builder.put(')');
+	} else {
+		builder.put('?');
 	}
 }
 

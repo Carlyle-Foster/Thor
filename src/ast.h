@@ -186,6 +186,9 @@ struct AstExpr : AstNode {
 		STRING,
 		IMAGINARY,
 		CAST,
+		SELECTOR,
+		ACCESS,
+		ASSERT,
 		TYPE,
 	};
 	constexpr AstExpr(Kind kind)
@@ -236,8 +239,6 @@ struct AstUnaryExpr : AstExpr {
 	OperatorKind    op;
 };
 
-// IfExpr := Expr '?' Expr ':' Expr
-//         | Expr 'if' Expr 'else' Expr
 struct AstIfExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IF;
 	constexpr AstIfExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
@@ -253,7 +254,6 @@ struct AstIfExpr : AstExpr {
 	AstRef<AstExpr> on_false;
 };
 
-// WhenExpr := Expr 'when' Expr 'else' Expr
 struct AstWhenExpr : AstExpr {
 	static constexpr const auto KIND = Kind::WHEN;
 	constexpr AstWhenExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
@@ -464,6 +464,47 @@ struct AstCastExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstType> type; // When !type this is an auto_cast
 	AstRef<AstExpr> expr;
+};
+
+struct AstSelectorExpr : AstExpr {
+	static constexpr const auto KIND = Kind::SELECTOR;
+	constexpr AstSelectorExpr(AstStringRef name)
+		: AstExpr{KIND}
+		, name{name}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstStringRef name;
+};
+
+struct AstAccessExpr : AstExpr {
+	static constexpr const auto KIND = Kind::ACCESS;
+	constexpr AstAccessExpr(AstRef<AstExpr> operand, AstStringRef field)
+		: AstExpr{KIND}
+		, operand{operand}
+		, field{field}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+	AstStringRef field;
+};
+
+struct AstAssertExpr : AstExpr {
+	static constexpr const auto KIND = Kind::ASSERT;
+	constexpr AstAssertExpr(AstRef<AstExpr> operand, AstRef<AstType> type)
+		: AstExpr{KIND}
+		, operand{operand}
+		, type{type}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> operand;
+	AstRef<AstType> type; // Optional
+	// When type is present
+	//	operand.(T)
+	// When type is not present
+	//	operand.?
 };
 
 struct AstTypeExpr : AstExpr {

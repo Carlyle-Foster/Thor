@@ -50,6 +50,7 @@ Expr              := IfExpr
                    | FloatExpr
                    | StringExpr
                    | ImaginaryExpr
+                   | SelectorExpr
                    | CastExpr
                    | TypeExpr
 IfExpr            := Expr 'if' Expr 'else' Expr
@@ -69,6 +70,8 @@ IntExpr           := IntLit
 FloatExpr         := FloatLit
 StringExpr        := StringLit
 ImaginaryExpr     := ImaginaryLit
+SelectorExpr      := '.' Ident
+AccessExpr        := Expr '.' Ident
 CastExpr          := '(' Type ')' Expr
                    | 'auto_cast' Expr
 TypeExpr          := Type
