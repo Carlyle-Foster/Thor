@@ -12,6 +12,9 @@ struct Guard {
 };
 static_assert(sizeof(Guard) == 64);
 
+void operator delete(void*) {
+	// See comment below
+}
 void operator delete(void*, unsigned long) {
 	// When a base class contains a virtual destructor, the compiler will generate
 	// two destructors for a derived class. The regular destructor and a special

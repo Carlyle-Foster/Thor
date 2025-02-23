@@ -1,3 +1,5 @@
+a[b] + a[b:] + a[:b] + a[b:c] + a[:] + m[a, b]
+
 package ks
 
 import "core:fmt"

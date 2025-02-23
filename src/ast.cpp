@@ -376,8 +376,8 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case UNDEF:       return to_expr<const AstUndefExpr>()->dump(ast, builder);
 	case CONTEXT:     return to_expr<const AstContextExpr>()->dump(ast, builder);
 	case PROC:        return to_expr<const AstProcExpr>()->dump(ast, builder);
-	case RANGE:       return to_expr<const AstRangeExpr>()->dump(ast, builder);
-	case SLICERANGE:  return to_expr<const AstSliceRangeExpr>()->dump(ast, builder);
+	case SLICE:       return to_expr<const AstSliceExpr>()->dump(ast, builder);
+	case INDEX:       return to_expr<const AstIndexExpr>()->dump(ast, builder);
 	case INT:         return to_expr<const AstIntExpr>()->dump(ast, builder);
 	case FLOAT:       return to_expr<const AstFloatExpr>()->dump(ast, builder);
 	case STRING:      return to_expr<const AstStringExpr>()->dump(ast, builder);
@@ -484,21 +484,29 @@ void AstProcExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[body].dump(ast, builder, 0);
 }
 
-void AstRangeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	ast[start].dump(ast, builder);
-	builder.put("..");
-	if(inclusive) {
-		builder.put('=');
-	} else {
-		builder.put('<');
+void AstSliceExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put('[');
+	if (lhs) {
+		ast[lhs].dump(ast, builder);
 	}
-	ast[end].dump(ast, builder);
+	builder.put(':');
+	if (rhs) {
+		ast[rhs].dump(ast, builder);
+	}
+	builder.put(']');
 }
 
-void AstSliceRangeExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	ast[low].dump(ast, builder);
-	builder.put(":");
-	ast[high].dump(ast, builder);
+void AstIndexExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
+	builder.put('[');
+	ast[lhs].dump(ast, builder);
+	if (rhs) {
+		builder.put(',');
+		builder.put(' ');
+		ast[rhs].dump(ast, builder);
+	}
+	builder.put(']');
 }
 
 void AstIntExpr::dump(const AstFile&, StringBuilder& builder) const {

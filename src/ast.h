@@ -179,8 +179,8 @@ struct AstExpr : AstNode {
 		UNDEF,
 		CONTEXT,
 		PROC,
-		RANGE,
-		SLICERANGE,
+		SLICE,
+		INDEX,
 		INT,
 		FLOAT,
 		STRING,
@@ -368,36 +368,49 @@ struct AstProcExpr : AstExpr {
 	AstRef<AstBlockStmt>  body;
 };
 
-struct AstRangeExpr : AstExpr {
-	static constexpr const auto KIND = Kind::RANGE;
-	constexpr AstRangeExpr(AstRef<AstExpr> start, AstRef<AstExpr> end, Bool inclusive)
+struct AstSliceExpr : AstExpr {
+	static constexpr const auto KIND = Kind::SLICE;
+	constexpr AstSliceExpr(AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
 		: AstExpr{KIND}
-		, start{start}
-		, end{end}
-		, inclusive(inclusive)
+		, operand{operand}
+		, lhs{lhs}
+		, rhs{rhs}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> start;
-	AstRef<AstExpr> end;
-	Bool            inclusive;
+	AstRef<AstExpr> operand;
+	AstRef<AstExpr> lhs; // Optional
+	AstRef<AstExpr> rhs; // Optional
+	// LHS | RHS | MEANING
+	// ----|-----|-----------------
+	// NO  | NO  | operand[:]
+	// NO  | YES | operand[:rhs]
+	// YES | NO  | operand[lhs:]
+	// YES | YES | operand[lhs:rhs]
 };
 
-struct AstSliceRangeExpr : AstExpr {
-	static constexpr const auto KIND = Kind::SLICERANGE;
-	constexpr AstSliceRangeExpr(AstRef<AstExpr> low, AstRef<AstExpr> high)
+struct AstIndexExpr : AstExpr {
+	static constexpr const auto KIND = Kind::INDEX;
+	constexpr AstIndexExpr(AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
 		: AstExpr{KIND}
-		, low{low}
-		, high{high}
+		, operand{operand}
+		, lhs{lhs}
+		, rhs{rhs}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> low;
-	AstRef<AstExpr> high;
+	AstRef<AstExpr> operand;
+	AstRef<AstExpr> lhs;
+	AstRef<AstExpr> rhs; // Optional
+	// Represents indexing in Odin, that is:
+	// 	operand[lhs]
+	//
+	// However if [rhs] is present it represents matrix indexing:
+	// 	operand[lhs, rhs]
 };
 
 struct AstIntExpr : AstExpr {
-	static constexpr const auto KIND = Kind::INTEGER;
+	static constexpr const auto KIND = Kind::INT;
 	constexpr AstIntExpr(Uint64 value)
 		: AstExpr{KIND}
 		, value{value}

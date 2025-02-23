@@ -866,44 +866,30 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool lhs) {
 		} else if (is_operator(OperatorKind::PERIOD)) {
 			// operand.expr
 		} else if (is_operator(OperatorKind::ARROW)) {
-			// operand->expr
+			// (operand->expr)(....)
+			// operand.expr(operand, ...)
 		} else if (is_operator(OperatorKind::LBRACKET)) {
 			eat(); // Eat '['
-	
+			if (is_operator(OperatorKind::RBRACKET)) {
+				return error("Expected expression in '[]'");
+			}
 			// We don't know if we need the expression yet
-			auto expr = parse_expr(false);
-
-			if(is_operator(OperatorKind::RANGEHALF) ||
-			   is_operator(OperatorKind::RANGEFULL)) {
-
-				Bool inclusive = is_operator(OperatorKind::RANGEFULL);
-
-				auto start = expr;
-
-				if(!start) {
-					error("Expected a start range");
-					return {};
-				}
-
-				auto end = parse_expr(false);
-
-				return ast_.create<AstRangeExpr>(start, end, inclusive);
+			AstRef<AstExpr> lhs = parse_expr(false);
+			AstRef<AstExpr> rhs;
+			Bool is_slice = is_operator(OperatorKind::COLON);
+			if (is_slice || is_kind(TokenKind::COMMA)) {
+				eat(); // Eat ':' or ','
+				rhs = parse_expr(false);
 			}
-
-			if(is_operator(OperatorKind::COLON)) {
-				auto low = expr;
-				auto high = parse_expr(false);
-
-				return ast_.create<AstSliceRangeExpr>(low, high);
+			if (!is_operator(OperatorKind::RBRACKET)) {
+				return error("Expected ']'");
 			}
-			// operand[a]
-			// operand[:]
-			// operand[a:]
-			// operand[:a]
-			// operand[a:b]
-			// operand[a,b]
-			// operand[a..=b]
-			// operand[a..<b]
+			eat(); // Eat ']'
+			if (is_slice) {
+				operand = ast_.create<AstSliceExpr>(operand, lhs, rhs);
+			} else {
+				operand = ast_.create<AstIndexExpr>(operand, lhs, rhs);
+			}
 		} else if (is_operator(OperatorKind::POINTER)) {
 			return parse_deref_expr(operand);
 		} else if (is_operator(OperatorKind::OR_RETURN)) {
