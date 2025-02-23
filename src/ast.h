@@ -570,6 +570,7 @@ struct AstType : AstNode {
 		DYNARRAY,  // [dynamic]T
 		MAP,       // map[K]V
 		MATRIX,    // matrix[r,c]T
+		BITSET,    // bit_set
 		NAMED,     // Name
 		PARAM,     // T(args)
 		PAREN,     // (T)
@@ -715,6 +716,19 @@ struct AstMatrixType : AstType {
 	AstRef<AstExpr> rows;
 	AstRef<AstExpr> cols;
 	AstRef<AstType> base;
+};
+
+struct AstBitsetType : AstType {
+	static constexpr const auto KIND = Kind::BITSET;
+	constexpr AstBitsetType(AstRef<AstExpr> expr, AstRef<AstType> type)
+		: AstType{KIND}
+		, expr{expr}
+		, type{type}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRef<AstExpr> expr;
+	AstRef<AstType> type; // Optional
 };
 
 struct AstNamedType : AstType {

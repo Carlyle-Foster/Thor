@@ -1037,6 +1037,7 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 //       | DynArrayType
 //       | MapType
 //       | MatrixType
+//       | BitsetType
 //       | NamedType
 //       | ParamType
 //       | ParenType
@@ -1066,6 +1067,8 @@ AstRef<AstType> Parser::parse_type() {
 		return parse_map_type();
 	} else if (is_keyword(KeywordKind::MATRIX)) {
 		return parse_matrix_type();
+	} else if (is_keyword(KeywordKind::BITSET)) {
+		return parse_bitset_type();
 	} else if (is_kind(TokenKind::IDENTIFIER)) {
 		auto named = parse_named_type();
 		if (!named) {
@@ -1354,6 +1357,31 @@ AstRef<AstMatrixType> Parser::parse_matrix_type() {
 		return {};
 	}
 	return ast_.create<AstMatrixType>(rows, cols, base);
+}
+
+// BitsetType := 'bit_set' '[' Expr (';' Type)? ']'
+AstRef<AstBitsetType> Parser::parse_bitset_type() {
+	if (!is_keyword(KeywordKind::BITSET)) {
+		return error("Expected 'bitset'");
+	}
+	eat(); // Eat 'bitset'
+	if (!is_operator(OperatorKind::LBRACKET)) {
+		return error("Expected '[' after 'bitset'");
+	}
+	eat(); // Eat '['
+	auto expr = parse_expr(false);
+	if (!expr) {
+		return {};
+	}
+	AstRef<AstType> type;
+	if (is_kind(TokenKind::SEMICOLON)) {
+		eat(); // Eat ';'
+		type = parse_type();
+		if (!type) {
+			return {};
+		}
+	}
+	return ast_.create<AstBitsetType>(expr, type);
 }
 
 // NamedType := Ident ('.' Ident)?

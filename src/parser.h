@@ -64,6 +64,7 @@ struct Parser {
 	AstRef<AstArrayType> parse_array_type();
 	AstRef<AstDynArrayType> parse_dynarray_type();
 	AstRef<AstMapType> parse_map_type();
+	AstRef<AstBitsetType> parse_bitset_type();
 	AstRef<AstMatrixType> parse_matrix_type();
 	AstRef<AstNamedType> parse_named_type();
 	AstRef<AstParenType> parse_paren_type();

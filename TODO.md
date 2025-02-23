@@ -3,17 +3,9 @@
 ### Types
 * StructType
 * ProcType
-* BitSetType
-  - `'bit_set' '[' Expr (';' Type)? ']'`
-### Expressions
-* RangeExpr
-  - `Expr '..' ('=' | '<') Expr`
-* ImagExpr
-  - `ImagLiteral`
 ### Statements
-* IfStmt
+* IfStmt ..
 * ForeignStmt
-* ForeignImportStmt
 * ForStmt
 * SwitchStmt
 * DeclStmt

@@ -588,6 +588,7 @@ void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	case DYNARRAY: return to_type<const AstDynArrayType>()->dump(ast, builder);
 	case MAP:      return to_type<const AstMapType>()->dump(ast, builder);
 	case MATRIX:   return to_type<const AstMatrixType>()->dump(ast, builder);
+	case BITSET:   return to_type<const AstBitsetType>()->dump(ast, builder);
 	case NAMED:    return to_type<const AstNamedType>()->dump(ast, builder);
 	case PARAM:    return to_type<const AstParamType>()->dump(ast, builder);
 	case PAREN:    return to_type<const AstParenType>()->dump(ast, builder);
@@ -693,6 +694,18 @@ void AstMatrixType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[cols].dump(ast, builder);
 	builder.put(']');
 	ast[base].dump(ast, builder);
+}
+
+void AstBitsetType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("bit_set");
+	builder.put('[');
+	ast[expr].dump(ast, builder);
+	if (type) {
+		builder.put(';');
+		builder.put(' ');
+		ast[type].dump(ast, builder);
+	}
+	builder.put(']');
 }
 
 void AstNamedType::dump(const AstFile& ast, StringBuilder& builder) const {
