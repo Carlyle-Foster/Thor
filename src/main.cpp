@@ -1,6 +1,7 @@
 #include "util/system.h"
 #include "util/file.h"
 #include "util/map.h"
+#include "util/stream.h"
 
 #include "parser.h"
 
@@ -28,18 +29,18 @@ int main(int, char **) {
 	auto& ast = parser->ast();
 
 	StringBuilder builder{sys.allocator};
-	Array<AstRef<AstStmt>> stmts{sys.allocator};
+	Array<AstRef<AstExpr>> exprs{sys.allocator};
 	for (;;) {
-		auto stmt = parser->parse_stmt(false, {}, {});
-		if (!stmt) {
+		auto expr = parser->parse_expr(false);
+		if (!expr) {
 			break;
 		}
-		if (!stmts.push_back(move(stmt))) {
+		if (!exprs.push_back(move(expr))) {
 			break;
 		}
 	}
-	for (auto stmt : stmts) {
-		ast[stmt].dump(ast, builder, 0);
+	for (auto expr : exprs) {
+		ast[expr].dump(ast, builder);
 	}
 
 	/*

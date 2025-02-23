@@ -3,6 +3,7 @@
 #include <float.h>
 
 #include "util/string.h"
+#include "util/stream.h"
 
 namespace Thor {
 
@@ -160,6 +161,27 @@ Bool StringTable::grow(Ulen additional) {
 	data_ = data;
 	capacity_ = new_capacity;
 	return true;
+}
+
+Maybe<StringTable> StringTable::load(Allocator& allocator, Stream& stream) {
+	Uint32 length = 0;
+	if (!stream.read(Slice<Uint32>{&length, 1}.cast<Uint8>()) || length == 0) {
+		return {};
+	}
+	auto data = allocator.allocate<char>(length, false);
+	if (!data) {
+		return {};
+	}
+	if (!stream.read(Slice<char>{data, length}.cast<Uint8>())) {
+		allocator.deallocate(data, length);
+		return {};
+	}
+	return StringTable { allocator, data, length };
+}
+
+Bool StringTable::save(Stream& stream) const {
+	return stream.write(Slice<const Uint32>{&length_, 1}.cast<const Uint8>())
+	    && stream.write(Slice<const char>{data_, length_}.cast<const Uint8>());
 }
 
 } // namespace Thor

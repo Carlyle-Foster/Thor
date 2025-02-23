@@ -12,6 +12,19 @@ struct Guard {
 };
 static_assert(sizeof(Guard) == 64);
 
+void operator delete(void*) {
+	// See comment below
+}
+void operator delete(void*, unsigned long) {
+	// When a base class contains a virtual destructor, the compiler will generate
+	// two destructors for a derived class. The regular destructor and a special
+	// destructor called a "deleting destructor" which is called when "delete" is
+	// used. This deleting destructor will call this operator delete. We never use
+	// "delete" though and so these deleting destructors are never called. The ABI
+	// requires they be generated though because the compiler cannot tell that a
+	// client won't use delete.
+}
+
 extern "C" {
 
 int __cxa_guard_acquire(Guard* guard) {

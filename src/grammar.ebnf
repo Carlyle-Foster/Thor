@@ -36,23 +36,45 @@ IntExpr           := IntLit
 FloatExpr         := FloatLit
 StringExpr        := StringLit
 
-Expr              := IntExpr
-                   | FloatExpr
-                   | StringExpr
+Expr              := IfExpr
+                   | WhenExpr
+                   | DerefExpr
+                   | OrReturnExpr
+                   | OrBreakExpr
+                   | OrElseExpr
                    | IdentExpr
                    | UndefExpr
                    | ContextExpr
-                   | IfExpr
-                   | WhenExpr
-IntExpr           := IntLit
-FloatExpr         := FloatLit
-StringExpr        := StringLit
-IdentExpr         := Ident
-UndefExpr         := '---'
-ContextExpr       := 'context'
+                   | RangeExpr
+                   | IntExpr
+                   | FloatExpr
+                   | StringExpr
+                   | ImaginaryExpr
+                   | SelectorExpr
+                   | CastExpr
+                   | TypeExpr
 IfExpr            := Expr 'if' Expr 'else' Expr
                    | Expr '?' Expr ':' Expr
 WhenExpr          := Expr 'when' Expr 'else' Expr
+DerefExpr         := Expr '^'
+OrReturnExpr      := Expr 'or_return'
+OrBreakExpr       := Expr 'or_break'
+OrElseExpr        := Expr 'or_else' Expr
+IdentExpr         := Ident
+UndefExpr         := '---'
+ContextExpr       := 'context'
+RangeExpr         := Expr '..=' Expr
+                   | Expr '..<' Expr
+SliceExpr         := Expr '[' Expr? ':' Expr? ']'
+IntExpr           := IntLit
+FloatExpr         := FloatLit
+StringExpr        := StringLit
+ImaginaryExpr     := ImaginaryLit
+SelectorExpr      := '.' Ident
+AccessExpr        := Expr '.' Ident
+CastExpr          := '(' Type ')' Expr
+                   | 'auto_cast' Expr
+TypeExpr          := Type
 
 Type              := UnionType
                    | EnumType

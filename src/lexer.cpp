@@ -159,6 +159,14 @@ Token Lexer::scan_number(Bool leading_period) {
 	}
 
 	if (rune_ == '.') {
+		// Need to peek to check if the next character is '.' as the left-hand side
+		// of the range operators: ..<, ..= permit an integer literal without space
+		// between them. This is the only part of the lexer grammar that appears to
+		// require LR(2).
+		auto peek = position_.this_offset + 1;
+		if (peek < input_.length() && input_[peek] == '.') {
+			return token;
+		}
 		eat(); // Eat '.'
 		token.as_literal = LiteralKind::FLOAT;
 		while (rune_.is_digit(10) || rune_ == '_') eat();
