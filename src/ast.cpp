@@ -1,5 +1,6 @@
 #include "util/allocator.h"
 #include "util/file.h"
+#include "util/stream.h"
 
 #include "ast.h"
 
@@ -8,13 +9,98 @@
 
 namespace Thor {
 
+struct AstFileHeader {
+	Uint8  magic[4]; // tast
+	Uint32 version;
+	Uint64 slabs;
+};
+
 Maybe<AstFile> AstFile::create(Allocator& allocator, StringView filename) {
 	StringTable table{allocator};
 	auto ref = table.insert(filename);
 	if (!ref) {
 		return {};
 	}
-	return AstFile { move(table), allocator, ref };
+	return AstFile { move(table), ref, allocator };
+}
+
+Maybe<AstFile> AstFile::load(Allocator& allocator, Stream& stream) {
+	AstFileHeader header;
+	if (!stream.read(Slice{&header, 1}.cast<Uint8>())) {
+		return {};
+	}
+	if (header.magic != Slice{"tast"}.cast<const Uint8>()) {
+		return {};
+	}
+	if (header.version != 1) {
+		return {};
+	}
+	auto string_table = StringTable::load(allocator, stream);
+	if (!string_table) {
+		return {};
+	}
+	// Read in the filename AstStringRef which is just Uint32[2]
+	AstStringRef filename;
+	if (!stream.read(Slice{&filename, 1}.cast<Uint8>())) {
+		return {};
+	}
+	// Count the # of slabs indicated by the bitset.
+	Ulen n_slabs = 0;
+	for (Uint64 i = 0; i < 64; i++) {
+		if ((header.slabs & (1_u64 << Uint64(i))) != 0) {
+			n_slabs++;
+		}
+	}
+	Array<Maybe<Slab>> slabs{allocator};
+	if (!slabs.resize(n_slabs)) {
+		return {};
+	}
+	for (Ulen i = 0; i < n_slabs; i++) {
+		if ((header.slabs & (1_u64 << Uint64(i))) != 0) {
+			if (!slabs[i]->load(allocator, stream)) {
+				return {};
+			}
+		}
+	}
+	// Read in the IDs
+	Array<AstID> ids{allocator};
+	// Read the AstID list in.
+	return AstFile {
+		move(*string_table),
+		filename,
+		move(slabs),
+		move(ids)
+	};
+}
+
+Bool AstFile::save(Stream& stream) const {
+	AstFileHeader header {
+		.magic   = { 't', 'a', 's', 't' },
+		.version = 1,
+		.slabs   = 0
+	};
+	// Determine which slabs are in-use. There is only 64 possible slab types
+	// due to a 6-bit AstSlabID. We can store the occupancy in one 64-bit word.
+	Ulen i = 0;
+	for (const auto& slab : slabs_) {
+		if (slab) {
+			header.slabs |= 1_u64 << Uint64(i);
+		}
+		i++;
+	}
+	auto src = Slice{&header, 1}.cast<const Uint8>();
+	if (!stream.write(src)) {
+		return false;
+	}
+	if (!string_table_.save(stream)) {
+		return false;
+	}
+	for (const auto& slab : slabs_) {
+		if (slab && !slab->save(stream)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 AstFile::~AstFile() {

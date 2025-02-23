@@ -17,8 +17,13 @@ struct Allocator;
 // PoolRef (plain typed index). Allocate object with allocate(), deallocate with
 // deallocate(). The address (pointer) of the object can be looked-up by passing
 // the PoolRef to operator[] like a key.
+struct Stream;
+
 struct Pool {
 	static Maybe<Pool> create(Allocator& allocator, Ulen size, Ulen capacity);
+
+	static Maybe<Pool> load(Allocator& allocator, Stream& stream);
+	Bool save(Stream& stream) const;
 
 	Pool(Pool&& other);
 	~Pool() { drop(); }
@@ -40,10 +45,10 @@ struct Pool {
 	constexpr auto operator[](PoolRef ref) const { return data_ + size_ * ref.index; }
 
 private:
-	constexpr Pool(Allocator& allocator, Ulen size, Ulen capacity, Uint8* data, Uint32* used)
+	constexpr Pool(Allocator& allocator, Ulen size, Ulen length, Ulen capacity, Uint8* data, Uint32* used)
 		: allocator_{allocator}
-		, length_{0}
 		, size_{size}
+		, length_{length}
 		, capacity_{capacity}
 		, data_{data}
 		, used_{used}
@@ -57,8 +62,8 @@ private:
 	}
 
 	Allocator& allocator_;
-	Ulen       length_;    // # of objects in the pool
 	Ulen       size_;      // Size of an object in the pool
+	Ulen       length_;    // # of objects in the pool
 	Ulen       capacity_;  // Always a multiple of 32 (max # of objects in pool)
 	Uint8*     data_;      // Object memory
 	Uint32*    used_;      // Bitset where bit N indicates object N is in-use or not.

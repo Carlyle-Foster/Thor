@@ -76,13 +76,13 @@ private:
 };
 
 struct AstNode {
-	// Only 12-bit node index (2^12 = 4096)
-	static inline constexpr const auto MAX = 4096_u32;
+	// Only 10-bit node index (2^10 = 2048)
+	static inline constexpr const auto MAX = 1024_u32;
 };
 
 struct AstID {
-	// Only 14-bit pool index (2^14 = 16384)
-	static inline constexpr const auto MAX = 16384_u32;
+	// Only 16-bit pool index (2^16 = 65536)
+	static inline constexpr const auto MAX = 65536_u32;
 	constexpr AstID() = default;
 	constexpr AstID(Unit) : AstID{} {}
 	constexpr AstID(Uint32 value)
@@ -906,6 +906,9 @@ static_assert(!is_polymorphic<AstDeclStmt>, "Cannot be polymorphic");
 
 struct AstFile {
 	static Maybe<AstFile> create(Allocator& allocator, StringView filename);
+	static Maybe<AstFile> load(Allocator& allocator, Stream& stream);
+
+	Bool save(Stream& stream) const;
 
 	StringView filename() const {
 		return string_table_[filename_];
@@ -971,11 +974,19 @@ struct AstFile {
 private:
 	[[nodiscard]] AstIDArray insert(Slice<const AstID> ids);
 
-	AstFile(StringTable&& string_table, Allocator& allocator, AstStringRef filename)
+	AstFile(StringTable&& string_table, AstStringRef filename, Allocator& allocator)
 		: string_table_{move(string_table)}
+		, filename_{filename}
 		, slabs_{allocator}
 		, ids_{allocator}
+	{
+	}
+
+	AstFile(StringTable&& string_table, AstStringRef filename, Array<Maybe<Slab>>&& slabs, Array<AstID>&& ids)
+		: string_table_{move(string_table)}
 		, filename_{filename}
+		, slabs_{move(slabs)}
+		, ids_{move(ids)}
 	{
 	}
 
@@ -996,9 +1007,9 @@ private:
 	//    offset and length stored in the AstRefArray itself. The [ids_] array is
 	//    just an array of AstID, i.e Uint32.
 	StringTable        string_table_;
+	AstStringRef       filename_;
 	Array<Maybe<Slab>> slabs_;
 	Array<AstID>       ids_;
-	AstStringRef       filename_;
 };
 
 } // namespace Thor

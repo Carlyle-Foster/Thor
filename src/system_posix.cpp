@@ -21,6 +21,8 @@ static Filesystem::File* filesystem_open_file(System& sys, StringView name, File
 		break;
 	case Filesystem::Access::WR:
 		flags |= O_WRONLY;
+		flags |= O_CREAT;
+		flags |= O_TRUNC;
 		break;
 	}
 	ScratchAllocator<1024> scratch{sys.allocator};

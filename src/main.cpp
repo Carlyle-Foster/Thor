@@ -1,6 +1,7 @@
 #include "util/system.h"
 #include "util/file.h"
 #include "util/map.h"
+#include "util/stream.h"
 
 #include "parser.h"
 

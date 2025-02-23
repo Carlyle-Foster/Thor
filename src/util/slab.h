@@ -17,6 +17,7 @@ struct SlabRef {
 // Allocate object with allocate(), deallocate with deallocate(). The address
 // (pointer) of the object can be looked-up by passing the SlabRef to operator[]
 // like a key.
+struct Stream;
 struct Slab {
 	constexpr Slab(Allocator& allocator, Ulen size, Ulen capacity)
 		: caches_{allocator}
@@ -24,6 +25,8 @@ struct Slab {
 		, capacity_{capacity}
 	{
 	}
+	static Maybe<Slab> load(Allocator& allocator, Stream& stream);
+	Bool save(Stream& stream) const;
 	Maybe<SlabRef> allocate();
 	void deallocate(SlabRef slab_ref);
 	constexpr Uint8* operator[](SlabRef slab_ref) {
@@ -37,6 +40,12 @@ struct Slab {
 		return (*caches_[cache_idx])[PoolRef { cache_ref }];
 	}
 private:
+	Slab(Array<Maybe<Pool>>&& caches, Ulen size, Ulen capacity)
+		: caches_{move(caches)}
+		, size_{size}
+		, capacity_{capacity}
+	{
+	}
 	Array<Maybe<Pool>> caches_;
 	Ulen               size_;
 	Ulen               capacity_;

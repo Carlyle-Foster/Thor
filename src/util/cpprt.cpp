@@ -12,6 +12,10 @@ struct Guard {
 };
 static_assert(sizeof(Guard) == 64);
 
+void operator delete(void*, unsigned long) {
+	// No-op
+}
+
 extern "C" {
 
 int __cxa_guard_acquire(Guard* guard) {

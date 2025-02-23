@@ -61,11 +61,16 @@ struct StringRef {
 // Limited to no larger than 4 GiB of string data. Odin source files are limited
 // to 2 GiB so this shouldn't ever be an issue as the StringTable represents an
 // interned representation of identifiers in a single Odin source file.
+struct Stream;
+
 struct StringTable {
 	constexpr StringTable(Allocator& allocator)
 		: map_{allocator}
 	{
 	}
+	
+	static Maybe<StringTable> load(Allocator& allocator, Stream& stream);
+	Bool save(Stream& stream) const;
 
 	StringTable(StringTable&& other);
 
@@ -91,6 +96,14 @@ struct StringTable {
 	Slice<char> data() const { return { data_, length_ }; }
 
 private:
+	constexpr StringTable(Allocator& allocator, char* data, Uint32 length)
+		: map_{allocator}
+		, data_{data}
+		, capacity_{length}
+		, length_{length}
+	{
+	}
+
 	StringTable* drop() {
 		allocator().deallocate(data_, capacity_);
 		return this;
