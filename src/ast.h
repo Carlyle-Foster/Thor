@@ -321,7 +321,7 @@ struct AstRangeExpr : AstExpr {
 };
 
 struct AstSliceRangeExpr : AstExpr {
-	static constexpr const auto KIND = Kind::RANGE;
+	static constexpr const auto KIND = Kind::SLICERANGE;
 	constexpr AstSliceRangeExpr(AstRef<AstExpr> low, AstRef<AstExpr> high)
 		: AstExpr{KIND}
 		, low{low}
