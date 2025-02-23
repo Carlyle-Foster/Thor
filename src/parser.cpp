@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 
 #include "parser.h"
 #include "ast.h"
@@ -33,10 +32,13 @@ struct Debug {
 #define TRACE() \
 	auto debug_ ## __LINE__ = Debug{sys_, __func__, __FILE__, __LINE__}
 
-void Parser::eat() {
+Uint32 Parser::eat() {
+	Uint32 offset = 0;
 	do {
+		offset = token_.offset;
 		token_ = lexer_.next();
 	} while (is_kind(TokenKind::COMMENT));
+	return offset;
 }
 
 Maybe<Parser> Parser::open(System& sys, StringView filename) {
@@ -63,13 +65,14 @@ Parser::Parser(System& sys, Lexer&& lexer, AstFile&& ast)
 	eat();
 }
 
-AstStringRef Parser::parse_ident() {
+AstStringRef Parser::parse_ident(Uint32* poffset) {
 	TRACE();
 	if (!is_kind(TokenKind::IDENTIFIER)) {
 		return error("Expected identifier");
 	}
 	auto str = lexer_.string(token_);
-	eat(); // Eat <ident>
+	auto offset = eat(); // Eat <ident>
+	if (poffset) *poffset = offset;
 	return ast_.insert(str);
 }
 
@@ -83,7 +86,7 @@ AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	if (!block) {
 		return {};
 	}
-	return ast_.create<AstProcExpr>(type, block);
+	return ast_.create<AstProcExpr>(ast_[type].offset, type, block);
 }
 
 /*
@@ -266,8 +269,8 @@ AstRef<AstEmptyStmt> Parser::parse_empty_stmt() {
 	if (!is_kind(TokenKind::SEMICOLON)) {
 		return error("Expected ';' (or newline)");
 	}
-	eat(); // Eat ';'
-	return ast_.create<AstEmptyStmt>();
+	auto offset = eat(); // Eat ';'
+	return ast_.create<AstEmptyStmt>(offset);
 }
 
 // BlockStmt := '{' Stmt* '}'
@@ -277,7 +280,7 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 		error("Expected '{'");
 		return {};
 	}
-	eat(); // Eat '{'
+	auto offset = eat(); // Eat '{'
 	Array<AstRef<AstStmt>> stmts{temporary_};
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
 		auto stmt = parse_stmt(false, {}, {});
@@ -290,16 +293,16 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 	}
 	eat(); // Eat '}'
 	auto refs = ast_.insert(move(stmts));
-	return ast_.create<AstBlockStmt>(refs);
+	return ast_.create<AstBlockStmt>(offset, refs);
 }
 
 // PackageStmt := 'package' Ident
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	TRACE();
-	eat(); // Eat 'package'
+	auto offset = eat(); // Eat 'package'
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		if (auto name = parse_ident()) {
-			return ast_.create<AstPackageStmt>(name);
+			return ast_.create<AstPackageStmt>(offset, name);
 		} else {
 			return {};
 		}
@@ -310,7 +313,7 @@ AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 // ImportStmt := 'import' Ident? StringLit
 AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	TRACE();
-	eat(); // Eat 'import'
+	auto offset = eat(); // Eat 'import'
 	AstStringRef alias;
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		alias = parse_ident();
@@ -319,7 +322,7 @@ AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	if (!expr) {
 		return {};
 	}
-	return ast_.create<AstImportStmt>(alias, expr);
+	return ast_.create<AstImportStmt>(offset, alias, expr);
 }
 
 // BreakStmt := 'break' Ident?
@@ -328,12 +331,12 @@ AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 	if (!is_keyword(KeywordKind::BREAK)) {
 		return error("Expected 'break'");
 	}
-	eat(); // Eat 'break'
+	auto offset = eat(); // Eat 'break'
 	AstStringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		label = parse_ident();
 	}
-	return ast_.create<AstBreakStmt>(label);
+	return ast_.create<AstBreakStmt>(offset, label);
 }
 
 // ContinueStmt := 'continue' Ident?
@@ -342,12 +345,12 @@ AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 	if (!is_keyword(KeywordKind::CONTINUE)) {
 		return error("Expected 'continue'");
 	}
-	eat(); // Eat 'continue'
+	auto offset = eat(); // Eat 'continue'
 	AstStringRef label;
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		label = parse_ident();
 	}
-	return ast_.create<AstContinueStmt>(label);
+	return ast_.create<AstContinueStmt>(offset, label);
 }
 
 // FallthroughStmt := 'fallthrough'
@@ -356,8 +359,8 @@ AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
 	if (!is_keyword(KeywordKind::FALLTHROUGH)) {
 		return error("Expected 'fallthrough'");
 	}
-	eat(); // Eat 'fallthrough'
-	return ast_.create<AstFallthroughStmt>();
+	auto offset = eat(); // Eat 'fallthrough'
+	return ast_.create<AstFallthroughStmt>(offset);
 }
 
 // ForeignImportStmt := 'foreign' 'import' Ident? StringLit
@@ -367,7 +370,7 @@ AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
 	if (!is_keyword(KeywordKind::IMPORT)) {
 		return error("Expected 'import'");
 	}
-	eat(); // Eat 'import'
+	auto offset = eat(); // Eat 'import'
 	AstStringRef ident;
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		ident = parse_ident();
@@ -403,7 +406,7 @@ AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
 
 	auto refs = ast_.insert(move(exprs));
 
-	return ast_.create<AstForeignImportStmt>(ident, refs);
+	return ast_.create<AstForeignImportStmt>(offset, ident, refs);
 }
 // IfStmt := TODO(dweiler): EBNF
 AstRef<AstIfStmt> Parser::parse_if_stmt() {
@@ -411,7 +414,7 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	if (!is_keyword(KeywordKind::IF)) {
 		return error("Expected 'if'");
 	}
-	eat(); // Eat 'if'
+	auto offset = eat(); // Eat 'if'
 	AstRef<AstStmt> init;
 	AstRef<AstExpr> cond;
 	AstRef<AstStmt> on_true;
@@ -471,7 +474,7 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 		}
 	}
 
-	return ast_.create<AstIfStmt>(init, cond, on_true, on_false);
+	return ast_.create<AstIfStmt>(offset, init, cond, on_true, on_false);
 }
 
 // ExprStmt := Expr
@@ -481,7 +484,7 @@ AstRef<AstExprStmt> Parser::parse_expr_stmt() {
 	if (!expr) {
 		return {};
 	}
-	return ast_.create<AstExprStmt>(expr);
+	return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 }
 
 // WhenStmt := 'when' Expr BlockStmt ('else' BlockStmt)?
@@ -490,7 +493,7 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 	if (!is_keyword(KeywordKind::WHEN)) {
 		return error("Expected 'when'");
 	}
-	eat(); // Eat 'when'
+	auto offset = eat(); // Eat 'when'
 	auto cond = parse_expr(false);
 	if (!cond) {
 		return {};
@@ -506,7 +509,7 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 			return {};
 		}
 	}
-	return ast_.create<AstWhenStmt>(cond, on_true, on_false);
+	return ast_.create<AstWhenStmt>(offset, cond, on_true, on_false);
 }
 
 Bool Parser::skip_possible_newline_for_literal() {
@@ -524,7 +527,7 @@ AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
 	if (!is_keyword(KeywordKind::DEFER)) {
 		return error("Expected 'defer'");
 	}
-	eat(); // Eat 'defer'
+	auto offset = eat(); // Eat 'defer'
 	auto stmt = parse_stmt(false, {}, {});
 	if (!stmt) {
 		return {};
@@ -535,7 +538,7 @@ AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
 	} else if (s.is_stmt<AstDeferStmt>()) {
 		return error("Cannot defer a defer statement");
 	}
-	return ast_.create<AstDeferStmt>(stmt);
+	return ast_.create<AstDeferStmt>(offset, stmt);
 }
 
 // ReturnStmt := 'return' (Expr (',' Expr)*)?
@@ -544,7 +547,7 @@ AstRef<AstReturnStmt> Parser::parse_return_stmt() {
 	if (!is_keyword(KeywordKind::RETURN)) {
 		return error("Expected 'return'");
 	}
-	eat(); // Eat 'return'
+	auto offset = eat(); // Eat 'return'
 	Array<AstRef<AstExpr>> exprs{temporary_};
 	for (;;) {
 		auto expr = parse_expr(false);
@@ -561,7 +564,7 @@ AstRef<AstReturnStmt> Parser::parse_return_stmt() {
 		}
 	}
 	auto refs = ast_.insert(move(exprs));
-	return ast_.create<AstReturnStmt>(refs);
+	return ast_.create<AstReturnStmt>(offset, refs);
 }
 
 // UsingStmt := 'using' Expr
@@ -574,7 +577,7 @@ AstRef<AstUsingStmt> Parser::parse_using_stmt() {
 	if (!expr) {
 		return {};
 	}
-	return ast_.create<AstUsingStmt>(expr);
+	return ast_.create<AstUsingStmt>(ast_[expr].offset, expr);
 }
 
 // Expr := IfExpr
@@ -607,8 +610,8 @@ AstRef<AstIntExpr> Parser::parse_int_expr() {
 	if (*end != '\0') {
 		return error("Malformed integer literal");
 	}
-	eat(); // Eat literal
-	return ast_.create<AstIntExpr>(value);
+	auto offset = eat(); // Eat literal
+	return ast_.create<AstIntExpr>(offset, value);
 }
 
 // FloatExpr := FloatLit
@@ -626,8 +629,8 @@ AstRef<AstFloatExpr> Parser::parse_float_expr() {
 	if (*end != '\0') {
 		return error("Malformed floating-point literal");
 	}
-	eat(); // Eat literal
-	return ast_.create<AstFloatExpr>(value);
+	auto offset = eat(); // Eat literal
+	return ast_.create<AstFloatExpr>(offset, value);
 }
 
 // StringExpr := StringLit
@@ -643,8 +646,8 @@ AstRef<AstStringExpr> Parser::parse_string_expr() {
 	if (!ref) {
 		return {};
 	}
-	eat(); // Eat literal
-	return ast_.create<AstStringExpr>(ref);
+	auto offset = eat(); // Eat literal
+	return ast_.create<AstStringExpr>(offset, ref);
 }
 
 // ImaginaryExpr := ImaginaryLit
@@ -663,15 +666,16 @@ AstRef<AstImaginaryExpr> Parser::parse_imaginary_expr() {
 	if (*end != '\0') {
 		return error("Malformed imaginary literal");
 	}
-	eat(); // Eat literal
-	return ast_.create<AstImaginaryExpr>(value);
+	auto offset = eat(); // Eat literal
+	return ast_.create<AstImaginaryExpr>(offset, value);
 }
 
 // IdentExpr := Ident
 AstRef<AstIdentExpr> Parser::parse_ident_expr() {
 	TRACE();
-	if (auto ident = parse_ident()) {
-		return ast_.create<AstIdentExpr>(ident);
+	Uint32 offset = 0;
+	if (auto ident = parse_ident(&offset)) {
+		return ast_.create<AstIdentExpr>(offset, ident);
 	}
 	return {};
 }
@@ -682,8 +686,8 @@ AstRef<AstUndefExpr> Parser::parse_undef_expr() {
 	if (!is_kind(TokenKind::UNDEFINED)) {
 		return error("Expected '---'");
 	}
-	eat(); // Eat '---'
-	return ast_.create<AstUndefExpr>();
+	auto offset = eat(); // Eat '---'
+	return ast_.create<AstUndefExpr>(offset);
 }
 
 // ContextExpr := 'context'
@@ -692,8 +696,8 @@ AstRef<AstContextExpr> Parser::parse_context_expr() {
 	if (!is_keyword(KeywordKind::CONTEXT)) {
 		return error("Expected 'context'");
 	}
-	eat(); // Eat 'context'
-	return ast_.create<AstContextExpr>();
+	auto offset = eat(); // Eat 'context'
+	return ast_.create<AstContextExpr>(offset);
 }
 
 // IfExpr := Expr 'if' Expr 'else' Expr
@@ -736,7 +740,7 @@ AstRef<AstIfExpr> Parser::parse_if_expr(AstRef<AstExpr> expr) {
 	} else {
 		return error("Expected 'if' or '?'");
 	}
-	return ast_.create<AstIfExpr>(cond, on_true, on_false);
+	return ast_.create<AstIfExpr>(ast_[expr].offset, cond, on_true, on_false);
 }
 
 // WhenExpr := Expr 'when' Expr 'else' Expr
@@ -758,12 +762,16 @@ AstRef<AstWhenExpr> Parser::parse_when_expr(AstRef<AstExpr> on_true) {
 	if (!on_false) {
 		return {};
 	}
-	return ast_.create<AstWhenExpr>(cond, on_true, on_false);
+	return ast_.create<AstWhenExpr>(ast_[on_true].offset, cond, on_true, on_false);
 }
 
 AstRef<AstExpr> Parser::parse_expr(Bool lhs) {
 	TRACE();
-	return parse_bin_expr(lhs, 1);
+	auto expr = parse_bin_expr(lhs, 1);
+	if (!expr) {
+		return {};
+	}
+	return expr;
 }
 
 AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
@@ -799,7 +807,7 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 			if (!rhs) {
 				return error("Expected expression on right-hand side of binary operator");
 			}
-			expr = ast_.create<AstBinExpr>(expr, rhs, kind);
+			expr = ast_.create<AstBinExpr>(ast_[expr].offset, expr, rhs, kind);
 		}
 		lhs = false;
 	}
@@ -812,7 +820,7 @@ AstRef<AstDerefExpr> Parser::parse_deref_expr(AstRef<AstExpr> operand) {
 		return error("Expected '^'");
 	}
 	eat(); // Eat '^'
-	return ast_.create<AstDerefExpr>(operand);
+	return ast_.create<AstDerefExpr>(ast_[operand].offset, operand);
 }
 
 // OrReturnExpr := Expr 'or_return'
@@ -821,7 +829,7 @@ AstRef<AstOrReturnExpr> Parser::parse_or_return_expr(AstRef<AstExpr> operand) {
 		return error("Expected 'or_return'");
 	}
 	eat(); // Eat 'or_return'
-	return ast_.create<AstOrReturnExpr>(operand);
+	return ast_.create<AstOrReturnExpr>(ast_[operand].offset, operand);
 }
 
 // OrBreakExpr := Expr 'or_break'
@@ -830,7 +838,7 @@ AstRef<AstOrBreakExpr> Parser::parse_or_break_expr(AstRef<AstExpr> operand) {
 		return error("Expected 'or_break'");
 	}
 	eat(); // Eat 'or_break'
-	return ast_.create<AstOrBreakExpr>(operand);
+	return ast_.create<AstOrBreakExpr>(ast_[operand].offset, operand);
 }
 
 // OrContinueExpr := Expr 'or_continue'
@@ -839,20 +847,41 @@ AstRef<AstOrContinueExpr> Parser::parse_or_continue_expr(AstRef<AstExpr> operand
 		return error("Expected 'or_continue'");
 	}
 	eat(); // Eat 'or_continue'
-	return ast_.create<AstOrContinueExpr>(operand);
+	return ast_.create<AstOrContinueExpr>(ast_[operand].offset, operand);
 }
 
-// OrElseExpr := Expr 'or_else' Expr
-AstRef<AstOrElseExpr> Parser::parse_or_else_expr(AstRef<AstExpr> operand) {
-	if (!is_operator(OperatorKind::OR_ELSE)) {
-		return error("Expected 'or_else'");
+// CallExpr := Expr '(' (',' Field)* ')'
+AstRef<AstCallExpr> Parser::parse_call_expr(AstRef<AstExpr> operand) {
+	TRACE();
+	if (!is_operator(OperatorKind::LPAREN)) {
+		return error("Expected '('");
 	}
-	eat(); // Eat 'or_else'
-	auto expr = parse_expr(false);
-	if (!expr) {
-		return {};
+	eat(); // Eat '('
+	Array<AstRef<AstField>> args{temporary_};
+	while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
+		auto field = parse_field(true);
+		if (!field) {
+			return {};
+		}
+		const auto& node = ast_[field];
+		if (node.expr && !ast_[node.operand].is_expr<AstIdentExpr>()) {
+			return error(ast_[node.operand].offset, "Expected identifier when assigning parameter by name");
+		}
+		if (!args.push_back(field)) {
+			return {};
+		}
+		if (is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+		} else {
+			break;
+		}
 	}
-	return ast_.create<AstOrElseExpr>(operand, expr);
+	if (!is_operator(OperatorKind::RPAREN)) {
+		return error("Expected ')'");
+	}
+	eat(); // Eat ')'
+	auto refs = ast_.insert(move(args));
+	return ast_.create<AstCallExpr>(ast_[operand].offset, operand, refs);
 }
 
 AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
@@ -862,7 +891,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 	}
 	for (;;) {
 		if (is_operator(OperatorKind::LPAREN)) {
-			// operand(...)
+			operand = parse_call_expr(operand);
 		} else if (is_operator(OperatorKind::PERIOD)) {
 			eat(); // Eat '.'
 			if (is_kind(TokenKind::IDENTIFIER)) {
@@ -870,7 +899,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 				if (!name) {
 					return {};
 				}
-				operand = ast_.create<AstAccessExpr>(operand, name);
+				operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, name);
 			} else if (is_operator(OperatorKind::LPAREN)) {
 				eat(); // Eat '('
 				auto type = parse_type();
@@ -881,10 +910,10 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 					return error("Expected ')'");
 				}
 				eat(); // Eat ')'
-				operand = ast_.create<AstAssertExpr>(operand, type);
+				operand = ast_.create<AstAssertExpr>(ast_[operand].offset, operand, type);
 			} else if (is_operator(OperatorKind::QUESTION)) {
 				eat(); // Eat '?'
-				operand = ast_.create<AstAssertExpr>(operand, AstRef<AstType>{});
+				operand = ast_.create<AstAssertExpr>(ast_[operand].offset, operand, AstRef<AstType>{});
 			} else {
 				return error("Unexpected token after '.'");
 			}
@@ -910,9 +939,9 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 			}
 			eat(); // Eat ']'
 			if (is_slice) {
-				operand = ast_.create<AstSliceExpr>(operand, lhs, rhs);
+				operand = ast_.create<AstSliceExpr>(ast_[operand].offset, operand, lhs, rhs);
 			} else {
-				operand = ast_.create<AstIndexExpr>(operand, lhs, rhs);
+				operand = ast_.create<AstIndexExpr>(ast_[operand].offset, operand, lhs, rhs);
 			}
 		} else if (is_operator(OperatorKind::POINTER)) {
 			return parse_deref_expr(operand);
@@ -922,8 +951,6 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 			return parse_or_break_expr(operand);
 		} else if (is_operator(OperatorKind::OR_CONTINUE)) {
 			return parse_or_continue_expr(operand);
-		} else if (is_operator(OperatorKind::OR_ELSE)) {
-			return parse_or_else_expr(operand);
 		} else if (is_kind(TokenKind::LBRACE)) {
 			// TODO(dweiler): Parse initializer
 			if (is_lhs) {
@@ -942,7 +969,7 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 	if (is_operator(OperatorKind::TRANSMUTE) ||
 	    is_operator(OperatorKind::CAST))
 	{
-		eat(); // Eat 'transmute' or 'cast'
+		auto offset = eat(); // Eat 'transmute' or 'cast'
 		if (!is_operator(OperatorKind::LPAREN)) {
 			return error("Expected '(' after cast");
 		}
@@ -956,12 +983,12 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 		}
 		eat(); // Eat ')'
 		if (auto expr = parse_unary_expr(lhs)) {
-			return ast_.create<AstCastExpr>(type, expr);
+			return ast_.create<AstCastExpr>(offset, type, expr);
 		}
 	} else if (is_operator(OperatorKind::AUTO_CAST)) {
-		eat(); // Eat 'auto_cast'
+		auto offset = eat(); // Eat 'auto_cast'
 		if (auto expr = parse_unary_expr(lhs)) {
-			return ast_.create<AstCastExpr>(AstRef<AstType>{}, expr);
+			return ast_.create<AstCastExpr>(offset, AstRef<AstType>{}, expr);
 		}
 	} else if (is_operator(OperatorKind::ADD)  ||
 	           is_operator(OperatorKind::SUB)  ||
@@ -971,14 +998,14 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 	           is_operator(OperatorKind::MUL))
 	{
 		const auto op = token_.as_operator;
-		eat(); // Eat op
+		auto offset = eat(); // Eat op
 		if (auto expr = parse_unary_expr(lhs)) {
-			return ast_.create<AstUnaryExpr>(expr, op);
+			return ast_.create<AstUnaryExpr>(offset, expr, op);
 		}
 	} else if (is_operator(OperatorKind::PERIOD)) {
-		eat(); // Eat '.'
+		auto offset = eat(); // Eat '.'
 		if (auto ident = parse_ident()) {
-			return ast_.create<AstSelectorExpr>(ident);
+			return ast_.create<AstSelectorExpr>(offset, ident);
 		} else {
 			return error("Expected identifier after '.'");
 		}
@@ -1022,7 +1049,7 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	if (!type) {
 		return {};
 	}
-	return ast_.create<AstTypeExpr>(type);
+	return ast_.create<AstTypeExpr>(ast_[type].offset, type);
 }
 
 // Type := TypeIDType
@@ -1053,15 +1080,15 @@ AstRef<AstType> Parser::parse_type() {
 	} else if (is_operator(OperatorKind::POINTER)) {
 		return parse_ptr_type();
 	} else if (is_operator(OperatorKind::LBRACKET)) {
-		eat(); // Eat '['
+		auto offset = eat(); // Eat '['
 		if (is_operator(OperatorKind::POINTER)) {
-			return parse_multiptr_type(); // assuming '[' has already been consumed
+			return parse_multiptr_type(offset); // assuming '[' has already been consumed
 		} else if (is_operator(OperatorKind::RBRACKET)) {
-			return parse_slice_type(); // assuming '[' has already been consumed
+			return parse_slice_type(offset); // assuming '[' has already been consumed
 		} else if (is_keyword(KeywordKind::DYNAMIC)) {
-			return parse_dynarray_type();
+			return parse_dynarray_type(offset);
 		} else {
-			return parse_array_type(); // assuming '[' has already been consumed
+			return parse_array_type(offset); // assuming '[' has already been consumed
 		}
 	} else if (is_keyword(KeywordKind::MAP)) {
 		return parse_map_type();
@@ -1093,7 +1120,7 @@ AstRef<AstType> Parser::parse_type() {
 			}
 			eat(); // Eat ')'
 			auto refs = ast_.insert(move(exprs));
-			return ast_.create<AstParamType>(named, refs);
+			return ast_.create<AstParamType>(ast_[named].offset, named, refs);
 		} else {
 			return named;
 		}
@@ -1111,8 +1138,8 @@ AstRef<AstTypeIDType> Parser::parse_typeid_type() {
 	if (!is_keyword(KeywordKind::TYPEID)) {
 		return error("Expected 'typeid'");
 	}
-	eat(); // Eat 'typeid'
-	return ast_.create<AstTypeIDType>();
+	auto offset = eat(); // Eat 'typeid'
+	return ast_.create<AstTypeIDType>(offset);
 }
 
 // UnionType := 'union' '{' (Type ',')* Type? '}'
@@ -1121,7 +1148,7 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 	if (!is_keyword(KeywordKind::UNION)) {
 		return error("Expected 'union'");
 	}
-	eat(); // Eat 'union'
+	auto offset = eat(); // Eat 'union'
 	if (!is_kind(TokenKind::LBRACE)) {
 		return error("Expected '{'");
 	}
@@ -1142,7 +1169,7 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 	}
 	eat(); // '}'
 	auto refs = ast_.insert(move(types));
-	return ast_.create<AstUnionType>(refs);
+	return ast_.create<AstUnionType>(offset, refs);
 }
 
 // EnumType := 'enum' Type? '{' (Enum ',')* Enum? '}'
@@ -1151,7 +1178,7 @@ AstRef<AstEnumType> Parser::parse_enum_type() {
 	if (!is_keyword(KeywordKind::ENUM)) {
 		return error("Expected 'enum'");
 	}
-	eat(); // Eat 'enum'
+	auto offset = eat(); // Eat 'enum'
 	AstRef<AstType> base;
 	if (!is_kind(TokenKind::LBRACE)) {
 		if (!(base = parse_type())) {
@@ -1162,13 +1189,13 @@ AstRef<AstEnumType> Parser::parse_enum_type() {
 		return error("Expected '{'");
 	}
 	eat(); // Eat '{'
-	Array<AstRef<AstEnum>> enums{temporary_};
+	Array<AstRef<AstField>> enums{temporary_};
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
-		auto e = parse_enum();
-		if (!e) {
+		auto field = parse_field(true);
+		if (!field) {
 			break;
 		}
-		if (!enums.push_back(e)) {
+		if (!enums.push_back(field)) {
 			return {};
 		}
 		if (is_kind(TokenKind::COMMA)) {
@@ -1182,25 +1209,29 @@ AstRef<AstEnumType> Parser::parse_enum_type() {
 	}
 	eat(); // Eat '}'
 	auto refs = ast_.insert(move(enums));
-	return ast_.create<AstEnumType>(base, refs);
+	return ast_.create<AstEnumType>(offset, base, refs);
 }
 
-// Enum := Ident ('=' Expr)?
-AstRef<AstEnum> Parser::parse_enum() {
+// Field := Expr ('=' Expr)?
+AstRef<AstField> Parser::parse_field(Bool allow_assignment) {
 	TRACE();
-	auto name = parse_ident();
-	if (!name) {
+	auto operand = parse_expr(false);
+	if (!operand) {
 		return {};
 	}
 	AstRef<AstExpr> expr;
 	if (is_assignment(AssignKind::EQ)) {
+		if (!allow_assignment) {
+			return error("Unexpected '='");
+		}
 		eat(); // Eat '='
 		expr = parse_expr(false);
 		if (!expr) {
+			return error("Could not parse expression");
 			return {};
 		}
 	}
-	return ast_.create<AstEnum>(name, expr);
+	return ast_.create<AstField>(ast_[operand].offset, operand, expr);
 }
 
 // PtrType := '^' Type
@@ -1209,16 +1240,16 @@ AstRef<AstPtrType> Parser::parse_ptr_type() {
 	if (!is_operator(OperatorKind::POINTER)) {
 		return error("Expected '^'");
 	}
-	eat(); // Eat '^'
+	auto offset = eat(); // Eat '^'
 	auto base = parse_type();
 	if (!base) {
 		return {};
 	}
-	return ast_.create<AstPtrType>(base);
+	return ast_.create<AstPtrType>(offset, base);
 }
 
 // MultiPtrType := '[' '^' ']' Type
-AstRef<AstMultiPtrType> Parser::parse_multiptr_type() {
+AstRef<AstMultiPtrType> Parser::parse_multiptr_type(Uint32 offset) {
 	TRACE();
 	if (!is_operator(OperatorKind::POINTER)) {
 		return error("Expected '^'");
@@ -1232,11 +1263,11 @@ AstRef<AstMultiPtrType> Parser::parse_multiptr_type() {
 	if (!base) {
 		return {};
 	}
-	return ast_.create<AstMultiPtrType>(base);
+	return ast_.create<AstMultiPtrType>(offset, base);
 }
 
 // SliceType := '[' ']' Type
-AstRef<AstSliceType> Parser::parse_slice_type() {
+AstRef<AstSliceType> Parser::parse_slice_type(Uint32 offset) {
 	TRACE();
 	if (!is_operator(OperatorKind::RBRACKET)) {
 		return error("Expected ']'");
@@ -1246,11 +1277,11 @@ AstRef<AstSliceType> Parser::parse_slice_type() {
 	if (!base) {
 		return {};
 	}
-	return ast_.create<AstSliceType>(base);
+	return ast_.create<AstSliceType>(offset, base);
 }
 
 // ArrayType := '[' (Expr | '?') ']' Type
-AstRef<AstArrayType> Parser::parse_array_type() {
+AstRef<AstArrayType> Parser::parse_array_type(Uint32 offset) {
 	TRACE();
 	AstRef<AstExpr> size;
 	if (is_operator(OperatorKind::QUESTION)) {
@@ -1269,11 +1300,11 @@ AstRef<AstArrayType> Parser::parse_array_type() {
 	if (!base) {
 		return {};
 	}
-	return ast_.create<AstArrayType>(size, base);
+	return ast_.create<AstArrayType>(offset, size, base);
 }
 
 // DynArrayType := '[' 'dynamic' ']' Type
-AstRef<AstDynArrayType> Parser::parse_dynarray_type() {
+AstRef<AstDynArrayType> Parser::parse_dynarray_type(Uint32 offset) {
 	TRACE();
 	if (!is_keyword(KeywordKind::DYNAMIC)) {
 		return error("Expected 'dynamic'");
@@ -1287,7 +1318,7 @@ AstRef<AstDynArrayType> Parser::parse_dynarray_type() {
 	if (!type) {
 		return {};
 	}
-	return ast_.create<AstDynArrayType>(type);
+	return ast_.create<AstDynArrayType>(offset, type);
 }
 
 // MapType := 'map' [' Type ']' Type
@@ -1296,7 +1327,7 @@ AstRef<AstMapType> Parser::parse_map_type() {
 	if (!is_keyword(KeywordKind::MAP)) {
 		return error("Expected 'map'");
 	}
-	eat(); // Eat 'map'
+	auto offset = eat(); // Eat 'map'
 	if (!is_operator(OperatorKind::LBRACKET)) {
 		return error("Expected '[' after 'map'");
 	}
@@ -1313,17 +1344,8 @@ AstRef<AstMapType> Parser::parse_map_type() {
 	if (!vt) {
 		return {};
 	}
-	return ast_.create<AstMapType>(kt, vt);
+	return ast_.create<AstMapType>(offset, kt, vt);
 }
-
-// | Contains '=' | Contains ':' | Meaning | Mode
-// | TRUE         | FALSE        | Expr    | AssignmentStmt
-// | TRUE         | TRUE         | Ident   | DeclStmt
-// | FALSE        | TRUE         | Ident   | DeclStmt
-// | FALSE        | FALSE        | Type    | Decl
-//
-// Expr::is_expr<AstIdentExpr>::ident -> Ident
-// Expr::is_expr<AstTypeExpr>::type   -> Type
 
 // MatrixType := 'matrix' '[' Expr ',' Expr ']' Type
 AstRef<AstMatrixType> Parser::parse_matrix_type() {
@@ -1331,7 +1353,7 @@ AstRef<AstMatrixType> Parser::parse_matrix_type() {
 	if (!is_keyword(KeywordKind::MATRIX)) {
 		return error("Expected 'matrix'");
 	}
-	eat(); // Eat 'matrix'
+	auto offset = eat(); // Eat 'matrix'
 	if (!is_operator(OperatorKind::LBRACKET)) {
 		return error("Expected '[' after 'matrix'");
 	}
@@ -1356,7 +1378,7 @@ AstRef<AstMatrixType> Parser::parse_matrix_type() {
 	if (!base) {
 		return {};
 	}
-	return ast_.create<AstMatrixType>(rows, cols, base);
+	return ast_.create<AstMatrixType>(offset, rows, cols, base);
 }
 
 // BitsetType := 'bit_set' '[' Expr (';' Type)? ']'
@@ -1364,7 +1386,7 @@ AstRef<AstBitsetType> Parser::parse_bitset_type() {
 	if (!is_keyword(KeywordKind::BITSET)) {
 		return error("Expected 'bitset'");
 	}
-	eat(); // Eat 'bitset'
+	auto offset = eat(); // Eat 'bitset'
 	if (!is_operator(OperatorKind::LBRACKET)) {
 		return error("Expected '[' after 'bitset'");
 	}
@@ -1381,13 +1403,14 @@ AstRef<AstBitsetType> Parser::parse_bitset_type() {
 			return {};
 		}
 	}
-	return ast_.create<AstBitsetType>(expr, type);
+	return ast_.create<AstBitsetType>(offset, expr, type);
 }
 
 // NamedType := Ident ('.' Ident)?
 AstRef<AstNamedType> Parser::parse_named_type() {
 	TRACE();
-	AstStringRef name_ref = parse_ident();
+	Uint32 offset = 0;
+	AstStringRef name_ref = parse_ident(&offset);
 	if (!name_ref) {
 		return {};
 	}
@@ -1404,7 +1427,7 @@ AstRef<AstNamedType> Parser::parse_named_type() {
 			return {};
 		}
 	}
-	return ast_.create<AstNamedType>(pkg_ref, name_ref);
+	return ast_.create<AstNamedType>(offset, pkg_ref, name_ref);
 }
 
 // ParenType := '(' Type ')'
@@ -1413,7 +1436,7 @@ AstRef<AstParenType> Parser::parse_paren_type() {
 	if (!is_operator(OperatorKind::LPAREN)) {
 		return error("Expected '('");
 	}
-	eat(); // Eat '('
+	auto offset = eat(); // Eat '('
 	auto type = parse_type();
 	if (!type) {
 		return {};
@@ -1422,7 +1445,7 @@ AstRef<AstParenType> Parser::parse_paren_type() {
 		return error("Expected ')'");
 	}
 	eat(); // Eat ')'
-	return ast_.create<AstParenType>(type);
+	return ast_.create<AstParenType>(offset, type);
 }
 
 // DistinctType := 'distinct' Type
@@ -1431,12 +1454,12 @@ AstRef<AstDistinctType> Parser::parse_distinct_type() {
 	if (!is_keyword(KeywordKind::DISTINCT)) {
 		return error("Expected 'distinct'");
 	}
-	eat(); // Eat 'distinct'
+	auto offset = eat(); // Eat 'distinct'
 	auto type = parse_type();
 	if (!type) {
 		return {};
 	}
-	return ast_.create<AstDistinctType>(type);
+	return ast_.create<AstDistinctType>(offset, type);
 }
 
 Parser::AttributeList Parser::parse_attributes() {
@@ -1445,12 +1468,12 @@ Parser::AttributeList Parser::parse_attributes() {
 		return error("Expected '@'");
 	}
 	eat(); // Eat '@'
-	Array<AstRef<AstAttribute>> attrs{temporary_};
+	Array<AstRef<AstField>> attrs{temporary_};
 	if (is_operator(OperatorKind::LPAREN)) {
 		eat(); // Eat '('
 		while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
-			auto attr = parse_attribute(true);
-			if (!attr || !attrs.push_back(attr)) {
+			auto field = parse_field(true);
+			if (!field || !attrs.push_back(field)) {
 				return {};
 			}
 			if (is_kind(TokenKind::COMMA)) {
@@ -1464,8 +1487,8 @@ Parser::AttributeList Parser::parse_attributes() {
 		}
 		eat(); // Eat ')'
 	} else {
-		auto attr = parse_attribute(false);
-		if (!attr || !attrs.push_back(attr)) {
+		auto field = parse_field(false);
+		if (!field || !attrs.push_back(field)) {
 			return {};
 		}
 	}
@@ -1484,38 +1507,13 @@ Parser::DirectiveList Parser::parse_directives() {
 	return directives;
 }
 
-// Attribute := Ident ('=' Expr)?
-AstRef<AstAttribute> Parser::parse_attribute(Bool allow_expr) {
-	TRACE();
-	if (!is_kind(TokenKind::IDENTIFIER)) {
-		return error("Expected identifier");
-	}
-	auto ident = parse_ident();
-	if (!ident) {
-		return {};
-	}
-	AstRef<AstExpr> expr;
-	if (is_assignment(AssignKind::EQ)) {
-		if (!allow_expr) {
-			return error("Unexpected '='");
-		}
-		eat(); // Eat '='
-		expr = parse_expr(false);
-		if (!expr) {
-			return error("Could not parse expression");
-			return {};
-		}
-	}
-	return ast_.create<AstAttribute>(ident, expr);
-}
-
 // Directive := '#' Ident '(' Expr (',' Expr)* ')'
 AstRef<AstDirective> Parser::parse_directive() {
 	TRACE();
 	if (!is_kind(TokenKind::DIRECTIVE)) {
 		return error("Expected '#'");
 	}
-	eat(); // Eat '#'
+	auto offset = eat(); // Eat '#'
 	if (!is_kind(TokenKind::IDENTIFIER)) {
 		return error("Expected identifier");
 	}
@@ -1544,7 +1542,7 @@ AstRef<AstDirective> Parser::parse_directive() {
 		eat(); // Eat ')'
 		refs = ast_.insert(move(exprs));
 	}
-	return ast_.create<AstDirective>(ident, refs);
+	return ast_.create<AstDirective>(offset, ident, refs);
 }
 
 } // namespace Thor

@@ -110,7 +110,7 @@ struct Position {
 	}
 	void advance_line() {
 		line++;
-		column = 1;
+		column = 0;
 	}
 	Uint16 delta(Uint32 beg) const {
 		const auto diff = this_offset - beg;
@@ -146,10 +146,10 @@ struct Lexer {
 		Uint32 line   = 0;
 		Uint32 column = 0;
 	};
-	SourcePosition position(Token token) const {
+	SourcePosition position(Uint32 offset) const {
 		Uint32 line   = 1;
 		Uint32 column = 1;
-		for (Uint32 i = 0; i < token.offset; i++) {
+		for (Uint32 i = 0; i < offset; i++) {
 			if (input_[i] == '\n') {
 				column = 1;
 				line++;

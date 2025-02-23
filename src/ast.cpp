@@ -371,7 +371,7 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case OR_RETURN:   return to_expr<const AstOrReturnExpr>()->dump(ast, builder);
 	case OR_BREAK:    return to_expr<const AstOrBreakExpr>()->dump(ast, builder);
 	case OR_CONTINUE: return to_expr<const AstOrContinueExpr>()->dump(ast, builder);
-	case OR_ELSE:     return to_expr<const AstOrElseExpr>()->dump(ast, builder);
+	case CALL:        return to_expr<const AstCallExpr>()->dump(ast, builder);
 	case IDENT:       return to_expr<const AstIdentExpr>()->dump(ast, builder);
 	case UNDEF:       return to_expr<const AstUndefExpr>()->dump(ast, builder);
 	case CONTEXT:     return to_expr<const AstContextExpr>()->dump(ast, builder);
@@ -462,12 +462,19 @@ void AstOrContinueExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("or_continue");
 }
 
-void AstOrElseExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+void AstCallExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[operand].dump(ast, builder);
-	builder.put(' ');
-	builder.put("or_else");
-	builder.put(' ');
-	ast[expr].dump(ast, builder);
+	builder.put('(');
+	Bool first = true;
+	for (auto arg : ast[args]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[arg].dump(ast, builder);
+		first = false;
+	}
+	builder.put(')');
 }
 
 void AstIdentExpr::dump(const AstFile& ast, StringBuilder& builder) const {
@@ -743,20 +750,9 @@ void AstDistinctType::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[type].dump(ast, builder);
 }
 
-// Enum
-void AstEnum::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put(ast[name]);
-	if (expr) {
-		builder.put(' ');
-		builder.put('=');
-		builder.put(' ');
-		ast[expr].dump(ast, builder);
-	}
-}
-
-// Attribute
-void AstAttribute::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put(ast[name]);
+// Field
+void AstField::dump(const AstFile& ast, StringBuilder& builder) const {
+	ast[operand].dump(ast, builder);
 	if (expr) {
 		builder.put('=');
 		ast[expr].dump(ast, builder);

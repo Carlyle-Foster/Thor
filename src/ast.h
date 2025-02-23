@@ -9,8 +9,7 @@ namespace Thor {
 struct AstExpr;
 struct AstStmt;
 struct AstType;
-struct AstEnum;
-struct AstAttribute;
+struct AstField;
 struct AstDirective;
 
 struct AstFile;
@@ -77,6 +76,14 @@ private:
 struct AstNode {
 	// Only 10-bit node index (2^10 = 2048)
 	static inline constexpr const auto MAX = 1024_u32;
+	constexpr AstNode(Uint32 offset)
+		: offset{offset}
+	{
+		if (offset == 0) {
+			*(volatile int *)0 = 0;
+		}
+	}
+	Uint32 offset;
 };
 
 struct AstID {
@@ -127,34 +134,24 @@ private:
 	AstID id_;
 };
 
-// Enum
-struct AstEnum : AstNode {
-	constexpr AstEnum(AstStringRef name, AstRef<AstExpr> expr)
-		: name{name}
+// Field
+struct AstField : AstNode {
+	constexpr AstField(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstExpr> expr)
+		: AstNode{offset}
+		, operand{operand}
 		, expr{expr}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstStringRef    name;
-	AstRef<AstExpr> expr;
-};
-
-// Attribute
-struct AstAttribute : AstNode {
-	constexpr AstAttribute(AstStringRef name, AstRef<AstExpr> expr)
-		: name{name}
-		, expr{expr}
-	{
-	}
-	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstStringRef    name;
-	AstRef<AstExpr> expr; // Optional value associated with attribute
+	AstRef<AstExpr> operand;
+	AstRef<AstExpr> expr; // Optional value associated with attribute, enum, or parameter
 };
 
 // Directive
 struct AstDirective : AstNode {
-	constexpr AstDirective(AstStringRef name, AstRefArray<AstExpr> args)
-		: name{name}
+	constexpr AstDirective(Uint32 offset, AstStringRef name, AstRefArray<AstExpr> args)
+		: AstNode{offset}
+		, name{name}
 		, args{args}
 	{
 	}
@@ -174,7 +171,7 @@ struct AstExpr : AstNode {
 		OR_RETURN,
 		OR_BREAK,
 		OR_CONTINUE,
-		OR_ELSE,
+		CALL,
 		IDENT,
 		UNDEF,
 		CONTEXT,
@@ -191,8 +188,9 @@ struct AstExpr : AstNode {
 		ASSERT,
 		TYPE,
 	};
-	constexpr AstExpr(Kind kind)
-		: kind{kind}
+	constexpr AstExpr(Uint32 offset, Kind kind)
+		: AstNode{offset}
+		, kind{kind}
 	{
 	}
 	template<typename T>
@@ -213,8 +211,8 @@ struct AstExpr : AstNode {
 
 struct AstBinExpr : AstExpr {
 	static constexpr const auto KIND = Kind::BIN;
-	constexpr AstBinExpr(AstRef<AstExpr> lhs, AstRef<AstExpr> rhs, OperatorKind op)
-		: AstExpr{KIND}
+	constexpr AstBinExpr(Uint32 offset, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs, OperatorKind op)
+		: AstExpr{offset, KIND}
 		, lhs{lhs}
 		, rhs{rhs}
 		, op{op}
@@ -228,8 +226,8 @@ struct AstBinExpr : AstExpr {
 
 struct AstUnaryExpr : AstExpr {
 	static constexpr const auto KIND = Kind::UNARY;
-	constexpr AstUnaryExpr(AstRef<AstExpr> operand, OperatorKind op)
-		: AstExpr{KIND}
+	constexpr AstUnaryExpr(Uint32 offset, AstRef<AstExpr> operand, OperatorKind op)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 		, op{op}
 	{
@@ -241,8 +239,8 @@ struct AstUnaryExpr : AstExpr {
 
 struct AstIfExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IF;
-	constexpr AstIfExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
-		: AstExpr{KIND}
+	constexpr AstIfExpr(Uint32 offset, AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+		: AstExpr{offset, KIND}
 		, cond{cond}
 		, on_true{on_true}
 		, on_false{on_false}
@@ -256,8 +254,8 @@ struct AstIfExpr : AstExpr {
 
 struct AstWhenExpr : AstExpr {
 	static constexpr const auto KIND = Kind::WHEN;
-	constexpr AstWhenExpr(AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
-		: AstExpr{KIND}
+	constexpr AstWhenExpr(Uint32 offset, AstRef<AstExpr> cond, AstRef<AstExpr> on_true, AstRef<AstExpr> on_false)
+		: AstExpr{offset, KIND}
 		, cond{cond}
 		, on_true{on_true}
 		, on_false{on_false}
@@ -271,8 +269,8 @@ struct AstWhenExpr : AstExpr {
 
 struct AstDerefExpr : AstExpr {
 	static constexpr const auto KIND = Kind::DEREF;
-	constexpr AstDerefExpr(AstRef<AstExpr> operand)
-		: AstExpr{KIND}
+	constexpr AstDerefExpr(Uint32 offset, AstRef<AstExpr> operand)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 	{
 	}
@@ -282,8 +280,8 @@ struct AstDerefExpr : AstExpr {
 
 struct AstOrReturnExpr : AstExpr {
 	static constexpr const auto KIND = Kind::OR_RETURN;
-	constexpr AstOrReturnExpr(AstRef<AstExpr> operand)
-		: AstExpr{KIND}
+	constexpr AstOrReturnExpr(Uint32 offset, AstRef<AstExpr> operand)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 	{
 	}
@@ -293,8 +291,8 @@ struct AstOrReturnExpr : AstExpr {
 
 struct AstOrBreakExpr : AstExpr {
 	static constexpr const auto KIND = Kind::OR_BREAK;
-	constexpr AstOrBreakExpr(AstRef<AstExpr> operand)
-		: AstExpr{KIND}
+	constexpr AstOrBreakExpr(Uint32 offset, AstRef<AstExpr> operand)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 	{
 	}
@@ -304,8 +302,8 @@ struct AstOrBreakExpr : AstExpr {
 
 struct AstOrContinueExpr : AstExpr {
 	static constexpr const auto KIND = Kind::OR_CONTINUE;
-	constexpr AstOrContinueExpr(AstRef<AstExpr> operand)
-		: AstExpr{KIND}
+	constexpr AstOrContinueExpr(Uint32 offset, AstRef<AstExpr> operand)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 	{
 	}
@@ -313,23 +311,23 @@ struct AstOrContinueExpr : AstExpr {
 	AstRef<AstExpr> operand;
 };
 
-struct AstOrElseExpr : AstExpr {
-	static constexpr const auto KIND = Kind::OR_ELSE;
-	constexpr AstOrElseExpr(AstRef<AstExpr> operand, AstRef<AstExpr> expr)
-		: AstExpr{KIND}
+struct AstCallExpr : AstExpr {
+	static constexpr const auto KIND = Kind::CALL;
+	constexpr AstCallExpr(Uint32 offset, AstRef<AstExpr> operand, AstRefArray<AstField> args)
+		: AstExpr{offset, KIND}
 		, operand{operand}
-		, expr{expr}
+		, args{args}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRef<AstExpr> operand;
-	AstRef<AstExpr> expr;
+	AstRef<AstExpr>       operand;
+	AstRefArray<AstField> args;
 };
 
 struct AstIdentExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IDENT;
-	constexpr AstIdentExpr(AstStringRef ident)
-		: AstExpr{KIND}
+	constexpr AstIdentExpr(Uint32 offset, AstStringRef ident)
+		: AstExpr{offset, KIND}
 		, ident{ident}
 	{
 	}
@@ -339,8 +337,8 @@ struct AstIdentExpr : AstExpr {
 
 struct AstUndefExpr : AstExpr {
 	static constexpr const auto KIND = Kind::UNDEF;
-	constexpr AstUndefExpr()
-		: AstExpr{KIND}
+	constexpr AstUndefExpr(Uint32 offset)
+		: AstExpr{offset, KIND}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
@@ -348,8 +346,8 @@ struct AstUndefExpr : AstExpr {
 
 struct AstContextExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CONTEXT;
-	constexpr AstContextExpr()
-		: AstExpr{KIND}
+	constexpr AstContextExpr(Uint32 offset)
+		: AstExpr{offset, KIND}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
@@ -357,8 +355,8 @@ struct AstContextExpr : AstExpr {
 
 struct AstProcExpr : AstExpr {
 	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProcExpr(AstRef<AstProcType> type, AstRef<AstBlockStmt> body)
-		: AstExpr{KIND}
+	constexpr AstProcExpr(Uint32 offset, AstRef<AstProcType> type, AstRef<AstBlockStmt> body)
+		: AstExpr{offset, KIND}
 		, type{type}
 		, body{body}
 	{
@@ -370,8 +368,8 @@ struct AstProcExpr : AstExpr {
 
 struct AstSliceExpr : AstExpr {
 	static constexpr const auto KIND = Kind::SLICE;
-	constexpr AstSliceExpr(AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
-		: AstExpr{KIND}
+	constexpr AstSliceExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 		, lhs{lhs}
 		, rhs{rhs}
@@ -391,8 +389,8 @@ struct AstSliceExpr : AstExpr {
 
 struct AstIndexExpr : AstExpr {
 	static constexpr const auto KIND = Kind::INDEX;
-	constexpr AstIndexExpr(AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
-		: AstExpr{KIND}
+	constexpr AstIndexExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 		, lhs{lhs}
 		, rhs{rhs}
@@ -411,8 +409,8 @@ struct AstIndexExpr : AstExpr {
 
 struct AstIntExpr : AstExpr {
 	static constexpr const auto KIND = Kind::INT;
-	constexpr AstIntExpr(Uint64 value)
-		: AstExpr{KIND}
+	constexpr AstIntExpr(Uint32 offset, Uint64 value)
+		: AstExpr{offset, KIND}
 		, value{value}
 	{
 	}
@@ -422,8 +420,8 @@ struct AstIntExpr : AstExpr {
 
 struct AstFloatExpr : AstExpr {
 	static constexpr const auto KIND = Kind::FLOAT;
-	constexpr AstFloatExpr(Float64 value)
-		: AstExpr{KIND}
+	constexpr AstFloatExpr(Uint32 offset, Float64 value)
+		: AstExpr{offset, KIND}
 		, value{value}
 	{
 	}
@@ -433,8 +431,8 @@ struct AstFloatExpr : AstExpr {
 
 struct AstStringExpr : AstExpr {
 	static constexpr const auto KIND = Kind::STRING;
-	constexpr AstStringExpr(AstStringRef value)
-		: AstExpr{KIND}
+	constexpr AstStringExpr(Uint32 offset, AstStringRef value)
+		: AstExpr{offset, KIND}
 		, value{value}
 	{
 	}
@@ -444,8 +442,8 @@ struct AstStringExpr : AstExpr {
 
 struct AstImaginaryExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IMAGINARY;
-	constexpr AstImaginaryExpr(Float64 value)
-		: AstExpr{KIND}
+	constexpr AstImaginaryExpr(Uint32 offset, Float64 value)
+		: AstExpr{offset, KIND}
 		, value{value}
 	{
 	}
@@ -455,8 +453,8 @@ struct AstImaginaryExpr : AstExpr {
 
 struct AstCastExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CAST;
-	constexpr AstCastExpr(AstRef<AstType> type, AstRef<AstExpr> expr)
-		: AstExpr{KIND}
+	constexpr AstCastExpr(Uint32 offset, AstRef<AstType> type, AstRef<AstExpr> expr)
+		: AstExpr{offset, KIND}
 		, type{type}
 		, expr{expr}
 	{
@@ -468,8 +466,8 @@ struct AstCastExpr : AstExpr {
 
 struct AstSelectorExpr : AstExpr {
 	static constexpr const auto KIND = Kind::SELECTOR;
-	constexpr AstSelectorExpr(AstStringRef name)
-		: AstExpr{KIND}
+	constexpr AstSelectorExpr(Uint32 offset, AstStringRef name)
+		: AstExpr{offset, KIND}
 		, name{name}
 	{
 	}
@@ -479,8 +477,8 @@ struct AstSelectorExpr : AstExpr {
 
 struct AstAccessExpr : AstExpr {
 	static constexpr const auto KIND = Kind::ACCESS;
-	constexpr AstAccessExpr(AstRef<AstExpr> operand, AstStringRef field)
-		: AstExpr{KIND}
+	constexpr AstAccessExpr(Uint32 offset, AstRef<AstExpr> operand, AstStringRef field)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 		, field{field}
 	{
@@ -492,8 +490,8 @@ struct AstAccessExpr : AstExpr {
 
 struct AstAssertExpr : AstExpr {
 	static constexpr const auto KIND = Kind::ASSERT;
-	constexpr AstAssertExpr(AstRef<AstExpr> operand, AstRef<AstType> type)
-		: AstExpr{KIND}
+	constexpr AstAssertExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstType> type)
+		: AstExpr{offset, KIND}
 		, operand{operand}
 		, type{type}
 	{
@@ -509,8 +507,8 @@ struct AstAssertExpr : AstExpr {
 
 struct AstTypeExpr : AstExpr {
 	static constexpr const auto KIND = Kind::TYPE;
-	constexpr AstTypeExpr(AstRef<AstType> type)
-		: AstExpr{KIND}
+	constexpr AstTypeExpr(Uint32 offset, AstRef<AstType> type)
+		: AstExpr{offset, KIND}
 		, type{type}
 	{
 	}
@@ -576,8 +574,9 @@ struct AstType : AstNode {
 		PAREN,     // (T)
 		DISTINCT,  // distinct T
 	};
-	constexpr AstType(Kind kind)
-		: kind{kind}
+	constexpr AstType(Uint32 offset, Kind kind)
+		: AstNode{offset}
+		, kind{kind}
 	{
 	}
 	template<typename T>
@@ -598,14 +597,17 @@ struct AstType : AstNode {
 
 struct AstTypeIDType : AstType {
 	static constexpr const auto KIND = Kind::TYPEID;
-	constexpr AstTypeIDType() : AstType{KIND} {}
+	constexpr AstTypeIDType(Uint32 offset)
+		: AstType{offset, KIND}
+	{
+	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
 struct AstUnionType : AstType {
 	static constexpr const auto KIND = Kind::UNION;
-	constexpr AstUnionType(AstRefArray<AstType> types)
-		: AstType{KIND}
+	constexpr AstUnionType(Uint32 offset, AstRefArray<AstType> types)
+		: AstType{offset, KIND}
 		, types{types}
 	{
 	}
@@ -615,15 +617,15 @@ struct AstUnionType : AstType {
 
 struct AstEnumType : AstType {
 	static constexpr const auto KIND = Kind::ENUM;
-	constexpr AstEnumType(AstRef<AstType> base, AstRefArray<AstEnum> enums)
-		: AstType{KIND}
+	constexpr AstEnumType(Uint32 offset, AstRef<AstType> base, AstRefArray<AstField> enums)
+		: AstType{offset, KIND}
 		, base{base}
 		, enums{enums}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRef<AstType>      base;
-	AstRefArray<AstEnum> enums;
+	AstRef<AstType>       base;
+	AstRefArray<AstField> enums;
 };
 
 struct AstProcType : AstType {
@@ -635,8 +637,8 @@ struct AstProcType : AstType {
 
 struct AstPtrType : AstType {
 	static constexpr const auto KIND = Kind::PTR;
-	constexpr AstPtrType(AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstPtrType(Uint32 offset, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, base{base}
 	{
 	}
@@ -646,8 +648,8 @@ struct AstPtrType : AstType {
 
 struct AstMultiPtrType : AstType {
 	static constexpr const auto KIND = Kind::MULTIPTR;
-	constexpr AstMultiPtrType(AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstMultiPtrType(Uint32 offset, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, base{base}
 	{
 	}
@@ -657,8 +659,8 @@ struct AstMultiPtrType : AstType {
 
 struct AstSliceType : AstType {
 	static constexpr const auto KIND = Kind::SLICE;
-	constexpr AstSliceType(AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstSliceType(Uint32 offset, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, base{base}
 	{
 	}
@@ -668,8 +670,8 @@ struct AstSliceType : AstType {
 
 struct AstArrayType : AstType {
 	static constexpr const auto KIND = Kind::ARRAY;
-	constexpr AstArrayType(AstRef<AstExpr> size, AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstArrayType(Uint32 offset, AstRef<AstExpr> size, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, size{size}
 		, base{base}
 	{
@@ -681,8 +683,8 @@ struct AstArrayType : AstType {
 
 struct AstDynArrayType : AstType {
 	static constexpr const auto KIND = Kind::DYNARRAY;
-	constexpr AstDynArrayType(AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstDynArrayType(Uint32 offset, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, base{base}
 	{
 	}
@@ -692,8 +694,8 @@ struct AstDynArrayType : AstType {
 
 struct AstMapType : AstType {
 	static constexpr const auto KIND = Kind::MAP;
-	constexpr AstMapType(AstRef<AstType> kt, AstRef<AstType> vt)
-		: AstType{KIND}
+	constexpr AstMapType(Uint32 offset, AstRef<AstType> kt, AstRef<AstType> vt)
+		: AstType{offset, KIND}
 		, kt{kt}
 		, vt{vt}
 	{
@@ -705,8 +707,8 @@ struct AstMapType : AstType {
 
 struct AstMatrixType : AstType {
 	static constexpr const auto KIND = Kind::MATRIX;
-	constexpr AstMatrixType(AstRef<AstExpr> rows, AstRef<AstExpr> cols, AstRef<AstType> base)
-		: AstType{KIND}
+	constexpr AstMatrixType(Uint32 offset, AstRef<AstExpr> rows, AstRef<AstExpr> cols, AstRef<AstType> base)
+		: AstType{offset, KIND}
 		, rows{rows}
 		, cols{cols}
 		, base{base}
@@ -720,8 +722,8 @@ struct AstMatrixType : AstType {
 
 struct AstBitsetType : AstType {
 	static constexpr const auto KIND = Kind::BITSET;
-	constexpr AstBitsetType(AstRef<AstExpr> expr, AstRef<AstType> type)
-		: AstType{KIND}
+	constexpr AstBitsetType(Uint32 offset, AstRef<AstExpr> expr, AstRef<AstType> type)
+		: AstType{offset, KIND}
 		, expr{expr}
 		, type{type}
 	{
@@ -733,8 +735,8 @@ struct AstBitsetType : AstType {
 
 struct AstNamedType : AstType {
 	static constexpr const auto KIND = Kind::NAMED;
-	constexpr AstNamedType(AstStringRef pkg, AstStringRef name)
-		: AstType{KIND}
+	constexpr AstNamedType(Uint32 offset, AstStringRef pkg, AstStringRef name)
+		: AstType{offset, KIND}
 		, pkg{pkg}
 		, name{name}
 	{
@@ -746,8 +748,8 @@ struct AstNamedType : AstType {
 
 struct AstParamType : AstType {
 	static constexpr const auto KIND = Kind::PARAM;
-	constexpr AstParamType(AstRef<AstNamedType> name, AstRefArray<AstExpr> exprs)
-		: AstType{KIND}
+	constexpr AstParamType(Uint32 offset, AstRef<AstNamedType> name, AstRefArray<AstExpr> exprs)
+		: AstType{offset, KIND}
 		, name{name}
 		, exprs{exprs}
 	{
@@ -759,8 +761,8 @@ struct AstParamType : AstType {
 
 struct AstParenType : AstType {
 	static constexpr const auto KIND = Kind::PAREN;
-	constexpr AstParenType(AstRef<AstType> type)
-		: AstType{KIND}
+	constexpr AstParenType(Uint32 offset, AstRef<AstType> type)
+		: AstType{offset, KIND}
 		, type{type}
 	{
 	}
@@ -770,8 +772,8 @@ struct AstParenType : AstType {
 
 struct AstDistinctType : AstType {
 	static constexpr const auto KIND = Kind::DISTINCT;
-	constexpr AstDistinctType(AstRef<AstType> type)
-		: AstType{KIND}
+	constexpr AstDistinctType(Uint32 offset, AstRef<AstType> type)
+		: AstType{offset, KIND}
 		, type{type}
 	{
 	}
@@ -799,8 +801,9 @@ struct AstStmt : AstNode {
 		USING,
 	};
 
-	constexpr AstStmt(Kind kind)
-		: kind{kind}
+	constexpr AstStmt(Uint32 offset, Kind kind)
+		: AstNode{offset}
+		, kind{kind}
 	{
 	}
 
@@ -825,8 +828,8 @@ struct AstStmt : AstNode {
 
 struct AstEmptyStmt : AstStmt {
 	static constexpr const auto KIND = Kind::EMPTY;
-	constexpr AstEmptyStmt()
-		: AstStmt{KIND}
+	constexpr AstEmptyStmt(Uint32 offset)
+		: AstStmt{offset, KIND}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
@@ -834,8 +837,8 @@ struct AstEmptyStmt : AstStmt {
 
 struct AstExprStmt : AstStmt {
 	static constexpr const auto KIND = Kind::EXPR;
-	constexpr AstExprStmt(AstRef<AstExpr> expr)
-		: AstStmt{KIND}
+	constexpr AstExprStmt(Uint32 offset, AstRef<AstExpr> expr)
+		: AstStmt{offset, KIND}
 		, expr{expr}
 	{
 	}
@@ -845,10 +848,11 @@ struct AstExprStmt : AstStmt {
 
 struct AstAssignStmt : AstStmt {
 	static constexpr const auto KIND = Kind::ASSIGN;
-	constexpr AstAssignStmt(AstRefArray<AstExpr> lhs,
+	constexpr AstAssignStmt(Uint32               offset,
+	                        AstRefArray<AstExpr> lhs,
 	                        Token                token,
 	                        AstRefArray<AstExpr> rhs)
-		: AstStmt{KIND}
+		: AstStmt{offset, KIND}
 		, lhs{lhs}
 		, rhs{rhs}
 		, token{token}
@@ -862,8 +866,8 @@ struct AstAssignStmt : AstStmt {
 
 struct AstBlockStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BLOCK;
-	constexpr AstBlockStmt(AstRefArray<AstStmt> stmts)
-		: AstStmt{KIND}
+	constexpr AstBlockStmt(Uint32 offset, AstRefArray<AstStmt> stmts)
+		: AstStmt{offset, KIND}
 		, stmts{stmts}
 	{
 	}
@@ -873,8 +877,8 @@ struct AstBlockStmt : AstStmt {
 
 struct AstImportStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IMPORT;
-	constexpr AstImportStmt(AstStringRef alias, AstRef<AstStringExpr> expr)
-		: AstStmt{KIND}
+	constexpr AstImportStmt(Uint32 offset, AstStringRef alias, AstRef<AstStringExpr> expr)
+		: AstStmt{offset, KIND}
 		, alias{alias}
 		, expr{expr}
 	{
@@ -886,8 +890,8 @@ struct AstImportStmt : AstStmt {
 
 struct AstPackageStmt : AstStmt {
 	static constexpr const auto KIND = Kind::PACKAGE;
-	constexpr AstPackageStmt(AstStringRef name)
-		: AstStmt{KIND}
+	constexpr AstPackageStmt(Uint32 offset, AstStringRef name)
+		: AstStmt{offset, KIND}
 		, name{name}
 	{
 	}
@@ -897,8 +901,8 @@ struct AstPackageStmt : AstStmt {
 
 struct AstDeferStmt : AstStmt {
 	static constexpr const auto KIND = Kind::DEFER;
-	constexpr AstDeferStmt(AstRef<AstStmt> stmt)
-		: AstStmt{KIND}
+	constexpr AstDeferStmt(Uint32 offset, AstRef<AstStmt> stmt)
+		: AstStmt{offset, KIND}
 		, stmt{stmt}
 	{
 	}
@@ -908,8 +912,8 @@ struct AstDeferStmt : AstStmt {
 
 struct AstReturnStmt : AstStmt {
 	static constexpr const auto KIND = Kind::RETURN;
-	constexpr AstReturnStmt(AstRefArray<AstExpr> exprs)
-		: AstStmt{KIND}
+	constexpr AstReturnStmt(Uint32 offset, AstRefArray<AstExpr> exprs)
+		: AstStmt{offset, KIND}
 		, exprs{exprs}
 	{
 	}
@@ -919,8 +923,8 @@ struct AstReturnStmt : AstStmt {
 
 struct AstBreakStmt : AstStmt {
 	static constexpr const auto KIND = Kind::BREAK;
-	constexpr AstBreakStmt(AstStringRef label)
-		: AstStmt{KIND}
+	constexpr AstBreakStmt(Uint32 offset, AstStringRef label)
+		: AstStmt{offset, KIND}
 		, label{label}
 	{
 	}
@@ -930,8 +934,8 @@ struct AstBreakStmt : AstStmt {
 
 struct AstContinueStmt : AstStmt {
 	static constexpr const auto KIND = Kind::CONTINUE;
-	constexpr AstContinueStmt(AstStringRef label)
-		: AstStmt{KIND}
+	constexpr AstContinueStmt(Uint32 offset, AstStringRef label)
+		: AstStmt{offset, KIND}
 		, label{label}
 	{
 	}
@@ -941,8 +945,8 @@ struct AstContinueStmt : AstStmt {
 
 struct AstFallthroughStmt : AstStmt {
 	static constexpr const auto KIND = Kind::FALLTHROUGH;
-	constexpr AstFallthroughStmt()
-		: AstStmt{KIND}
+	constexpr AstFallthroughStmt(Uint32 offset)
+		: AstStmt{offset, KIND}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
@@ -950,8 +954,8 @@ struct AstFallthroughStmt : AstStmt {
 
 struct AstForeignImportStmt : AstStmt {
 	static constexpr const auto KIND = Kind::FOREIGNIMPORT;
-	constexpr AstForeignImportStmt(AstStringRef ident, AstRefArray<AstExpr> names)
-		: AstStmt{KIND}
+	constexpr AstForeignImportStmt(Uint32 offset, AstStringRef ident, AstRefArray<AstExpr> names)
+		: AstStmt{offset, KIND}
 		, ident{ident}
 		, names{names}
 	{
@@ -963,11 +967,12 @@ struct AstForeignImportStmt : AstStmt {
 
 struct AstIfStmt : AstStmt {
 	static constexpr const auto KIND = Kind::IF;
-	constexpr AstIfStmt(AstRef<AstStmt> init,
+	constexpr AstIfStmt(Uint32          offset,
+	                    AstRef<AstStmt> init,
 	                    AstRef<AstExpr> cond,
 	                    AstRef<AstStmt> on_true,
 	                    AstRef<AstStmt> on_false)
-		: AstStmt{KIND}
+		: AstStmt{offset, KIND}
 		, init{init} 
 		, cond{cond}
 		, on_true{on_true}
@@ -983,8 +988,11 @@ struct AstIfStmt : AstStmt {
 
 struct AstWhenStmt : AstStmt {
 	static constexpr const auto KIND = Kind::WHEN;
-	constexpr AstWhenStmt(AstRef<AstExpr> cond, AstRef<AstBlockStmt> on_true, AstRef<AstBlockStmt> on_false)
-		: AstStmt{KIND}
+	constexpr AstWhenStmt(Uint32               offset,
+	                      AstRef<AstExpr>      cond,
+	                      AstRef<AstBlockStmt> on_true,
+	                      AstRef<AstBlockStmt> on_false)
+		: AstStmt{offset, KIND}
 		, cond{cond}
 		, on_true{on_true}
 		, on_false{on_false}
@@ -1001,8 +1009,8 @@ struct AstExpr;
 struct AstDeclStmt : AstStmt {
 	static constexpr const auto KIND = Kind::DECL;
 	using List = AstRefArray<AstExpr>;
-	constexpr AstDeclStmt(List lhs, AstRef<AstType> type, Maybe<List>&& rhs)
-		: AstStmt{KIND}
+	constexpr AstDeclStmt(Uint32 offset, List lhs, AstRef<AstType> type, Maybe<List>&& rhs)
+		: AstStmt{offset, KIND}
 		, lhs{move(lhs)}
 		, type{type}
 		, rhs{move(rhs)}
@@ -1016,8 +1024,8 @@ struct AstDeclStmt : AstStmt {
 
 struct AstUsingStmt : AstStmt {
 	static constexpr const auto KIND = Kind::USING;
-	constexpr AstUsingStmt(AstRef<AstExpr> expr)
-		: AstStmt{KIND}
+	constexpr AstUsingStmt(Uint32 offset, AstRef<AstExpr> expr)
+		: AstStmt{offset, KIND}
 		, expr{expr}
 	{
 	}

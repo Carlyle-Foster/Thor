@@ -8,6 +8,10 @@ Item :: struct {
 	value:  int
 }
 
+foo :: proc(b, c, a: int, d: f32) {
+	fmt.printf("%d:%d:%d:%f\n", b, c, a, d)
+}
+
 ks :: proc(items: []Item, w: int) -> []bool {
 	n  := len(items);
 	mm := make([]int, (n + 1) * (w + 1))
@@ -37,6 +41,18 @@ ks :: proc(items: []Item, w: int) -> []bool {
 }
 
 main :: proc() {
+	if x: bit_set[
+		            1..<2
+		         u32]
+		    false
+		{
+		}
+	else do for                i := 0
+	                   i < 10;
+	            i += 1
+	            { fmt.printf("%d\n", i) }
+
+	/*
 	items := []Item {
 		{"map",                      9,   150},
 		{"compass",                 13,    35},
@@ -71,4 +87,5 @@ main :: proc() {
 		tv += item.value
 	}
 	fmt.printf("%-22s % 5d % 5d\n", "totals:", tw, tv)
+	*/
 }

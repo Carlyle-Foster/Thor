@@ -1,8 +1,7 @@
 # Tree
 ```mermaid
 flowchart LR
-AstNode --> AstEnum
-AstNode --> AstAttribute
+AstNode --> AstField
 AstNode --> AstDirective
 AstNode --> AstExpr
 AstNode --> AstType
@@ -15,7 +14,6 @@ AstExpr --> AstDerefExpr
 AstExpr --> AstOrReturnExpr
 AstExpr --> AstOrBreakExpr
 AstExpr --> AstOrContinueExpr
-AstExpr --> AstOrElseExpr
 AstExpr --> AstIdentExpr
 AstExpr --> AstUndefExpr
 AstExpr --> AstContextExpr

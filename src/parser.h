@@ -8,10 +8,10 @@ namespace Thor {
 
 struct Parser {
 	static Maybe<Parser> open(System& sys, StringView file);
-	AstStringRef parse_ident();
+	AstStringRef parse_ident(Uint32* poffset = nullptr);
 
 	using DirectiveList = Maybe<Array<AstRef<AstDirective>>>;
-	using AttributeList = Maybe<Array<AstRef<AstAttribute>>>;
+	using AttributeList = Maybe<Array<AstRef<AstField>>>;
 
 	// Expression parsers
 	AstRef<AstExpr>       parse_expr(Bool lhs);
@@ -34,7 +34,7 @@ struct Parser {
 	AstRef<AstOrReturnExpr> parse_or_return_expr(AstRef<AstExpr> operand);
 	AstRef<AstOrBreakExpr> parse_or_break_expr(AstRef<AstExpr> operand);
 	AstRef<AstOrContinueExpr> parse_or_continue_expr(AstRef<AstExpr> operand);
-	AstRef<AstOrElseExpr> parse_or_else_expr(AstRef<AstExpr> operand);
+	AstRef<AstCallExpr> parse_call_expr(AstRef<AstExpr> operand);
 
 	// Statement parsers
 	AstRef<AstStmt> parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes);
@@ -59,10 +59,10 @@ struct Parser {
 	AstRef<AstUnionType> parse_union_type();
 	AstRef<AstEnumType> parse_enum_type();
 	AstRef<AstPtrType> parse_ptr_type();
-	AstRef<AstMultiPtrType> parse_multiptr_type();
-	AstRef<AstSliceType> parse_slice_type();
-	AstRef<AstArrayType> parse_array_type();
-	AstRef<AstDynArrayType> parse_dynarray_type();
+	AstRef<AstMultiPtrType> parse_multiptr_type(Uint32 offset);
+	AstRef<AstSliceType> parse_slice_type(Uint32 offset);
+	AstRef<AstArrayType> parse_array_type(Uint32 offset);
+	AstRef<AstDynArrayType> parse_dynarray_type(Uint32 offset);
 	AstRef<AstMapType> parse_map_type();
 	AstRef<AstBitsetType> parse_bitset_type();
 	AstRef<AstMatrixType> parse_matrix_type();
@@ -78,9 +78,8 @@ struct Parser {
 	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
 private:
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
-	AstRef<AstEnum> parse_enum();
+	AstRef<AstField> parse_field(Bool allow_assignment);
 
-	AstRef<AstAttribute> parse_attribute(Bool parse_expr);
 	AstRef<AstDirective> parse_directive();
 
 	Bool skip_possible_newline_for_literal();
@@ -88,10 +87,10 @@ private:
 	Parser(System& sys, Lexer&& lexer, AstFile&& ast);
 
 	template<Ulen E, typename... Ts>
-	Unit error(const char (&msg)[E], Ts&&...) {
+	Unit error(Uint32 offset, const char (&msg)[E], Ts&&...) {
 		ScratchAllocator<1024> scratch{sys_.allocator};
 		StringBuilder builder{scratch};
-		auto position = lexer_.position(token_);
+		auto position = lexer_.position(offset);
 		builder.put(ast_.filename());
 		builder.put(':');
 		builder.put(position.line);
@@ -111,6 +110,10 @@ private:
 		}
 		return {};
 	}
+	template<Ulen E, typename... Ts>
+	Unit error(const char (&msg)[E], Ts&&... args) {
+		return error(token_.offset, msg, forward<Ts>(args)...);
+	}
 	constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;
 	}
@@ -126,7 +129,11 @@ private:
 	constexpr Bool is_assignment(AssignKind kind) const {
 		return is_kind(TokenKind::ASSIGNMENT) && token_.as_assign == kind;
 	}
-	void eat();
+
+	// Eat the current token, advancing the lexer and return the byte position of
+	// the previous token.
+	Uint32 eat();
+
 	System&            sys_;
 	TemporaryAllocator temporary_;
 	AstFile            ast_;
