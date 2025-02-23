@@ -311,6 +311,15 @@ struct AstOrContinueExpr : AstExpr {
 	AstRef<AstExpr> operand;
 };
 
+// Represents a call expression, e.g:
+// 	operand()
+// 	operand(a, b)
+// 	operand(10, a=10)
+// 	etc
+//
+// The [args] list stores the argument list for the callable operand. The list
+// is encoded with AstField which is a node that encodes: (Expr ('=' Expr)?),
+// this permits calling with named arguments.
 struct AstCallExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CALL;
 	constexpr AstCallExpr(Uint32 offset, AstRef<AstExpr> operand, AstRefArray<AstField> args)
@@ -324,6 +333,7 @@ struct AstCallExpr : AstExpr {
 	AstRefArray<AstField> args;
 };
 
+// Represents an indent expression.
 struct AstIdentExpr : AstExpr {
 	static constexpr const auto KIND = Kind::IDENT;
 	constexpr AstIdentExpr(Uint32 offset, AstStringRef ident)
@@ -335,6 +345,7 @@ struct AstIdentExpr : AstExpr {
 	AstStringRef ident;
 };
 
+// Represents an undef expression.
 struct AstUndefExpr : AstExpr {
 	static constexpr const auto KIND = Kind::UNDEF;
 	constexpr AstUndefExpr(Uint32 offset)
@@ -344,6 +355,7 @@ struct AstUndefExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
+// Represents a context expression.
 struct AstContextExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CONTEXT;
 	constexpr AstContextExpr(Uint32 offset)
@@ -353,6 +365,7 @@ struct AstContextExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 };
 
+// Represents a procedure literal expression.
 struct AstProcExpr : AstExpr {
 	static constexpr const auto KIND = Kind::PROC;
 	constexpr AstProcExpr(Uint32 offset, AstRef<AstProcType> type, AstRef<AstBlockStmt> body)
@@ -366,6 +379,17 @@ struct AstProcExpr : AstExpr {
 	AstRef<AstBlockStmt>  body;
 };
 
+// Represents a slice expression, e.g:
+// 	1. operand[:]
+// 	2. operand[:rhs]
+// 	3. operand[lhs:]
+// 	4. operand[lhs:rhs]
+//
+// This is encoded by making both [lhs] and [rhs] optional, that is:
+// 	1. is encoded as [lhs] = nil, [rhs] = nil.
+// 	2. is encoded as [lhs] = nil, [rhs] != nil.
+// 	3. is encoded as [lhs] != nil, [rhs] = nil.
+// 	4. is encoded as [lhs] != nil, [rhs] != nil.
 struct AstSliceExpr : AstExpr {
 	static constexpr const auto KIND = Kind::SLICE;
 	constexpr AstSliceExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
@@ -379,14 +403,15 @@ struct AstSliceExpr : AstExpr {
 	AstRef<AstExpr> operand;
 	AstRef<AstExpr> lhs; // Optional
 	AstRef<AstExpr> rhs; // Optional
-	// LHS | RHS | MEANING
-	// ----|-----|-----------------
-	// NO  | NO  | operand[:]
-	// NO  | YES | operand[:rhs]
-	// YES | NO  | operand[lhs:]
-	// YES | YES | operand[lhs:rhs]
+
 };
 
+// Represents an indexing expression, e.g:
+// 	operand[lhs]
+// 	operand[lhs, rhs]
+//
+// The latter format is reserved for indexing matrices and is encoded when [rhs]
+// is not nil.
 struct AstIndexExpr : AstExpr {
 	static constexpr const auto KIND = Kind::INDEX;
 	constexpr AstIndexExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstExpr> lhs, AstRef<AstExpr> rhs)
@@ -451,6 +476,14 @@ struct AstImaginaryExpr : AstExpr {
 	Float64 value;
 };
 
+// Represents a cast expression, e.g:
+//	1. type(expr)
+//	2. cast(type)expr
+//	3. auto_cast expr
+//
+// There is no distinction between (1) and (2) in this representation. Instead
+// the parser canonicalizes to a single form. The (3) case is encoded with an
+// empty type.
 struct AstCastExpr : AstExpr {
 	static constexpr const auto KIND = Kind::CAST;
 	constexpr AstCastExpr(Uint32 offset, AstRef<AstType> type, AstRef<AstExpr> expr)
@@ -464,6 +497,8 @@ struct AstCastExpr : AstExpr {
 	AstRef<AstExpr> expr;
 };
 
+// Represents an implicit selector expression.
+//	.name
 struct AstSelectorExpr : AstExpr {
 	static constexpr const auto KIND = Kind::SELECTOR;
 	constexpr AstSelectorExpr(Uint32 offset, AstStringRef name)
@@ -475,19 +510,31 @@ struct AstSelectorExpr : AstExpr {
 	AstStringRef name;
 };
 
+// Represents a field access, e.g:
+//	operand.field
+//	operand->field
+//
+// The latter form is encoded with arrow = true.
 struct AstAccessExpr : AstExpr {
 	static constexpr const auto KIND = Kind::ACCESS;
-	constexpr AstAccessExpr(Uint32 offset, AstRef<AstExpr> operand, AstStringRef field)
+	constexpr AstAccessExpr(Uint32 offset, AstRef<AstExpr> operand, AstStringRef field, Bool arrow)
 		: AstExpr{offset, KIND}
 		, operand{operand}
 		, field{field}
+		, arrow{arrow}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> operand;
-	AstStringRef field;
+	AstStringRef    field;
+	Bool            arrow;
 };
 
+// Represents a type assertion, e.g:
+//	operand.(type)
+//	operand.?
+//
+// The latter form is encoded with empty type
 struct AstAssertExpr : AstExpr {
 	static constexpr const auto KIND = Kind::ASSERT;
 	constexpr AstAssertExpr(Uint32 offset, AstRef<AstExpr> operand, AstRef<AstType> type)
@@ -499,12 +546,10 @@ struct AstAssertExpr : AstExpr {
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> operand;
 	AstRef<AstType> type; // Optional
-	// When type is present
-	//	operand.(T)
-	// When type is not present
-	//	operand.?
 };
 
+// Represents a type expression, e.g:
+//	The same as an Type but usable in an Expr context.
 struct AstTypeExpr : AstExpr {
 	static constexpr const auto KIND = Kind::TYPE;
 	constexpr AstTypeExpr(Uint32 offset, AstRef<AstType> type)

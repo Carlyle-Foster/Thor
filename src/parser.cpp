@@ -408,7 +408,10 @@ AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
 
 	return ast_.create<AstForeignImportStmt>(offset, ident, refs);
 }
-// IfStmt := TODO(dweiler): EBNF
+
+// IfStmt := 'if' ';' Expr?         (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
+//         | 'if' DeclStmt ';' Expr (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
+//         | 'if' ExprStmt          (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
 AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::IF)) {
@@ -899,7 +902,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 				if (!name) {
 					return {};
 				}
-				operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, name);
+				operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, name, false);
 			} else if (is_operator(OperatorKind::LPAREN)) {
 				eat(); // Eat '('
 				auto type = parse_type();
@@ -918,9 +921,8 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 				return error("Unexpected token after '.'");
 			}
 		} else if (is_operator(OperatorKind::ARROW)) {
-			// TODO
-			// (operand->expr)(....)
-			// operand.expr(operand, ...)
+			eat(); // Eat '->'
+			operand = ast_.create<AstAccessExpr>(ast_[operand].offset, operand, name, true);
 		} else if (is_operator(OperatorKind::LBRACKET)) {
 			eat(); // Eat '['
 			if (is_operator(OperatorKind::RBRACKET)) {
