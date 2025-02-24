@@ -10,6 +10,7 @@ namespace Thor {
 // StringBuilder
 void StringBuilder::put(char ch) {
 	error_ = !build_.push_back(ch);
+	last_ = { &build_.last(), 1 };
 }
 
 void StringBuilder::put(StringView view) {
@@ -22,6 +23,7 @@ void StringBuilder::put(StringView view) {
 	for (Ulen i = 0; i < len; i++) {
 		build_[offset + i] = view[i];
 	}
+	last_ = { &build_[offset], len };
 }
 
 void StringBuilder::put(Float64 value) {

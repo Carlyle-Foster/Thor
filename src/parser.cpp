@@ -199,9 +199,13 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			return {};
 		}
 
-		// If the expression is proceeded immediately by a newline or semicolon then
-		// this is just an expression in a statement context, thus it's an ExprStmt.
-		if (is_semi()) {
+		// When the expression is proceeded by one of:
+		//	';'
+		//	'{'
+		//	'do'
+		//
+		// Then it cannot be an AstDeclStmt and can only be an AstExprStmt.
+		if (is_semi() || is_kind(TokenKind::LBRACE) || is_keyword(KeywordKind::DO)) {
 			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 		}
 
@@ -232,12 +236,12 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		if (is_operator(OperatorKind::COLON)) {
 			eat(); // Eat ':'
 			decl = DeclKind::MUTABLE;
-		}
 
-		if (!is_operator(OperatorKind::COLON) && !is_kind(TokenKind::ASSIGNMENT)) {
-			type = parse_type();
-			if (!type) {
-				return {};
+			if (!is_operator(OperatorKind::COLON) && !is_kind(TokenKind::ASSIGNMENT)) {
+				type = parse_type();
+				if (!type) {
+					return {};
+				}
 			}
 		}
 
@@ -474,86 +478,73 @@ AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
 //         | 'if' ExprStmt          (DoStmt | BlockStmt) ('else' (IfStmt | DoStmt | BlockStmt))?
 AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	TRACE();
+
 	if (!is_keyword(KeywordKind::IF)) {
 		return error("Expected 'if'");
 	}
 
 	auto offset = eat(); // Eat 'if'
 
-	AstRef<AstStmt> init;
-	AstRef<AstExpr> cond;
-	AstRef<AstStmt> on_true;
-	AstRef<AstStmt> on_false;
+	AstRef<AstStmt> init = parse_stmt(false, {}, {});
+	AstRef<AstExpr> cond = parse_expr(true);
+	AstRef<AstStmt> body;
 
-	auto prev_level = this->expr_level_;
-	this->expr_level_ = -1;
-
-	auto prev_allow_in_expr = this->allow_in_expr_;
-	this->allow_in_expr_ = true;
-
-	if (is_kind(TokenKind::EXPLICITSEMI)) {
-		cond = parse_expr(false);
-	} else {
-		init = parse_stmt(false, {}, {});
-		if (!ast_[init].is_stmt<AstDeclStmt>()) {
-			return error("Expected a declaration for 'init' statement in 'if'");
-		}
-		if (is_kind(TokenKind::EXPLICITSEMI)) {
-			cond = parse_expr(false);
-		} else if (init) {
-			auto& node = ast_[init];
-			if (node.is_stmt<AstExprStmt>()) {
-				cond = static_cast<const AstExprStmt &>(node).expr;
-			} else {
-				*(volatile int *)0 = 0;
-				return error("Expected expression statement");
-			}
+	if (!cond) {
+		if (auto node = ast_[init].to_stmt<AstExprStmt>()) {
+			cond = node->expr;
 			init = {};
 		} else {
-			return error("Expected a boolean expression");
+			return error("Expected expression after 'if'");
 		}
-	}
-
-	this->expr_level_    = prev_level;
-	this->allow_in_expr_ = prev_allow_in_expr;
-
-	if (!cond.is_valid()) {
-		return error("Expected a condition for if statement");
 	}
 
 	if (is_keyword(KeywordKind::DO)) {
-		eat(); // Eat 'do'
-		on_true = parse_stmt(false, {}, {});
+		body = parse_do_stmt();
 	} else {
-		on_true = parse_block_stmt();
-	}
-	if (!on_true) {
-		return {};
+		if (is_kind(TokenKind::IMPLICITSEMI)) {
+			eat(); // Eat ';'
+		}
+		if (is_kind(TokenKind::LBRACE)) {
+			body = parse_block_stmt();
+		} else {
+			return error("Expected '{' or 'do' after 'if'");
+		}
 	}
 
 	if (is_kind(TokenKind::IMPLICITSEMI)) {
 		eat();
 	}
 
+	AstRef<AstStmt> elze;
 	if (is_keyword(KeywordKind::ELSE)) {
-		// Token else_tok = token_;
-		eat();
+		eat(); // Eat 'else'
 		if (is_keyword(KeywordKind::IF)) {
-			on_false = parse_if_stmt();
-		} else if (is_kind(TokenKind::LBRACE)) {
-			on_false = parse_block_stmt();
+			elze = parse_if_stmt();
 		} else if (is_keyword(KeywordKind::DO)) {
-			eat(); // Eat 'do'
-			on_false = parse_stmt(false, {}, {});
+			elze = parse_do_stmt();
+		} else if (is_kind(TokenKind::LBRACE)) {
+			elze = parse_block_stmt();
 		} else {
-			return error("Expected if statement block statement");
-		}
-		if (!on_false) {
-			return {};
+			return error("Expected 'if', '{', or 'do' after 'else'");
 		}
 	}
 
-	return ast_.create<AstIfStmt>(offset, init, cond, on_true, on_false);
+	return ast_.create<AstIfStmt>(offset, init, cond, body, elze);
+}
+
+// DoStmt := 'do' Stmt
+AstRef<AstBlockStmt> Parser::parse_do_stmt() {
+	if (!is_keyword(KeywordKind::DO)) {
+		return error("Expected 'do'");
+	}
+	auto offset = eat(); // Eat 'do'
+	Array<AstRef<AstStmt>> stmts{temporary_};
+	auto stmt = parse_stmt(false, {}, {});
+	if (!stmt || !stmts.push_back(stmt)) {
+		return {};
+	}
+	auto refs = ast_.insert(move(stmts));
+	return ast_.create<AstBlockStmt>(offset, refs);
 }
 
 // ExprStmt := Expr

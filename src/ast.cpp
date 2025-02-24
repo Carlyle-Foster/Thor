@@ -186,14 +186,21 @@ void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
 	builder.put('\n');
+	nest++;
 	Bool first = true;
 	for (auto stmt : ast[stmts]) {
-		if (!first) {
-			// builder.put('\n');
+		const auto& node = ast[stmt];
+		if (node.is_stmt<AstEmptyStmt>()) {
+			continue;
 		}
-		ast[stmt].dump(ast, builder, nest+1);
+		if (!first) {
+			builder.put('\n');
+		}
+		ast[stmt].dump(ast, builder, nest);
 		first = false;
 	}
+	nest--;
+	builder.put('\n');
 	builder.rep(nest * 2, ' ');
 	builder.put('}');
 }
@@ -295,19 +302,29 @@ void AstForeignImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen
 }
 
 void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
-	builder.rep(nest * 2, ' ');
+	if (builder.last() != "else") {
+		builder.rep(nest * 2, ' ');
+	} else {
+		builder.put(' ');
+	}
 	builder.put("if");
+	builder.put(' ');
 	if (init) {
 		ast[init].dump(ast, builder, 0);
-		builder.put(' ');
 		builder.put(';');
+		builder.put(' ');
 	}
 	ast[cond].dump(ast, builder);
-	builder.put(' ');
-	ast[on_true].dump(ast, builder, nest+1);
+	builder.put('\n');
+	ast[on_true].dump(ast, builder, nest);
 	if (on_false) {
+		builder.put('\n');
+		builder.rep(nest * 2, ' ');
 		builder.put("else");
-		ast[on_false].dump(ast, builder, nest+1);
+		if (!ast[on_false].is_stmt<AstIfStmt>()) {
+			builder.put('\n');
+		}
+		ast[on_false].dump(ast, builder, nest);
 	}
 }
 
@@ -401,7 +418,6 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 }
 
 void AstBinExpr::dump(const AstFile& ast, StringBuilder& builder) const {
-	builder.put('(');
 	static constexpr const StringView OP[] = {
 		#define OPERATOR(ENUM, NAME, MATCH, PREC, NAMED, ASI) MATCH,
 		#include "lexer.inl"
@@ -411,7 +427,6 @@ void AstBinExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put(OP[Uint32(op)]);
 	builder.put(' ');
 	ast[rhs].dump(ast, builder);
-	builder.put(')');
 }
 
 void AstUnaryExpr::dump(const AstFile& ast, StringBuilder& builder) const {

@@ -33,9 +33,11 @@ struct StringBuilder {
 	void rpad(Ulen n, StringView view, char pad = ' ');
 	void reset();
 	Maybe<StringView> result() const;
+	StringView last() const { return last_; } // Last inserted string token
 private:
 	Array<char> build_;
 	Bool        error_ = false;
+	StringView  last_;
 };
 
 struct StringRef {
