@@ -44,8 +44,17 @@ int main(int, char **) {
 			break;
 		}
 	}
+
+	Bool first = true;
 	for (auto stmt : stmts) {
+		if (ast[stmt].is_stmt<AstEmptyStmt>()) {
+			continue;
+		}
+		if (!first) {
+			builder.put('\n');
+		}
 		ast[stmt].dump(ast, builder, 0);
+		first = false;
 	}
 
 	auto llvm = LLVM::load(sys, "libLLVM-19");

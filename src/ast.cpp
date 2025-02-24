@@ -142,14 +142,12 @@ void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const 
 
 void AstEmptyStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
-	// builder.put(';');
+	builder.put(';');
 }
 
 void AstExprStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	ast[expr].dump(ast, builder);
-	builder.put(';');
-	builder.put('\n');
 }
 
 void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -162,7 +160,8 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	Bool first = true;
 	for (auto value : ast[lhs]) {
 		if (!first) {
-			builder.put(", ");
+			builder.put(',');
+			builder.put(' ');
 		}
 		ast[value].dump(ast, builder);
 		first = false;
@@ -175,23 +174,25 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	first = true;
 	for (auto value : ast[rhs]) {
 		if (!first) {
-			builder.put(", ");
+			builder.put(',');
+			builder.put(' ');
 		}
 		ast[value].dump(ast, builder);
 		first = false;
 	}
-
-	builder.put(';');
-	builder.put('\n');
 }
 
 void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put('{');
 	builder.put('\n');
+	Bool first = true;
 	for (auto stmt : ast[stmts]) {
+		if (!first) {
+			// builder.put('\n');
+		}
 		ast[stmt].dump(ast, builder, nest+1);
-		builder.put('\n');
+		first = false;
 	}
 	builder.rep(nest * 2, ' ');
 	builder.put('}');
@@ -206,8 +207,6 @@ void AstImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 		builder.put(' ');
 	}
 	ast[expr].dump(ast, builder);
-	builder.put(';');
-	builder.put('\n');
 }
 
 void AstPackageStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -215,19 +214,16 @@ void AstPackageStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest)
 	builder.put("package");
 	builder.put(' ');
 	builder.put(ast[name]);
-	builder.put(';');
-	builder.put('\n');
 }
 
 void AstDeferStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("defer");
-	builder.put(' ');
 	const auto& defer = ast[stmt];
 	if (defer.is_stmt<AstBlockStmt>()) {
-		builder.put('\n');
 		defer.dump(ast, builder, nest);
 	} else {
+		builder.put(' ');
 		defer.dump(ast, builder, 0);
 	}
 }
@@ -254,7 +250,6 @@ void AstBreakStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) c
 		builder.put(' ');
 		builder.put(ast[label]);
 	}
-	builder.put(';');
 }
 
 void AstContinueStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -264,13 +259,11 @@ void AstContinueStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest
 		builder.put(' ');
 		builder.put(ast[label]);
 	}
-	builder.put(';');
 }
 
 void AstFallthroughStmt::dump(const AstFile&, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("fallthrough");
-	builder.put(';');
 }
 
 void AstForeignImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -299,22 +292,22 @@ void AstForeignImportStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen
 		builder.put('\n');
 		builder.put('}');
 	}
-	builder.put('\n');
 }
 
 void AstIfStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 	builder.rep(nest * 2, ' ');
 	builder.put("if");
 	if (init) {
-		ast[init].dump(ast, builder, nest);
+		ast[init].dump(ast, builder, 0);
 		builder.put(' ');
 		builder.put(';');
 	}
 	ast[cond].dump(ast, builder);
-	ast[on_true].dump(ast, builder, nest);
+	builder.put(' ');
+	ast[on_true].dump(ast, builder, nest+1);
 	if (on_false) {
 		builder.put("else");
-		ast[on_false].dump(ast, builder, 0);
+		ast[on_false].dump(ast, builder, nest+1);
 	}
 }
 
@@ -322,10 +315,11 @@ void AstWhenStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	builder.rep(nest * 2, ' ');
 	builder.put("when");
 	ast[cond].dump(ast, builder);
+	builder.put(' ');
 	ast[on_true].dump(ast, builder, nest+1);
 	if (on_false) {
 		builder.put("else");
-		ast[on_false].dump(ast, builder, 0);
+		ast[on_false].dump(ast, builder, nest+1);
 	}
 }
 
@@ -344,7 +338,6 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 		builder.put(':');
 		builder.put(' ');
 		ast[type].dump(ast, builder);
-		builder.put(' ');
 	} else {
 		builder.put(' ');
 		builder.put(':');
@@ -366,7 +359,6 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 			first = false;
 		}
 	}
-	builder.put('\n');
 }
 
 void AstUsingStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -647,17 +639,18 @@ void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("union");
 	builder.put(' ');
 	builder.put('{');
-	builder.put(' ');
+	builder.put('\n');
 	Bool first = true;
 	for (const auto type : ast[types]) {
 		if (!first) {
 			builder.put(',');
-			builder.put(' ');
+			builder.put('\n');
 		}
+		builder.rep(2, ' ');
 		ast[type].dump(ast, builder);
 		first = false;
 	}
-	builder.put(' ');
+	builder.put('\n');
 	builder.put('}');
 }
 
@@ -665,17 +658,17 @@ void AstStructType::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("struct");
 	builder.put(' ');
 	builder.put('{');
-	builder.put(' ');
+	builder.put('\n');
 	Bool first = true;
 	for (const auto decl : ast[decls]) {
 		if (!first) {
 			builder.put(',');
-			builder.put(' ');
+			builder.put('\n');
 		}
-		ast[decl].dump(ast, builder, 0);
+		ast[decl].dump(ast, builder, 1);
 		first = false;
 	}
-	builder.put(' ');
+	builder.put('\n');
 	builder.put('}');
 }
 

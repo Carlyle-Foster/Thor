@@ -105,29 +105,28 @@ AstRef<AstExpr> Parser::parse_paren_expr() {
 	return expr;
 }
 
-// Stmt := EmptyStmt ';'
-//       | BlockStmt ';'
-//       | PackageStmt ';'
-//       | ImportStmt ';'
-//       | DeferStmt ';'
-//       | ReturnStmt ';'
-//       | BreakStmt ';'
-//       | ContinueStmt ';'
-//       | FallthroughStmt ';'
-//       | ForeignStmt ';'
-//       | IfStmt ';'
-//       | WhenStmt ';'
-//       | ForStmt ';'
-//       | SwitchStmt ';'
-//       | UsingStmt ';'
-//       | DeclStmt ';'
-//       | AssignStmt ';'
+// Stmt := EmptyStmt
+//       | BlockStmt
+//       | PackageStmt
+//       | ImportStmt
+//       | DeferStmt
+//       | ReturnStmt
+//       | BreakStmt
+//       | ContinueStmt
+//       | FallthroughStmt
+//       | ForeignStmt
+//       | IfStmt
+//       | WhenStmt
+//       | ForStmt
+//       | SwitchStmt
+//       | UsingStmt
+//       | DeclStmt
+//       | AssignStmt
 AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
                                    DirectiveList&& directives,
                                    AttributeList&& attributes)
 {
 	TRACE();
-	AstRef<AstStmt> stmt;
 	if (is_semi()) {
 		return parse_empty_stmt();
 	} else if (is_kind(TokenKind::LBRACE)) {
@@ -155,19 +154,19 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			return {};
 		}
 	} else if (is_keyword(KeywordKind::PACKAGE)) {
-		stmt = parse_package_stmt();
+		return parse_package_stmt();
 	} else if (is_keyword(KeywordKind::IMPORT)) {
-		stmt = parse_import_stmt();
+		return parse_import_stmt();
 	} else if (is_keyword(KeywordKind::DEFER)) {
-		stmt = parse_defer_stmt();
+		return parse_defer_stmt();
 	} else if (is_keyword(KeywordKind::RETURN)) {
-		stmt = parse_return_stmt();
+		return parse_return_stmt();
 	} else if (is_keyword(KeywordKind::BREAK)) {
-		stmt = parse_break_stmt();
+		return parse_break_stmt();
 	} else if (is_keyword(KeywordKind::CONTINUE)) {
-		stmt = parse_continue_stmt();
+		return parse_continue_stmt();
 	} else if (is_keyword(KeywordKind::FALLTHROUGH)) {
-		stmt = parse_fallthrough_stmt();
+		return parse_fallthrough_stmt();
 	} else if (is_keyword(KeywordKind::FOREIGN)) {
 		eat(); // Eat 'foreign'
 		if (is_keyword(KeywordKind::IMPORT)) {
@@ -176,9 +175,9 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			// TODO(dweiler): foreign bindings
 		}
 	} else if (is_keyword(KeywordKind::IF)) {
-		stmt = parse_if_stmt();
+		return parse_if_stmt();
 	} else if (is_keyword(KeywordKind::WHEN)) {
-		stmt = parse_when_stmt();
+		return parse_when_stmt();
 	} else if (is_keyword(KeywordKind::FOR)) {
 		// TODO
 	} else if (is_keyword(KeywordKind::SWITCH)) {
@@ -187,7 +186,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		eat(); // Eat 'using'
 		if (is_kind(TokenKind::IDENTIFIER)) {
 			// This is a using statement like 'using fmt'
-			stmt = parse_using_stmt();
+			return parse_using_stmt();
 		} else {
 			// Otherwise it's a flag on a decl like
 			//  using x: T
@@ -266,6 +265,18 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			}
 		}
 
+		// When the assignment or decl statement is proceeded with an explicit or
+		// implicit semicolon we should eat it. This isn't always the case though:
+		// for instance, when we're parsing a structure type we use this existing
+		// decl statement parser, except there the statements will be proceeded with
+		// a comma which we do not want to consume here. Instead, parse_struct_type 
+		// should consume the ','. When parsing a struct then, it's expected that
+		// there might be an implicit semicolon proceeding the ',' due to automatic
+		// semicolon insertion.
+		if (is_semi()) {
+			eat(); // Eat ';'
+		}
+
 		AstRefArray<AstExpr> lhs_refs = ast_.insert(move(lhs));
 		AstRefArray<AstExpr> rhs_refs;
 		if (!rhs.is_empty()) {
@@ -273,13 +284,13 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		}
 		const auto offset = ast_[expr].offset;
 		if (decl == DeclKind::NONE) {
-			stmt = ast_.create<AstAssignStmt>(offset, lhs_refs, rhs_refs, assign);
+			return ast_.create<AstAssignStmt>(offset, lhs_refs, rhs_refs, assign);
 		} else {
 			AstRefArray<AstDirective> d_refs;
 			AstRefArray<AstAttribute> a_refs;
 			if (directives) d_refs = ast_.insert(move(*directives));
 			if (attributes) a_refs = ast_.insert(move(*attributes));
-			stmt = ast_.create<AstDeclStmt>(offset,
+			return ast_.create<AstDeclStmt>(offset,
 			                                decl == DeclKind::IMMUTABLE,
 			                                is_using,
 			                                lhs_refs,
@@ -289,14 +300,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			                                a_refs);
 		}
 	}
-	if (!stmt) {
-		return {};
-	}
-	if (!is_semi()) {
-		return error("Expected ';' or newline after statement");
-	}
-	eat(); // Eat ';'
-	return stmt;
+	return {};
 }
 
 // EmptyStmt := ';'
@@ -332,7 +336,7 @@ AstRef<AstBlockStmt> Parser::parse_block_stmt() {
 	return ast_.create<AstBlockStmt>(offset, refs);
 }
 
-// PackageStmt := 'package' Ident
+// PackageStmt := 'package' Ident ';'
 AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 	TRACE();
 	auto offset = eat(); // Eat 'package'
@@ -343,10 +347,14 @@ AstRef<AstPackageStmt> Parser::parse_package_stmt() {
 			return {};
 		}
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'package' statement");
+	}
+	eat(); // Eat ';'
 	return error("Expected identifier for package");
 }
 
-// ImportStmt := 'import' Ident? StringLit
+// ImportStmt := 'import' Ident? StringLit ';'
 AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	TRACE();
 	auto offset = eat(); // Eat 'import'
@@ -358,10 +366,14 @@ AstRef<AstImportStmt> Parser::parse_import_stmt() {
 	if (!expr) {
 		return {};
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'import' statement");
+	}
+	eat(); // Eat ';'
 	return ast_.create<AstImportStmt>(offset, alias, expr);
 }
 
-// BreakStmt := 'break' Ident?
+// BreakStmt := 'break' Ident? ';'
 AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::BREAK)) {
@@ -372,10 +384,14 @@ AstRef<AstBreakStmt> Parser::parse_break_stmt() {
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		label = parse_ident();
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'break' statement");
+	}
+	eat(); // Eat ';'
 	return ast_.create<AstBreakStmt>(offset, label);
 }
 
-// ContinueStmt := 'continue' Ident?
+// ContinueStmt := 'continue' Ident? ';'
 AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::CONTINUE)) {
@@ -386,16 +402,24 @@ AstRef<AstContinueStmt> Parser::parse_continue_stmt() {
 	if (is_kind(TokenKind::IDENTIFIER)) {
 		label = parse_ident();
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'continue' statement");
+	}
+	eat(); // Eat ';'
 	return ast_.create<AstContinueStmt>(offset, label);
 }
 
-// FallthroughStmt := 'fallthrough'
+// FallthroughStmt := 'fallthrough' ';'
 AstRef<AstFallthroughStmt> Parser::parse_fallthrough_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::FALLTHROUGH)) {
 		return error("Expected 'fallthrough'");
 	}
 	auto offset = eat(); // Eat 'fallthrough'
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'fallthrough' statement");
+	}
+	eat(); // Eat ';'
 	return ast_.create<AstFallthroughStmt>(offset);
 }
 
@@ -564,6 +588,9 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 			return {};
 		}
 	}
+	if (is_kind(TokenKind::IMPLICITSEMI)) {
+		eat(); // Eat ';'
+	}
 	return ast_.create<AstWhenStmt>(offset, cond, on_true, on_false);
 }
 
@@ -587,7 +614,7 @@ AstRef<AstDeferStmt> Parser::parse_defer_stmt() {
 	return ast_.create<AstDeferStmt>(offset, stmt);
 }
 
-// ReturnStmt := 'return' (Expr (',' Expr)*)?
+// ReturnStmt := 'return' (Expr (',' Expr)*)? ';'
 AstRef<AstReturnStmt> Parser::parse_return_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::RETURN)) {
@@ -609,6 +636,10 @@ AstRef<AstReturnStmt> Parser::parse_return_stmt() {
 			break;
 		}
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'return' statement");
+	}
+	eat(); // Eat ';'
 	auto refs = ast_.insert(move(exprs));
 	return ast_.create<AstReturnStmt>(offset, refs);
 }
@@ -623,6 +654,10 @@ AstRef<AstUsingStmt> Parser::parse_using_stmt() {
 	if (!expr) {
 		return {};
 	}
+	if (!is_semi()) {
+		return error("Expected ';' (or newline) after 'using' statement");
+	}
+	eat(); // Eat ';'
 	return ast_.create<AstUsingStmt>(ast_[expr].offset, expr);
 }
 
@@ -1237,10 +1272,17 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 		if (!type || !types.push_back(type)) {
 			return {};
 		}
-		if (!is_kind(TokenKind::COMMA)) {
+		if (is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
+		} else {
 			break;
 		}
-		eat(); // Eat ','
+	}
+	if (is_kind(TokenKind::IMPLICITSEMI)) {
+		eat(); // Eat ';'
 	}
 	if (!is_kind(TokenKind::RBRACE)) {
 		return error("Expected '}'");
@@ -1264,16 +1306,23 @@ AstRef<AstStructType> Parser::parse_struct_type() {
 	eat(); // Eat '}'
 	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
 		auto decl = parse_stmt(false, {}, {});
+		if (!decl) {
+			return {};
+		}
 		if (!ast_[decl].is_stmt<AstDeclStmt>()) {
 			return error("Expected a declaration statement in 'struct'");
 		}
 		if (!decl || !decls.push_back(decl)) {
 			return {};
 		}
-		if (!is_kind(TokenKind::COMMA)) {
+		if (is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
+		} else {
 			break;
 		}
-		eat(); // Eat ','
 	}
 	if (!is_kind(TokenKind::RBRACE)) {
 		return error("Expected '}'");
