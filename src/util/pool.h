@@ -28,8 +28,8 @@ struct Pool {
 	Pool(Pool&& other);
 	~Pool() { drop(); }
 
-	constexpr auto length() const { return length_; }
-	constexpr auto is_empty() const { return length_ == 0; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto length() const { return length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_empty() const { return length_ == 0; }
 
 	constexpr Pool(const Pool&) = delete;
 	constexpr Pool& operator=(const Pool&) = delete;
@@ -41,23 +41,26 @@ struct Pool {
 	Maybe<PoolRef> allocate();
 	void deallocate(PoolRef ref);
 
-	constexpr auto operator[](PoolRef ref) { return data_ + size_ * ref.index; }
-	constexpr auto operator[](PoolRef ref) const { return data_ + size_ * ref.index; }
+	THOR_FORCEINLINE constexpr auto operator[](PoolRef ref) { return data_ + size_ * ref.index; }
+	THOR_FORCEINLINE constexpr auto operator[](PoolRef ref) const { return data_ + size_ * ref.index; }
 
 private:
-	constexpr Pool(Allocator& allocator, Ulen size, Ulen length, Ulen capacity, Uint8* data, Uint32* used)
+	using Word = Uint64;
+	static constexpr const auto BITS = Uint32(sizeof(Word) * 8);
+	constexpr Pool(Allocator& allocator, Ulen size, Ulen length, Ulen capacity, Uint8* data, Word* used)
 		: allocator_{allocator}
 		, size_{size}
 		, length_{length}
 		, capacity_{capacity}
 		, data_{data}
 		, used_{used}
+		, last_{0}
 	{
 	}
 
 	Pool* drop() {
 		allocator_.deallocate(data_, size_ * capacity_);
-		allocator_.deallocate(used_, capacity_ / 32);
+		allocator_.deallocate(used_, capacity_ / BITS);
 		return this;
 	}
 
@@ -66,7 +69,8 @@ private:
 	Ulen       length_;    // # of objects in the pool
 	Ulen       capacity_;  // Always a multiple of 32 (max # of objects in pool)
 	Uint8*     data_;      // Object memory
-	Uint32*    used_;      // Bitset where bit N indicates object N is in-use or not.
+	Word*      used_;      // Bitset where bit N indicates object N is in-use or not.
+	Uint32     last_;      // Last w_index
 };
 
 }

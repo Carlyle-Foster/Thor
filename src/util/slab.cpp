@@ -97,7 +97,7 @@ Bool Slab::save(Stream& stream) const {
 
 Maybe<SlabRef> Slab::allocate() {
 	const auto n_caches = caches_.length();
-	for (Ulen i = 0; i < n_caches; i++) {
+	for (Ulen i = n_caches - 1; i < n_caches; i--) {
 		if (auto& cache = caches_[i]; cache.is_valid()) {
 			if (auto c_ref = cache->allocate()) {
 				return SlabRef { Uint32(i * capacity_) + c_ref->index };

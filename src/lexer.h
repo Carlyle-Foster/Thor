@@ -50,33 +50,33 @@ constexpr Ulen countof(const T(&)[E]) {
 }
 
 struct Token {
-	constexpr Token(TokenKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(TokenKind kind, Uint32 offset, Uint16 length)
 		: kind{kind}
 		, length{length}
 		, offset{offset}
 	{
 	}
-	constexpr Token(AssignKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(AssignKind kind, Uint32 offset, Uint16 length)
 		: Token{TokenKind::ASSIGNMENT, offset, length}
 	{
 		as_assign = kind;
 	}
-	constexpr Token(LiteralKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(LiteralKind kind, Uint32 offset, Uint16 length)
 		: Token{TokenKind::LITERAL, offset, length}
 	{
 		as_literal = kind;
 	}
-	constexpr Token(OperatorKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(OperatorKind kind, Uint32 offset, Uint16 length)
 		: Token{TokenKind::OPERATOR, offset, length}
 	{
 		as_operator = kind;
 	}
-	constexpr Token(KeywordKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(KeywordKind kind, Uint32 offset, Uint16 length)
 		: Token{TokenKind::KEYWORD, offset, length}
 	{
 		as_keyword = kind;
 	}
-	constexpr Token(DirectiveKind kind, Uint32 offset, Uint16 length)
+	THOR_FORCEINLINE constexpr Token(DirectiveKind kind, Uint32 offset, Uint16 length)
 		: Token{TokenKind::DIRECTIVE, offset, length}
 	{
 		as_directive = kind;
@@ -134,10 +134,10 @@ struct Lexer {
 	}
 	Token next();
 	void eat();
-	constexpr StringView input() const {
+	THOR_FORCEINLINE constexpr StringView input() const {
 		return input_;
 	}
-	constexpr StringView string(Token token) const {
+	THOR_FORCEINLINE constexpr StringView string(Token token) const {
 		return input_.slice(token.offset).truncate(token.length);
 	}
 
@@ -161,10 +161,10 @@ struct Lexer {
 	}
 
 private:
-	Token  advance();
-	Token  scan_string();
-	void   scan_escape();
-	Token  scan_number(Bool leading_period);
+	Token advance();
+	Token scan_string();
+	void scan_escape();
+	Token scan_number(Bool leading_period);
 	Lexer(Array<Uint8>&& map)
 		: map_{move(map)}
 		, input_{map_.slice().cast<const char>()}

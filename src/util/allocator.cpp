@@ -136,7 +136,7 @@ Address TemporaryAllocator::alloc(Ulen new_len, Bool zero) {
 
 void TemporaryAllocator::free(Address addr, Ulen old_len) {
 	if (addr == 0) return;
-	for (auto node = head_; node; node = node->next_) {
+	for (auto node = tail_; node; node = node->prev_) {
 		if (node->arena_.owns(addr, old_len)) {
 			node->arena_.free(addr, old_len);
 			return;

@@ -29,12 +29,12 @@ struct Slab {
 	Bool save(Stream& stream) const;
 	Maybe<SlabRef> allocate();
 	void deallocate(SlabRef slab_ref);
-	constexpr Uint8* operator[](SlabRef slab_ref) {
+	THOR_FORCEINLINE constexpr Uint8* operator[](SlabRef slab_ref) {
 		const auto cache_idx = Uint32(slab_ref.index / capacity_);
 		const auto cache_ref = Uint32(slab_ref.index % capacity_);
 		return (*caches_[cache_idx])[PoolRef { cache_ref }];
 	}
-	constexpr const Uint8* operator[](SlabRef slab_ref) const {
+	THOR_FORCEINLINE constexpr const Uint8* operator[](SlabRef slab_ref) const {
 		const auto cache_idx = Uint32(slab_ref.index / capacity_);
 		const auto cache_ref = Uint32(slab_ref.index % capacity_);
 		return (*caches_[cache_idx])[PoolRef { cache_ref }];

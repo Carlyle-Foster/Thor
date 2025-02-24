@@ -124,29 +124,29 @@ struct Array {
 		capacity_ = 0;
 	}
 
-	constexpr T* data() { return data_; }
-	constexpr const T* data() const { return data_; }
+	THOR_FORCEINLINE constexpr T* data() { return data_; }
+	THOR_FORCEINLINE constexpr const T* data() const { return data_; }
 
-	constexpr T& last() { return data_[length_ - 1]; }
-	constexpr const T& last() const { return data_[length_ - 1]; }
+	THOR_FORCEINLINE constexpr T& last() { return data_[length_ - 1]; }
+	THOR_FORCEINLINE constexpr const T& last() const { return data_[length_ - 1]; }
 
-	[[nodiscard]] constexpr auto length() const { return length_; }
-	[[nodiscard]] constexpr auto capacity() const { return capacity_; }
-	[[nodiscard]] constexpr auto is_empty() const { return length_ == 0; }
-	[[nodiscard]] constexpr Allocator& allocator() { return allocator_; }
-	[[nodiscard]] constexpr Allocator& allocator() const { return allocator_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto length() const { return length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto capacity() const { return capacity_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_empty() const { return length_ == 0; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr Allocator& allocator() { return allocator_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr Allocator& allocator() const { return allocator_; }
 
-	[[nodiscard]] constexpr T& operator[](Ulen index) { return data_[index]; }
-	[[nodiscard]] constexpr const T& operator[](Ulen index) const { return data_[index]; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T& operator[](Ulen index) { return data_[index]; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T& operator[](Ulen index) const { return data_[index]; }
 
-	constexpr Slice<T> slice() { return { data_, length_ }; }
-	constexpr Slice<const T> slice() const { return { data_, length_ }; }
+	THOR_FORCEINLINE constexpr Slice<T> slice() { return { data_, length_ }; }
+	THOR_FORCEINLINE constexpr Slice<const T> slice() const { return { data_, length_ }; }
 
 	// Just enough to make range based for loops work
-	[[nodiscard]] constexpr T* begin() { return data_; }
-	[[nodiscard]] constexpr const T* begin() const { return data_; }
-	[[nodiscard]] constexpr T* end() { return data_ + length_; }
-	[[nodiscard]] constexpr const T* end() const { return data_ + length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* begin() { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* begin() const { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* end() { return data_ + length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* end() const { return data_ + length_; }
 private:
 	void destruct() {
 		for (Ulen i = length_ - 1; i < length_; i--) {

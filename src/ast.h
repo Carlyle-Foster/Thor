@@ -54,8 +54,8 @@ struct AstRefArray {
 		: id_{id}
 	{
 	}
-	[[nodiscard]] constexpr auto is_empty() const { return id_.is_empty(); }
-	[[nodiscard]] constexpr auto length() const { return id_.length(); }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_empty() const { return id_.is_empty(); }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto length() const { return id_.length(); }
 private:
 	friend struct AstFile;
 	AstIDArray id_;
@@ -65,7 +65,7 @@ struct AstSlabID {
 	// Only 6-bit slab index (2^6 = 64)
 	static inline constexpr const auto MAX = 64_u32;
 	template<typename T>
-	static Uint32 id(System& sys) {
+	static Uint32 id([[maybe_unused]] System& sys) {
 		static const Uint32 id = s_id++;
 		// We've run out of IDs for slabs. This indicates that there are too many
 		// distinct types and they will need to be consolidated. The scheme used by
@@ -78,8 +78,8 @@ private:
 };
 
 struct AstNode {
-	// Only 10-bit node index (2^10 = 2048)
-	static inline constexpr const auto MAX = 1024_u32;
+	// Only 12-bit node index (2^12 = 2048)
+	static inline constexpr const auto MAX = 4096_u32;
 	constexpr AstNode(Uint32 offset)
 		: offset{offset}
 	{
@@ -88,18 +88,18 @@ struct AstNode {
 };
 
 struct AstID {
-	// Only 16-bit pool index (2^16 = 65536)
-	static inline constexpr const auto MAX = 65536_u32;
-	constexpr AstID() = default;
-	constexpr AstID(Unit) : AstID{} {}
-	constexpr AstID(Uint32 value)
+	// Only 14-bit pool index (2^14 = 16384)
+	static inline constexpr const auto MAX = 16384_u32;
+	THOR_FORCEINLINE constexpr AstID() = default;
+	THOR_FORCEINLINE constexpr AstID(Unit) : AstID{} {}
+	THOR_FORCEINLINE constexpr AstID(Uint32 value)
 		: value_{value}
 	{
 	}
-	[[nodiscard]] constexpr Bool is_valid() const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr Bool is_valid() const {
 		return value_ != ~0_u32;
 	}
-	[[nodiscard]] constexpr operator Bool() const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr operator Bool() const {
 		return is_valid();
 	}
 private:
@@ -112,20 +112,20 @@ static_assert(sizeof(AstID) == 4);
 
 template<typename T>
 struct AstRef {
-	constexpr AstRef() = default;
-	constexpr AstRef(Unit) : AstRef{} {}
-	constexpr AstRef(AstID id)
+	THOR_FORCEINLINE constexpr AstRef() = default;
+	THOR_FORCEINLINE constexpr AstRef(Unit) : AstRef{} {}
+	THOR_FORCEINLINE constexpr AstRef(AstID id)
 		: id_{id}
 	{
 	}
-	[[nodiscard]] constexpr auto is_valid() const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_valid() const {
 		return id_.is_valid();
 	}
-	[[nodiscard]] constexpr operator Bool() const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr operator Bool() const {
 		return is_valid();
 	}
 	template<typename U>
-	[[nodiscard]] constexpr operator AstRef<U>() const
+	[[nodiscard]] THOR_FORCEINLINE constexpr operator AstRef<U>() const
 		requires DerivedFrom<T, U>
 	{
 		return AstRef<U>{id_};
@@ -534,17 +534,17 @@ struct AstSelectorExpr : AstExpr {
 // The latter form is encoded with arrow = true.
 struct AstAccessExpr : AstExpr {
 	static constexpr const auto KIND = Kind::ACCESS;
-	constexpr AstAccessExpr(Uint32 offset, AstRef<AstExpr> operand, AstStringRef field, Bool arrow)
+	constexpr AstAccessExpr(Uint32 offset, AstRef<AstExpr> operand, AstStringRef field, Bool is_arrow)
 		: AstExpr{offset, KIND}
 		, operand{operand}
 		, field{field}
-		, arrow{arrow}
+		, is_arrow{is_arrow}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	AstRef<AstExpr> operand;
 	AstStringRef    field;
-	Bool            arrow;
+	Bool            is_arrow;
 };
 
 // Represents a type assertion, e.g:
@@ -1181,14 +1181,14 @@ struct AstFile {
 
 	// Lookup an Ast node by AstRef
 	template<typename T>
-	constexpr const T& operator[](AstRef<T> ref) const {
+	THOR_FORCEINLINE constexpr const T& operator[](AstRef<T> ref) const {
 		const auto slab_idx = ref.id_.value_ / MAX;
 		const auto slab_ref = ref.id_.value_ % MAX;
 		return *reinterpret_cast<const T*>((*slabs_[slab_idx])[SlabRef { slab_ref }]);
 	}
 
 	// Lookup a StringView by AstStringRef
-	[[nodiscard]] constexpr StringView operator[](AstStringRef ref) const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr StringView operator[](AstStringRef ref) const {
 		return string_table_[ref];
 	}
 	// Lookup a Slice<AstRef<T>> by AstRefArray
@@ -1200,17 +1200,17 @@ struct AstFile {
 		           .template cast<const AstRef<T>>();
 	}
 
-	[[nodiscard]] AstStringRef insert(StringView view) {
+	[[nodiscard]] THOR_FORCEINLINE AstStringRef insert(StringView view) {
 		return string_table_.insert(view);
 	}
 
 	template<typename T>
-	[[nodiscard]] AstRefArray<T> insert(Array<AstRef<T>>&& refs) {
+	[[nodiscard]] THOR_FORCEINLINE AstRefArray<T> insert(Array<AstRef<T>>&& refs) {
 		const auto ids = refs.slice().template cast<const AstID>();
 		return insert(ids);
 	}
 
-	[[nodiscard]] const StringTable& string_table() const {
+	[[nodiscard]] THOR_FORCEINLINE const StringTable& string_table() const {
 		return string_table_;
 	}
 

@@ -149,6 +149,7 @@ void AstExprStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 	builder.rep(nest * 2, ' ');
 	ast[expr].dump(ast, builder);
 	builder.put(';');
+	builder.put('\n');
 }
 
 void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -590,7 +591,11 @@ void AstSelectorExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 
 void AstAccessExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	ast[operand].dump(ast, builder);
-	builder.put('.');
+	if (is_arrow) {
+		builder.put("->");
+	} else {
+		builder.put('.');
+	}
 	builder.put(ast[field]);
 }
 

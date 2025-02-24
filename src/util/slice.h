@@ -41,8 +41,8 @@ struct Slice {
 	{
 	}
 
-	[[nodiscard]] constexpr T& operator[](Ulen index) { return data_[index]; }
-	[[nodiscard]] constexpr const T& operator[](Ulen index) const { return data_[index]; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T& operator[](Ulen index) { return data_[index]; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T& operator[](Ulen index) const { return data_[index]; }
 
 	constexpr Slice slice(Ulen offset) const {
 		return Slice{data_ + offset, length_ - offset};
@@ -52,25 +52,25 @@ struct Slice {
 	}
 
 	// Just enough to make range based for loops work
-	[[nodiscard]] constexpr T* begin() { return data_; }
-	[[nodiscard]] constexpr const T* begin() const { return data_; }
-	[[nodiscard]] constexpr T* end() { return data_ + length_; }
-	[[nodiscard]] constexpr const T* end() const { return data_ + length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* begin() { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* begin() const { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* end() { return data_ + length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* end() const { return data_ + length_; }
 
-	[[nodiscard]] constexpr auto length() const { return length_; }
-	[[nodiscard]] constexpr auto is_empty() const { return length_ == 0; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto length() const { return length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_empty() const { return length_ == 0; }
 
-	[[nodiscard]] constexpr T* data() { return data_; }
-	[[nodiscard]] constexpr const T* data() const { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* data() { return data_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* data() const { return data_; }
 
 	template<typename U>
-	Slice<U> cast() {
+	THOR_FORCEINLINE Slice<U> cast() {
 		const auto ptr = reinterpret_cast<U*>(data_);
 		return Slice<U> { ptr, (length_ * sizeof(T)) / sizeof(U) };
 	}
 
 	template<typename U>
-	Slice<const U> cast() const {
+	THOR_FORCEINLINE Slice<const U> cast() const {
 		const auto ptr = reinterpret_cast<const U*>(data_);
 		return Slice<const U> { ptr, (length_ * sizeof(T)) / sizeof(U) };
 	}

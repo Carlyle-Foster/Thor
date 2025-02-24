@@ -1,9 +1,10 @@
 # Options you can call this Makefile with
-DEBUG  ?= 0 # Debug builds
-LTO    ?= 0 # Link-time optimization
-ASAN   ?= 0 # Address sanitizer
-TSAN   ?= 0 # Thread sanitizer
-UBSAN  ?= 0 # Undefined behavior sanitizer
+DEBUG   ?= 0 # Debug builds
+LTO     ?= 0 # Link-time optimization
+ASAN    ?= 0 # Address sanitizer
+TSAN    ?= 0 # Thread sanitizer
+UBSAN   ?= 0 # Undefined behavior sanitizer
+PROFILE ?= 0 # Profile build
 
 # Disable all built-in rules and variables
 MAKEFLAGS += --no-builtin-rules
@@ -33,6 +34,9 @@ endif
 # Determine the type of build we're building
 ifeq ($(DEBUG),1)
 	TYPE  := debug
+	STRIP := true
+else ifeq ($(PROFILE),1)
+	TYPE  := profile
 	STRIP := true
 else
 	TYPE  := release
@@ -82,6 +86,15 @@ ifeq ($(DEBUG),1)
 	CXXFLAGS += -g
 	CXXFLAGS += -O0
 	CXXFLAGS += -fno-omit-frame-pointer
+else ifeq ($(PROFILE),1)
+	# Options for profile builds
+	CXXFLAGS += -pg
+	CXXFLAGS += -no-pie
+
+	CXXFLAGS += -O2
+	CXXFLAGS += -fno-inline-functions
+	CXXFLAGS += -fno-inline-functions-called-once
+	CXXFLAGS += -fno-optimize-sibling-calls
 else
 	# Options for release builds
 	CXXFLAGS += -DNDEBUG
@@ -111,6 +124,9 @@ ifneq ($(UNAME),Darwin)
 endif
 ifeq ($(LTO),1)
 	LDFLAGS += -flto
+endif
+ifeq ($(PROFILE),1)
+	LDFLAGS += -pg
 endif
 # Sanitizer selection
 ifeq ($(ASAN),1)

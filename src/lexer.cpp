@@ -267,11 +267,8 @@ Token Lexer::advance() {
 		return advance();
 	case '\\':
 		eat();
-		// eat();
 		asi_ = false;
 		return next(); // Recurse
-		// TODO
-		// if next.line == position_.line we're missing a newline after '\'
 	case '@': eat(); return { TokenKind::ATTRIBUTE,    beg, 1_u16 };
 	case '#': eat(); return { TokenKind::DIRECTIVE,    beg, 1_u16 };
 	case '$': eat(); return { TokenKind::CONST,        beg, 1_u16 };

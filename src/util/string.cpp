@@ -26,7 +26,7 @@ void StringBuilder::put(StringView view) {
 
 void StringBuilder::put(Float64 value) {
 	char buffer[DBL_MANT_DIG + DBL_DECIMAL_DIG * 2 + 1];
-	auto n = snprintf(buffer, sizeof buffer, "%f", value);
+	auto n = snprintf(buffer, sizeof buffer, "%g", value);
 	if (n <= 0) {
 		error_ = true;
 		return;

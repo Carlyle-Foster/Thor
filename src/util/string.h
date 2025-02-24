@@ -16,16 +16,16 @@ struct StringBuilder {
 	}
 	void put(char ch);
 	void put(StringView view);
-	void put(Float32 v) { put(Float64(v)); }
+	THOR_FORCEINLINE void put(Float32 v) { put(Float64(v)); }
 	void put(Float64 v);
-	void put(Uint8 v) { put(Uint16(v)); }
-	void put(Uint16 v) { put(Uint32(v)); }
-	void put(Uint32 v) { put(Uint64(v)); }
+	THOR_FORCEINLINE void put(Uint8 v) { put(Uint16(v)); }
+	THOR_FORCEINLINE void put(Uint16 v) { put(Uint32(v)); }
+	THOR_FORCEINLINE void put(Uint32 v) { put(Uint64(v)); }
 	void put(Uint64 v);
 	void put(Sint64 v);
-	void put(Sint32 v) { put(Sint64(v)); }
-	void put(Sint16 v) { put(Sint32(v)); }
-	void put(Sint8 v) { put(Sint16(v)); }
+	THOR_FORCEINLINE void put(Sint32 v) { put(Sint64(v)); }
+	THOR_FORCEINLINE void put(Sint16 v) { put(Sint32(v)); }
+	THOR_FORCEINLINE void put(Sint8 v) { put(Sint16(v)); }
 	void rep(Ulen n, char ch = ' ');
 	void lpad(Ulen n, char ch, char pad = ' ');
 	void lpad(Ulen n, StringView view, char pad = ' ');
@@ -47,10 +47,10 @@ struct StringRef {
 	}
 	Uint32 offset = 0;
 	Uint32 length = ~0_u32;
-	constexpr auto is_valid() const {
+	THOR_FORCEINLINE constexpr auto is_valid() const {
 		return length != ~0_u32;
 	}
-	constexpr operator Bool() const {
+	THOR_FORCEINLINE constexpr operator Bool() const {
 		return is_valid();
 	}
 };
@@ -79,11 +79,11 @@ struct StringTable {
 
 	[[nodiscard]] StringRef insert(StringView src);
 
-	constexpr StringView operator[](StringRef ref) const {
+	THOR_FORCEINLINE constexpr StringView operator[](StringRef ref) const {
 		return StringView { data_ + ref.offset, ref.length };
 	}
 
-	constexpr Allocator& allocator() {
+	THOR_FORCEINLINE constexpr Allocator& allocator() {
 		// We don't store a copy of the allocator since it's the same one used for
 		// both map_ and data_ and since map_ already stores the allocator we can
 		// just read it from there.

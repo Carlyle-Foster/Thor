@@ -6,7 +6,7 @@
 namespace Thor {
 
 template<typename T, typename U = T>
-constexpr T exchange(T& obj, U&& new_value) {
+THOR_FORCEINLINE constexpr T exchange(T& obj, U&& new_value) {
 	T old_value = move(obj);
 	obj = forward<U>(new_value);
 	return old_value;

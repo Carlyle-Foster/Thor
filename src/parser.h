@@ -78,8 +78,8 @@ struct Parser {
 	AttributeList parse_attributes();
 	DirectiveList parse_directives();
 
-	[[nodiscard]] constexpr AstFile& ast() { return ast_; }
-	[[nodiscard]] constexpr const AstFile& ast() const { return ast_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr AstFile& ast() { return ast_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const AstFile& ast() const { return ast_; }
 private:
 	AstRef<AstExpr> parse_unary_atom(AstRef<AstExpr> operand, Bool lhs);
 	AstRef<AstField> parse_field(Bool allow_assignment);
@@ -116,22 +116,22 @@ private:
 	Unit error(const char (&msg)[E], Ts&&... args) {
 		return error(token_.offset, msg, forward<Ts>(args)...);
 	}
-	constexpr Bool is_kind(TokenKind kind) const {
+	THOR_FORCEINLINE constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;
 	}
-	constexpr Bool is_semi() const {
+	THOR_FORCEINLINE constexpr Bool is_semi() const {
 		return is_kind(TokenKind::EXPLICITSEMI) || is_kind(TokenKind::IMPLICITSEMI);
 	}
-	constexpr Bool is_keyword(KeywordKind kind) const {
+	THOR_FORCEINLINE constexpr Bool is_keyword(KeywordKind kind) const {
 		return is_kind(TokenKind::KEYWORD) && token_.as_keyword == kind;
 	}
-	constexpr Bool is_operator(OperatorKind kind) const {
+	THOR_FORCEINLINE constexpr Bool is_operator(OperatorKind kind) const {
 		return is_kind(TokenKind::OPERATOR) && token_.as_operator == kind;
 	}
-	constexpr Bool is_literal(LiteralKind kind) const {
+	THOR_FORCEINLINE constexpr Bool is_literal(LiteralKind kind) const {
 		return is_kind(TokenKind::LITERAL) && token_.as_literal == kind;
 	}
-	constexpr Bool is_assignment(AssignKind kind) const {
+	THOR_FORCEINLINE constexpr Bool is_assignment(AssignKind kind) const {
 		return is_kind(TokenKind::ASSIGNMENT) && token_.as_assign == kind;
 	}
 

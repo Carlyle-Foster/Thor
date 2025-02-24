@@ -37,14 +37,14 @@ struct Maybe {
 	constexpr Maybe& operator=(Maybe&& value) {
 		return *new(drop(), Nat{}) Maybe{move(value)};
 	}
-	[[nodiscard]] constexpr auto is_valid() const { return valid_; }
-	[[nodiscard]] constexpr operator Bool() const { return is_valid(); }
-	[[nodiscard]] constexpr T& value() { return as_value_; }
-	[[nodiscard]] constexpr const T& value() const { return as_value_; }
-	[[nodiscard]] constexpr T& operator*() { return as_value_; }
-	[[nodiscard]] constexpr const T& operator*() const { return as_value_; }
-	[[nodiscard]] constexpr T* operator->() { return &as_value_; }
-	[[nodiscard]] constexpr const T* operator->() const { return &as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_valid() const { return valid_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr operator Bool() const { return is_valid(); }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T& value() { return as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T& value() const { return as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T& operator*() { return as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T& operator*() const { return as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr T* operator->() { return &as_value_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr const T* operator->() const { return &as_value_; }
 	~Maybe() { drop(); }
 	void reset() {
 		drop();

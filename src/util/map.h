@@ -33,8 +33,8 @@ struct Map {
 		hs_ = nullptr;
 	}
 	~Map() { drop(); }
-	[[nodiscard]] constexpr auto length() const { return length_; }
-	[[nodiscard]] constexpr auto capacity() const { return capacity_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto length() const { return length_; }
+	[[nodiscard]] THOR_FORCEINLINE constexpr auto capacity() const { return capacity_; }
 	struct Tuple {
 		const K& k;
 		V&       v;
@@ -65,7 +65,7 @@ struct Map {
 		length_++;
 		return true;
 	}
-	[[nodiscard]] constexpr Allocator& allocator() const {
+	[[nodiscard]] THOR_FORCEINLINE constexpr Allocator& allocator() const {
 		return allocator_;
 	}
 	struct Iterator {
@@ -75,22 +75,22 @@ struct Map {
 		{
 			while (n_ < map_.capacity_ && map_.hs_[n_] == 0) n_++;
 		}
-		constexpr Tuple operator*() {
+		THOR_FORCEINLINE constexpr Tuple operator*() {
 			return { map_.ks_[n_], map_.vs_[n_] };
 		}
 		constexpr Iterator& operator++() {
 			do ++n_; while (n_ < map_.capacity_ && map_.hs_[n_] == 0);
 			return *this;
 		}
-		[[nodiscard]] friend Bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ == rhs.n_; }
-		[[nodiscard]] friend Bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ != rhs.n_; }
+		[[nodiscard]] THOR_FORCEINLINE friend Bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ == rhs.n_; }
+		[[nodiscard]] THOR_FORCEINLINE friend Bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.n_ != rhs.n_; }
 	private:
 		Map& map_;
 		Ulen n_;
 	};
 
-	constexpr Iterator begin() { return Iterator{*this, 0}; }
-	constexpr Iterator end() { return Iterator{*this, capacity_}; }
+	THOR_FORCEINLINE constexpr Iterator begin() { return Iterator{*this, 0}; }
+	THOR_FORCEINLINE constexpr Iterator end() { return Iterator{*this, capacity_}; }
 
 private:
 	friend struct Iterator;

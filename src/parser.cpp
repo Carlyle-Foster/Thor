@@ -29,9 +29,10 @@ struct Debug {
 	static inline int s_depth = 0;
 };
 
+#define TRACE()
+
 // #define TRACE()
-#define TRACE() \
-	auto debug_ ## __LINE__ = Debug{sys_, __func__, __FILE__, __LINE__}
+// 	auto debug_ ## __LINE__ = Debug{sys_, __func__, __FILE__, __LINE__}
 
 Uint32 Parser::eat() {
 	Uint32 offset = 0;
@@ -1030,7 +1031,7 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 				operand = ast_.create<AstIndexExpr>(ast_[operand].offset, operand, lhs, rhs);
 			}
 		} else if (is_operator(OperatorKind::POINTER)) {
-			return parse_deref_expr(operand);
+			operand = parse_deref_expr(operand);
 		} else if (is_operator(OperatorKind::OR_RETURN)) {
 			return parse_or_return_expr(operand);
 		} else if (is_operator(OperatorKind::OR_BREAK)) {
@@ -1458,6 +1459,7 @@ AstRef<AstMatrixType> Parser::parse_matrix_type() {
 
 // BitsetType := 'bit_set' '[' Expr (';' Type)? ']'
 AstRef<AstBitsetType> Parser::parse_bitset_type() {
+	// *(volatile int *)0 = 0;
 	if (!is_keyword(KeywordKind::BITSET)) {
 		return error("Expected 'bitset'");
 	}
@@ -1478,6 +1480,10 @@ AstRef<AstBitsetType> Parser::parse_bitset_type() {
 			return {};
 		}
 	}
+	if (!is_operator(OperatorKind::RBRACKET)) {
+		return error("Expected ']' to terminate 'bitset'");
+	}
+	eat(); // Eat ']'
 	return ast_.create<AstBitsetType>(offset, expr, type);
 }
 

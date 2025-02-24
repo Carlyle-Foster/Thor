@@ -25,4 +25,10 @@
 	#error Unsupported platform
 #endif
 
+#if defined(THOR_COMPILER_CLANG) || defined(THOR_COMPILER_GCC)
+	#define THOR_FORCEINLINE __attribute__((__always_inline__)) inline
+#elif defined(THOR_COMPILER_MSVC)
+	#define THOR_FORCEINLINE __forceinline
+#endif
+
 #endif // THOR_INFO_H

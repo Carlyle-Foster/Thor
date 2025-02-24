@@ -13,18 +13,18 @@ struct PoolHeader {
 	Uint64 capacity;
 };
 // Following the header:
-// 	Uint32 used[PoolHeader::capacity / 32]
+// 	Uint32 used[PoolHeader::capacity / BITS]
 // 	Uint8  data[PoolHeader::size * PoolHeader::capacity]
 static_assert(sizeof(PoolHeader) == 32);
 
 Maybe<Pool> Pool::create(Allocator& allocator, Ulen size, Ulen capacity) {
-	// Ensure capacity is a multiple of 32
-	capacity = ((capacity + 31) / 32) * 32;
+	// Ensure capacity is a multiple of BITS
+	capacity = ((capacity + (BITS - 1)) / BITS) * BITS;
 	auto data = allocator.allocate<Uint8>(size * capacity, true);
 	if (!data) {
 		return {};
 	}
-	auto used = allocator.allocate<Uint32>(capacity / 32, true);
+	auto used = allocator.allocate<Word>(capacity / BITS, true);
 	if (!used) {
 		allocator.deallocate(data, size * capacity);
 		return {};
@@ -50,9 +50,9 @@ Maybe<Pool> Pool::load(Allocator& allocator, Stream& stream) {
 	if (header.version != 1) {
 		return {};
 	}
-	const auto n_words = header.capacity / 32;
+	const auto n_words = header.capacity / BITS;
 	const auto n_bytes = header.size * header.capacity;
-	auto used = allocator.allocate<Uint32>(n_words, false);
+	auto used = allocator.allocate<Word>(n_words, false);
 	auto data = allocator.allocate<Uint8>(n_bytes, false);
 	if (!used || !data) {
 		allocator.deallocate(used, n_words);
@@ -85,7 +85,7 @@ Bool Pool::save(Stream& stream) const {
 		.capacity = Uint64(capacity_),
 	};
 	return stream.write(Slice{&header, 1}.cast<const Uint8>())
-	    && stream.write(Slice{used_, capacity_ / 32}.cast<const Uint8>())
+	    && stream.write(Slice{used_, capacity_ / BITS}.cast<const Uint8>())
 	    && stream.write(Slice{data_, size_ * capacity_}.cast<const Uint8>());
 }
 
@@ -96,29 +96,51 @@ Pool::Pool(Pool&& other)
 	, capacity_{exchange(other.capacity_, 0)}
 	, data_{exchange(other.data_, nullptr)}
 	, used_{exchange(other.used_, nullptr)}
+	, last_{exchange(other.last_, 0)}
 {
 }
 
+#if defined(THOR_COMPILER_MSVC)
+	// Count the number of trailing zero bits in [value] which is the same as
+	// giving the index to the first non-zero bit.
+	static inline Uint32 count_trailing_zeros(Uint64 value) {
+		DWORD trailing_zero = 0;
+		if (_BitScanForward(&trailing_zero, value)) {
+			return trailing_zero;
+		}
+		return 64;
+	}
+#else
+	static inline Uint32 count_trailing_zeros(Uint64 value) {
+		return __builtin_ctzll(value);
+	}
+#endif
+
 Maybe<PoolRef> Pool::allocate() {
-	const auto n_words = Uint32(capacity_ / 32);
-	for (Uint32 w_index = 0; w_index < n_words; w_index++) {
-		for (Uint32 b_index = 0; b_index < 32; b_index++) {
-			const auto mask = 1_u32 << b_index;
-			if ((used_[w_index] & mask) == 0) {
-				// Mark as used and return index to it.
-				used_[w_index] |= mask;
-				length_++;
-				return PoolRef { w_index * 32 + b_index };
-			}
+	const auto n_words = Uint32(capacity_ / BITS);
+	const auto w_index = last_;
+	if (auto scan = ~used_[w_index]) {
+		auto b_index = count_trailing_zeros(scan);
+		used_[w_index] |= Word(1) << b_index;
+		length_++;
+		return PoolRef { w_index * BITS + b_index };
+	}
+	for (Uint32 w_index = n_words - 1; w_index < n_words; w_index--) {
+		if (auto scan = ~used_[w_index]) {
+			auto b_index = count_trailing_zeros(scan);
+			used_[w_index] |= Word(1) << b_index;
+			length_++;
+			last_ = w_index;
+			return PoolRef { w_index * BITS + b_index };
 		}
 	}
 	return {}; // Out of memory.
 }
 
 void Pool::deallocate(PoolRef ref) {
-	const auto w_index = ref.index / 64;
-	const auto b_index = ref.index % 64;
-	used_[w_index] &= ~(1_u64 << b_index);
+	const auto w_index = ref.index / BITS;
+	const auto b_index = ref.index % BITS;
+	used_[w_index] &= ~(Word(1) << b_index);
 	length_--;
 }
 
