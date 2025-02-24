@@ -47,7 +47,7 @@ Maybe<Parser> Parser::open(System& sys, StringView filename) {
 		// Could not open filename
 		return {};
 	}
-	auto file = AstFile::create(sys.allocator, filename);
+	auto file = AstFile::create(sys, filename);
 	if (!file) {
 		// Could not create astfile
 		return {};

@@ -41,19 +41,27 @@ struct Console {
 	void (*write)(System& sys, StringView data);
 };
 
+struct Process {
+	// NOTE: assert should not return
+	void (*assert)(System& sys, StringView msg, StringView file, Sint32 line);
+};
+
 struct System {
 	constexpr System(const Filesystem& filesystem,
 	                 const Heap&       heap,
-	                 const Console&    console)
+	                 const Console&    console,
+	                 const Process&    process)
 		: filesystem{filesystem}
 		, heap{heap}
 		, console{console}
+		, process{process}
 		, allocator{*this}
 	{
 	}
 	const Filesystem& filesystem;
 	const Heap&       heap;
 	const Console&    console;
+	const Process&    process;
 	SystemAllocator   allocator;
 };
 

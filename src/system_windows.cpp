@@ -295,6 +295,30 @@ extern const Console STD_CONSOLE = {
 	.write = console_write,
 };
 
+static void process_assert(System& sys, StringView msg, StringView file, Sint32 line) {
+	InlineAllocator<4096> data;
+	StringBuilder builder{data};
+	builder.put(file);
+	builder.put(':');
+	builder.put(line);
+	builder.put(' ');
+	builder.put("Assertion failure");
+	builder.put(':');
+	builder.put(' ');
+	builder.put(msg);
+	builder.put('\n');
+	if (auto result = builder.result()) {
+		sys.console.write(sys, *result);
+	} else {
+		sys.console.write(sys, StringView { "Out of memory" });
+	}
+	ExitProcess(3);
+}
+
+extern const Process STD_PROCESS = {
+	assert = process_assert,
+};
+
 } // namespace Thor
 
 #endif // THOR_HOST_PLATFORM_WINDOWS

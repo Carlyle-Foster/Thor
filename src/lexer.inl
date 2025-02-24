@@ -33,8 +33,8 @@ KIND(ASSIGNMENT,   "assignment",  false)
 KIND(DIRECTIVE,    "directive",   false) // '#'
 KIND(ATTRIBUTE,    "attribute",   false) // '@'
 KIND(CONST,        "const",       false) // '$'
-KIND(EXPLICITSEMI, "semicolon",   false) // ';'
-KIND(IMPLICITSEMI, "semicolon",   false) // ';'
+KIND(EXPLICITSEMI, "semicolon",   false) // ';' (actually in the text)
+KIND(IMPLICITSEMI, "semicolon",   false) // ';' (inserted by the lexer)
 KIND(COMMA,        "comma",       false) // ','
 KIND(LBRACE,       "left brace",  false) // '{'
 KIND(RBRACE,       "right brace", true)  // '}'

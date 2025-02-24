@@ -9,6 +9,7 @@ namespace Thor {
 	extern const Filesystem STD_FILESYSTEM;
 	extern const Heap       STD_HEAP;
 	extern const Console    STD_CONSOLE;
+	extern const Process    STD_PROCESS;
 }
 
 using namespace Thor;
@@ -19,7 +20,8 @@ int main(int, char **) {
 	System sys {
 		STD_FILESYSTEM,
 		STD_HEAP,
-		STD_CONSOLE
+		STD_CONSOLE,
+		STD_PROCESS,
 	};
 
 	auto parser = Parser::open(sys, "test/ks.odin");

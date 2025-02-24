@@ -15,16 +15,16 @@ struct AstFileHeader {
 	Uint64 slabs;
 };
 
-Maybe<AstFile> AstFile::create(Allocator& allocator, StringView filename) {
-	StringTable table{allocator};
+Maybe<AstFile> AstFile::create(System& sys, StringView filename) {
+	StringTable table{sys.allocator};
 	auto ref = table.insert(filename);
 	if (!ref) {
 		return {};
 	}
-	return AstFile { move(table), ref, allocator };
+	return AstFile { sys, move(table), ref };
 }
 
-Maybe<AstFile> AstFile::load(Allocator& allocator, Stream& stream) {
+Maybe<AstFile> AstFile::load(System& sys, Stream& stream) {
 	AstFileHeader header;
 	if (!stream.read(Slice{&header, 1}.cast<Uint8>())) {
 		return {};
@@ -35,7 +35,7 @@ Maybe<AstFile> AstFile::load(Allocator& allocator, Stream& stream) {
 	if (header.version != 1) {
 		return {};
 	}
-	auto string_table = StringTable::load(allocator, stream);
+	auto string_table = StringTable::load(sys.allocator, stream);
 	if (!string_table) {
 		return {};
 	}
@@ -51,21 +51,22 @@ Maybe<AstFile> AstFile::load(Allocator& allocator, Stream& stream) {
 			n_slabs++;
 		}
 	}
-	Array<Maybe<Slab>> slabs{allocator};
+	Array<Maybe<Slab>> slabs{sys.allocator};
 	if (!slabs.resize(n_slabs)) {
 		return {};
 	}
 	for (Ulen i = 0; i < n_slabs; i++) {
 		if ((header.slabs & (1_u64 << Uint64(i))) != 0) {
-			if (!slabs[i]->load(allocator, stream)) {
+			if (!slabs[i]->load(sys.allocator, stream)) {
 				return {};
 			}
 		}
 	}
 	// Read in the IDs
-	Array<AstID> ids{allocator};
+	Array<AstID> ids{sys.allocator};
 	// Read the AstID list in.
 	return AstFile {
+		sys,
 		move(*string_table),
 		filename,
 		move(slabs),

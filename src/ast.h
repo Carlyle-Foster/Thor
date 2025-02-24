@@ -2,6 +2,9 @@
 #define THOR_AST_H
 #include "util/slab.h"
 #include "util/string.h"
+#include "util/assert.h"
+#include "util/system.h"
+
 #include "lexer.h"
 
 namespace Thor {
@@ -62,11 +65,12 @@ struct AstSlabID {
 	// Only 6-bit slab index (2^6 = 64)
 	static inline constexpr const auto MAX = 64_u32;
 	template<typename T>
-	static Uint32 id() {
+	static Uint32 id(System& sys) {
 		static const Uint32 id = s_id++;
-		if (id >= MAX) {
-			*(volatile int *)0 = 0;
-		}
+		// We've run out of IDs for slabs. This indicates that there are too many
+		// distinct types and they will need to be consolidated. The scheme used by
+		// this representation can only support up to [MAX] unique types.
+		THOR_ASSERT(sys, id <= MAX);
 		return id;
 	}
 private:
@@ -1108,8 +1112,8 @@ static_assert(!is_polymorphic<AstIfStmt>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstDeclStmt>, "Cannot be polymorphic");
 
 struct AstFile {
-	static Maybe<AstFile> create(Allocator& allocator, StringView filename);
-	static Maybe<AstFile> load(Allocator& allocator, Stream& stream);
+	static Maybe<AstFile> create(System& sys, StringView filename);
+	static Maybe<AstFile> load(System& sys, Stream& stream);
 
 	Bool save(Stream& stream) const;
 
@@ -1124,7 +1128,7 @@ struct AstFile {
 
 	template<typename T, typename... Ts>
 	AstRef<T> create(Ts&&... args) {
-		auto slab_idx = AstSlabID::id<T>();
+		auto slab_idx = AstSlabID::id<T>(sys_);
 		if (slab_idx >= slabs_.length() && !slabs_.resize(slab_idx + 1)) {
 			return {};
 		}
@@ -1177,16 +1181,18 @@ struct AstFile {
 private:
 	[[nodiscard]] AstIDArray insert(Slice<const AstID> ids);
 
-	AstFile(StringTable&& string_table, AstStringRef filename, Allocator& allocator)
-		: string_table_{move(string_table)}
+	AstFile(System& sys, StringTable&& string_table, AstStringRef filename)
+		: sys_{sys}
+		, string_table_{move(string_table)}
 		, filename_{filename}
-		, slabs_{allocator}
-		, ids_{allocator}
+		, slabs_{sys.allocator}
+		, ids_{sys.allocator}
 	{
 	}
 
-	AstFile(StringTable&& string_table, AstStringRef filename, Array<Maybe<Slab>>&& slabs, Array<AstID>&& ids)
-		: string_table_{move(string_table)}
+	AstFile(System& sys, StringTable&& string_table, AstStringRef filename, Array<Maybe<Slab>>&& slabs, Array<AstID>&& ids)
+		: sys_{sys}
+		, string_table_{move(string_table)}
 		, filename_{filename}
 		, slabs_{move(slabs)}
 		, ids_{move(ids)}
@@ -1209,6 +1215,7 @@ private:
 	//  * AstRefArray<T> is a typed AstIDArray which indexes [ids_] based on an
 	//    offset and length stored in the AstRefArray itself. The [ids_] array is
 	//    just an array of AstID, i.e Uint32.
+	System&            sys_;
 	StringTable        string_table_;
 	AstStringRef       filename_;
 	Array<Maybe<Slab>> slabs_;
