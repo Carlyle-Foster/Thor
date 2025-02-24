@@ -9,6 +9,7 @@
 #include <unistd.h> // open, close, pread, pwrite
 #include <fcntl.h> // O_CLOEXEC, O_RDONLY, O_WRONLY
 #include <dirent.h> // opendir, readdir, closedir
+#include <string.h> // strlen
 
 #include "util/system.h"
 

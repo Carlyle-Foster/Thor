@@ -1,5 +1,5 @@
 #include <string.h> // TODO(dweiler): remove
-#include <stdlib.h> // TODO(dweiler): remove
+#include <stdio.h>  // TODO(dweiler): remove
 #include <float.h>
 
 #include "util/string.h"
@@ -22,16 +22,6 @@ void StringBuilder::put(StringView view) {
 	for (Ulen i = 0; i < len; i++) {
 		build_[offset + i] = view[i];
 	}
-}
-
-void StringBuilder::put(Float32 value) {
-	char buffer[FLT_MANT_DIG + FLT_DECIMAL_DIG * 2 + 1];
-	auto n = snprintf(buffer, sizeof buffer, "%f", value);
-	if (n <= 0) {
-		error_ = true;
-		return;
-	}
-	put(StringView { buffer, Ulen(n) });
 }
 
 void StringBuilder::put(Float64 value) {

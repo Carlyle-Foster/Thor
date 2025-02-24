@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h> // memcpy
 
 #include "parser.h"
 #include "ast.h"
@@ -103,79 +104,6 @@ AstRef<AstExpr> Parser::parse_paren_expr() {
 	return expr;
 }
 
-/*
-// Decl := Ident (',' Ident)* ':' Type (('=' | ':') Expr (',' Expr)*)? (',')?
-//      |= Type (',' Type)* (',')?
-AstRef<AstDecl> Parser::parse_decl() {
-	if (!is_kind(TokenKind::IDENTIFIER)) {
-		return error("Expected identifier");
-	}
-	Array<AstRef<AstType>> types{temporary_};
-	while (is_kind(TokenKind::IDENTIFIER) && !is_kind(TokenKind::ENDOF)) {
-		auto type = parse_type();
-		if (!type) {
-			return {};
-		}
-		if (!types.push_back(type)) {
-			return {};
-		}
-		if (is_kind(TokenKind::COMMA)) {
-			eat(); // Eat ','
-		} else {
-			break;
-		}
-	}
-	Array<AstStringRef> names{temporary_};
-	if (is_kind(TokenKind::COLON)) {
-		// The types are actually identifiers. Ensure they are all AstNamedType and
-		// convert them to names.
-		for (auto type_ref : types) {
-			auto& type = ast_[type_ref];
-			if (auto named = type.to_type<AstNamedType>()) {
-				if (!names.push_back(named.name)) {
-					return {};
-				}
-			} else {
-				return error("Unexpected type");
-			}
-		}
-		types.clear();
-		eat(); // Eat ':'
-	}
-	AstRef<AstType> type;
-	if (!is_kind(TokenKind::COLON) && !is_assignment(AssignKind::EQ)) {
-		type = parse_type();
-		if (!type) {
-			return {};
-		}
-	}
-	Bool immutable = false;
-	Bool values = false;
-	if (is_kind(TokenKind::COLON)) {
-		eat(); // Eat ':'
-		immutable = true;
-		values = true;
-	} else if (is_assignment(AssignKind::EQ)) {
-		eat(); // Eat '='
-		immutable = false;
-		values = true;
-	}
-	Array<AstRef<AstExpr>> exprs{temporary_};
-	if (values) do {
-		if (is_kind(TokenKind::SEMICOLON)) {
-			break;
-		}
-		auto expr = parse_expr();
-		if (!expr) {
-			return {};
-		}
-		if (!exprs.push_back(expr)) {
-			return {};
-		}
-	} while (is_kind(TokenKind::COMMA) && !is_kind(TokenKind::ENDOF));
-}
-*/
-
 // Stmt := EmptyStmt ';'
 //       | BlockStmt ';'
 //       | PackageStmt ';'
@@ -192,6 +120,7 @@ AstRef<AstDecl> Parser::parse_decl() {
 //       | SwitchStmt ';'
 //       | UsingStmt ';'
 //       | DeclStmt ';'
+//       | AssignStmt ';'
 AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
                                    DirectiveList&& directives,
                                    AttributeList&& attributes)
@@ -305,7 +234,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			decl = DeclKind::MUTABLE;
 		}
 
-		if (!is_operator(OperatorKind::COLON) && !is_assignment(AssignKind::EQ)) {
+		if (!is_operator(OperatorKind::COLON) && !is_kind(TokenKind::ASSIGNMENT)) {
 			type = parse_type();
 			if (!type) {
 				return {};
@@ -317,7 +246,11 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		if (is_operator(OperatorKind::COLON)) {
 			decl = DeclKind::IMMUTABLE;
 		}
-		if (decl == DeclKind::IMMUTABLE || is_assignment(AssignKind::EQ)) {
+		AssignKind assign = AssignKind::EQ;
+		if (is_kind(TokenKind::ASSIGNMENT)) {
+			assign = token_.as_assign;
+		}
+		if (decl == DeclKind::IMMUTABLE || is_kind(TokenKind::ASSIGNMENT)) {
 			eat(); // Eat ':' or '='
 			auto init = parse_expr(false);
 			if (!init || !rhs.push_back(init)) {
@@ -339,7 +272,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		}
 		const auto offset = ast_[expr].offset;
 		if (decl == DeclKind::NONE) {
-			stmt = ast_.create<AstAssignStmt>(offset, lhs_refs, rhs_refs, AssignKind::EQ);
+			stmt = ast_.create<AstAssignStmt>(offset, lhs_refs, rhs_refs, assign);
 		} else {
 			AstRefArray<AstDirective> d_refs;
 			AstRefArray<AstAttribute> a_refs;

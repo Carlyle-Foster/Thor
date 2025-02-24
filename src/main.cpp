@@ -14,8 +14,6 @@ namespace Thor {
 
 using namespace Thor;
 
-#include <stdio.h>
-
 int main(int, char **) {
 	System sys {
 		STD_FILESYSTEM,

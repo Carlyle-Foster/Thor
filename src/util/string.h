@@ -4,9 +4,6 @@
 #include "util/maybe.h"
 #include "util/map.h"
 
-#include <string.h>
-#include <stdio.h>
-
 namespace Thor {
 
 using StringView = Slice<const char>;
@@ -19,7 +16,7 @@ struct StringBuilder {
 	}
 	void put(char ch);
 	void put(StringView view);
-	void put(Float32 v);
+	void put(Float32 v) { put(Float64(v)); }
 	void put(Float64 v);
 	void put(Uint8 v) { put(Uint16(v)); }
 	void put(Uint16 v) { put(Uint32(v)); }
