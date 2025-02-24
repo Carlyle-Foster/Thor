@@ -82,8 +82,6 @@ private:
 
 	AstRef<AstDirective> parse_directive();
 
-	Bool skip_possible_newline_for_literal();
-
 	Parser(System& sys, Lexer&& lexer, AstFile&& ast);
 
 	template<Ulen E, typename... Ts>
