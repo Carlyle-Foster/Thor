@@ -3,6 +3,7 @@
 
 #include "parser.h"
 #include "ast.h"
+#include "lexer.h"
 #include "util/allocator.h"
 
 namespace Thor {
@@ -209,6 +210,10 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 		}
 
+		// NOTE(Oliver): This ambiguity sucks :(
+		if(!allow_in_expr_ && !is_kind(TokenKind::COMMA) && !is_kind(TokenKind::ASSIGNMENT) && !is_operator(OperatorKind::COLON)) {
+			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
+		}
 
 		Array<AstRef<AstExpr>> lhs{temporary_};
 		Array<AstRef<AstExpr>> rhs{temporary_};
@@ -604,8 +609,11 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 
 	allow_in_expr_ = false;
 	auto first_stmt = parse_stmt(false, {}, {});
+	if(!first_stmt) {
+		return {};
+	}
 
-	if(auto stmt = ast_[first_stmt].to_stmt<AstExprStmt>()) {
+	if(ast_[first_stmt].is_stmt<AstExprStmt>()) {
 		if(!stmts.push_back(first_stmt)) {
 			return {};
 		}
@@ -622,7 +630,11 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 		eat(); // Eat 'in'
 
 		cond = parse_expr(false);
-	} else if(ast_[first_stmt].to_stmt<AstDeclStmt>()) {
+	} else if(ast_[first_stmt].is_stmt<AstDeclStmt>()) {
+		if(!stmts.push_back(first_stmt)) {
+			return {};
+		}
+		allow_in_expr_ = true;
 		cond = parse_expr(false);
 		if(!is_kind(TokenKind::EXPLICITSEMI)) {
 			return error("Expected ';' after init satement in 'for' statement");
@@ -635,14 +647,16 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 		return error("Expected declaration or expression");
 	}
 
+	allow_in_expr_ = true;
+
 	AstRef<AstStmt> body = {};
 	if(is_keyword(KeywordKind::DO)) {
 		body = parse_stmt(false, {}, {});
 	} else if(is_kind(TokenKind::LBRACE)) {
 		body = parse_block_stmt();
+	} else {
+		error("Expected either 'do' or '{'");
 	}
-
-	allow_in_expr_ = true;
 
 	auto refs = ast_.insert(move(stmts));
 	return ast_.create<AstForStmt>(offset,

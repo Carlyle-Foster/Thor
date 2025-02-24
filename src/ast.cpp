@@ -342,6 +342,40 @@ void AstWhenStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 }
 
 void AstForStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
+	builder.rep(nest * 2, ' ');
+	builder.put("for");
+	builder.put(' ');
+	Bool first = true;
+	for (auto value : ast[init]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[value].dump(ast, builder, nest);
+		first = false;
+	}
+
+	if(ast[ast[init][0]].is_stmt<AstExprStmt>()) {
+		builder.put(' ');
+		builder.put("in");
+		builder.put(' ');
+	} else if(ast[ast[init][0]].is_stmt<AstDeclStmt>()) {
+		builder.put(';');
+		builder.put(' ');
+	}
+
+	if(cond) {
+		ast[cond].dump(ast, builder);
+		builder.put(';');
+		builder.put(' ');
+	}
+
+	if(post) {
+		ast[post].dump(ast, builder, nest);
+	}
+
+	builder.put(' ');
+	ast[body].dump(ast, builder, nest);
 }
 
 void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
