@@ -1,4 +1,5 @@
 #include "src/util/allocator.cpp"
+#include "src/util/assert.cpp"
 #include "src/util/cpprt.cpp"
 #include "src/util/file.cpp"
 #include "src/util/pool.cpp"
