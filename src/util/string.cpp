@@ -89,6 +89,11 @@ void StringBuilder::rpad(Ulen n, StringView view, char pad) {
 	if (n >= l) rep(n - l, pad);
 }
 
+void StringBuilder::reset() {
+	build_.reset();
+	error_ = false;
+}
+
 Maybe<StringView> StringBuilder::result() const {
 	if (error_) {
 		return {};

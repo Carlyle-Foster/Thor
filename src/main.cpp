@@ -5,11 +5,14 @@
 
 #include "parser.h"
 
+#include "cg_llvm.h"
+
 namespace Thor {
 	extern const Filesystem STD_FILESYSTEM;
 	extern const Heap       STD_HEAP;
 	extern const Console    STD_CONSOLE;
 	extern const Process    STD_PROCESS;
+	extern const Linker     STD_LINKER;
 }
 
 using namespace Thor;
@@ -20,6 +23,7 @@ int main(int, char **) {
 		STD_HEAP,
 		STD_CONSOLE,
 		STD_PROCESS,
+		STD_LINKER,
 	};
 
 	auto parser = Parser::open(sys, "test/ks.odin");
@@ -43,6 +47,8 @@ int main(int, char **) {
 	for (auto stmt : stmts) {
 		ast[stmt].dump(ast, builder, 0);
 	}
+
+	auto llvm = LLVM::load(sys, "libLLVM-19");
 
 	/*
 	Array<AstRef<AstExpr>> exprs{sys.allocator};

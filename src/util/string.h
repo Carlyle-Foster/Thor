@@ -31,6 +31,7 @@ struct StringBuilder {
 	void lpad(Ulen n, StringView view, char pad = ' ');
 	void rpad(Ulen n, char ch, char pad = ' ');
 	void rpad(Ulen n, StringView view, char pad = ' ');
+	void reset();
 	Maybe<StringView> result() const;
 private:
 	Array<char> build_;

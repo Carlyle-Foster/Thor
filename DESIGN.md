@@ -1,16 +1,16 @@
 # Thor (A new compiler for Odin)
 ## Goals
-* 4 GiB/s of compile speed
+* 4 GiB/s of compile speed [ONTARGET] (we are already 6 GiB/s /w 32 threads)
   * Including linking time!
 * Deterministic builds
   * Same input produces the same executable
     * Same MD5SUM / SHA1 hashes
 * Incremental builds (rebuild what has changed)
-  * Serialized AST 
+  * Serialized AST [DONE]
     * Slab -> Cache -> Ref
   * Serialized IR
     * Slab -> Cache -> Ref
-* Data oriented
+* Data oriented [DONE]
   * No pointers, just indices and parallel arrays for the AST/IR
 * Fast builds
   * Fully threaded and out-of-order
@@ -27,10 +27,10 @@
   * Said said he would help with this.
 * Smaller executables
   * Static type information (no initialization needed @ runtime)
-* Smaller compiler codebase
+* Smaller compiler codebase [ONTARGET]
   * Heavy code reuse and abstractions
     * deducing-this, concepts, etc
-* Compiler can be incrementally rebuilt and built fast
+* Compiler can be incrementally rebuilt and built fast [DONE]
   * Optional unity builds (every source file included in a `unity.cpp`)
 * Only fast linker support.
   * Only radlink on Windows
@@ -40,21 +40,21 @@
 # Architecture
 * Modern C++23
   * No template metaprogramming nonsense
-    * Will only use templates for containers, deducing-this and varadic packs
+    * Will only use templates for containers and varadic packs
     * Will use concepts though
     * Will use lambdas though
-* Monadic (Maybe, Mutex, et al)
+* Monadic (Maybe, Mutex, et al) [ONTARGET]
   * Less error prone
-* Table driven
+* Table driven [DONE]
   * Lexer and parser
-* No implicit copies (all explicit)
+* No implicit copies (all explicit) [ONTARGET]
   * Every struct has copy assignment and copy constructor deleted at all times.
 * Extensive use of move semantics for containers
 * Multiple allocators
-  * Temporary
-  * Scratch
+  * Temporary [DONE]
+  * Scratch [DONE]
   * Permanent
-* No memory leaks (not even on exit)
+* No memory leaks (not even on exit) [ONTARGET]
 * No data races
 * Avoid the use of hash tables unless necessary
   * Flat arrays that are simply indexed, that is so much faster.

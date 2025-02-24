@@ -46,15 +46,24 @@ struct Process {
 	void (*assert)(System& sys, StringView msg, StringView file, Sint32 line);
 };
 
+struct Linker {
+	struct Library;
+	Library* (*load)(System& sys, StringView name);
+	void (*close)(System& sys, Library* library);
+	void (*(*link)(System& sys, Library* library, const char* symbol))(void);
+};
+
 struct System {
 	constexpr System(const Filesystem& filesystem,
 	                 const Heap&       heap,
 	                 const Console&    console,
-	                 const Process&    process)
+	                 const Process&    process,
+	                 const Linker&     linker)
 		: filesystem{filesystem}
 		, heap{heap}
 		, console{console}
 		, process{process}
+		, linker{linker}
 		, allocator{*this}
 	{
 	}
@@ -62,6 +71,7 @@ struct System {
 	const Heap&       heap;
 	const Console&    console;
 	const Process&    process;
+	const Linker&     linker;
 	SystemAllocator   allocator;
 };
 

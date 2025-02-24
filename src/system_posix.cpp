@@ -10,6 +10,8 @@
 #include <fcntl.h> // O_CLOEXEC, O_RDONLY, O_WRONLY
 #include <dirent.h> // opendir, readdir, closedir
 #include <string.h> // strlen
+#include <dlfcn.h> // dlopen, dlclose, dlsym, RTLD_NOW
+#include <stdio.h> // printf
 
 #include "util/system.h"
 
@@ -181,6 +183,46 @@ static void process_assert(System& sys, StringView msg, StringView file, Sint32 
 
 extern const Process STD_PROCESS = {
 	.assert = process_assert,
+};
+
+static Linker::Library* linker_load(System&, StringView name) {
+	// Search for the librart next to the executable first.
+	InlineAllocator<1024> buf;
+	StringBuilder path{buf};
+	path.put("./");
+	path.put(name);
+	path.put('.');
+	path.put("so");
+	path.put('\0');
+	auto result = path.result();
+	if (!result) {
+		return nullptr;
+	}
+	if (auto lib = dlopen(result->data(), RTLD_NOW)) {
+		return static_cast<Linker::Library*>(lib);
+	}
+	// Skip the "./" in result to try the system path now.
+	if (auto lib = dlopen(result->data() + 2, RTLD_NOW)) {
+		return static_cast<Linker::Library*>(lib);
+	}
+	return nullptr;
+}
+
+static void linker_close(System&, Linker::Library* lib) {
+	dlclose(static_cast<void*>(lib));
+}
+
+static void (*linker_link(System&, Linker::Library* lib, const char* sym))(void) {
+	if (auto addr = dlsym(static_cast<void*>(lib), sym)) {
+		return reinterpret_cast<void (*)(void)>(addr);
+	}
+	return nullptr;
+}
+
+extern const Linker STD_LINKER = {
+	.load  = linker_load,
+	.close = linker_close,
+	.link  = linker_link
 };
 
 } // namespace Thor

@@ -319,6 +319,40 @@ extern const Process STD_PROCESS = {
 	assert = process_assert,
 };
 
+static Linker::Library* linker_load(System&, StringView name) {
+	InlineAllocator<1024> buf;
+	StringBuilder path{buf};
+	path.put(name);
+	path.put('.');
+	path.put("dll");
+	path.put('\0');
+	auto result = path.result();
+	if (!result) {
+		return nullptr;
+	}
+	if (auto lib = LoadLibraryA(result->data())) {
+		return static_cast<Linker::Library*>(lib);
+	}
+	return nullptr;
+}
+
+static void linker_close(System&, Linker::Library* lib) {
+	FreeLibrary(static_cast<HMODULE>(lib));
+}
+
+static void (*linker_link(System&, Linker::Library* lib, const char* sym))(void) {
+	if (auto addr = GetProcAddress(static_cast<void*>(lib), sym)) {
+		return reinterpret_cast<void (*)(void)>(addr);
+	}
+	return nullptr;
+}
+
+extern const Linker STD_LINKER = {
+	.load  = linker_load,
+	.close = linker_close,
+	.link  = linker_link
+};
+
 } // namespace Thor
 
 #endif // THOR_HOST_PLATFORM_WINDOWS
