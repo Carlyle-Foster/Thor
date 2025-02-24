@@ -210,11 +210,6 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 		}
 
-		// NOTE(Oliver): This ambiguity sucks :(
-		if(!allow_in_expr_ && !is_kind(TokenKind::COMMA) && !is_kind(TokenKind::ASSIGNMENT) && !is_operator(OperatorKind::COLON)) {
-			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
-		}
-
 		Array<AstRef<AstExpr>> lhs{temporary_};
 		Array<AstRef<AstExpr>> rhs{temporary_};
 		AstRef<AstType> type; // Optional type
