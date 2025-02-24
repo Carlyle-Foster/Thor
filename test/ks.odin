@@ -13,6 +13,8 @@ foo :: proc(b, c, a: int, d: f32) {
 }
 
 ks :: proc(items: []Item, w: int) -> []bool {
+	using fmt;
+
 	n  := len(items);
 	mm := make([]int, (n + 1) * (w + 1))
 	m  := make([][]int, (n + 1))
@@ -88,4 +90,6 @@ main :: proc() {
 	}
 	fmt.printf("%-22s % 5d % 5d\n", "totals:", tw, tv)
 	*/
+
+	// x, y: int;
 }

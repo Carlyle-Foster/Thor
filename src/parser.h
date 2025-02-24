@@ -15,6 +15,8 @@ struct Parser {
 
 	// Expression parsers
 	AstRef<AstExpr>       parse_expr(Bool lhs);
+	AstRef<AstExpr>       parse_value(Bool lhs);
+
 	AstRef<AstExpr>       parse_operand();
 	AstRef<AstExpr>       parse_bin_expr(Bool lhs, Uint32 prec);
 	AstRef<AstExpr>       parse_unary_expr(Bool lhs);
@@ -24,7 +26,9 @@ struct Parser {
 	AstRef<AstFloatExpr> parse_float_expr();
 	AstRef<AstStringExpr> parse_string_expr();
 	AstRef<AstImaginaryExpr> parse_imaginary_expr();
+	AstRef<AstCompoundExpr> parse_compound_expr();
 	AstRef<AstProcExpr> parse_proc_expr();
+	AstRef<AstExpr> parse_paren_expr();
 	AstRef<AstIdentExpr> parse_ident_expr();
 	AstRef<AstUndefExpr> parse_undef_expr();
 	AstRef<AstContextExpr> parse_context_expr();

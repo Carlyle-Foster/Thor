@@ -122,7 +122,7 @@ StringRef StringTable::insert(StringView src) {
 	}
 	if (auto find = map_.find(src)) {
 		// Duplicate string found, reuse it.
-		return StringRef { find->v };
+		return find->v;
 	}
 	if (length_ + src.length() >= capacity_ && !grow(src.length())) {
 		// Out of memory.

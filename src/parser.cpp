@@ -89,6 +89,20 @@ AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	return ast_.create<AstProcExpr>(ast_[type].offset, type, block);
 }
 
+AstRef<AstExpr> Parser::parse_paren_expr() {
+	TRACE();
+	eat(); // Eat '('
+	auto expr = parse_expr(false);
+	if (!expr) {
+		return {};
+	}
+	if (!is_operator(OperatorKind::RPAREN)) {
+		return error("Expected ')'");
+	}
+	eat(); // Eat ')'
+	return expr;
+}
+
 /*
 // Decl := Ident (',' Ident)* ':' Type (('=' | ':') Expr (',' Expr)*)? (',')?
 //      |= Type (',' Type)* (',')?
@@ -178,7 +192,10 @@ AstRef<AstDecl> Parser::parse_decl() {
 //       | SwitchStmt ';'
 //       | UsingStmt ';'
 //       | DeclStmt ';'
-AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes) {
+AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
+                                   DirectiveList&& directives,
+                                   AttributeList&& attributes)
+{
 	TRACE();
 	AstRef<AstStmt> stmt;
 	if (is_semi()) {
@@ -247,11 +264,96 @@ AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, Attribu
 			return parse_stmt(true, {}, {});
 		}
 	} else {
-		// DeclStmt := Ident (',' Ident)+ ':' Type? ((':'|'=') Expr (',' Expr)+)?
-		//           | Type (',' Type)+
-		// stmt = parse_decl_stmt();
-		// TODO(dweiler):
-		return error("Unexpected token");
+		// Try to parse an expression
+		auto expr = parse_expr(false);
+		if (!expr) {
+			return {};
+		}
+
+		// If the expression is proceeded immediately by a newline or semicolon then
+		// this is just an expression in a statement context, thus it's an ExprStmt.
+		if (is_semi()) {
+			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
+		}
+
+		Array<AstRef<AstExpr>> lhs{temporary_};
+		Array<AstRef<AstExpr>> rhs{temporary_};
+		AstRef<AstType> type; // Optional type
+		if (!lhs.push_back(expr)) {
+			return {};
+		}
+
+		// There could be multiple values on the left-hand side of a DeclStmt.
+		while (is_kind(TokenKind::COMMA) && !is_kind(TokenKind::ENDOF)) {
+			eat(); // Eat ','
+			auto ref = parse_expr(false);
+			if (!ref || !lhs.push_back(ref)) {
+				return {};
+			}
+		}
+
+		// When the left-hand side is proceeded by a colon then everything on the
+		// left-hand side is an IdentExpr and an optional Type is expected after
+		// the colon.
+		enum class DeclKind : Uint8 {
+			NONE,
+			MUTABLE,
+			IMMUTABLE
+		} decl = DeclKind::NONE;
+		if (is_operator(OperatorKind::COLON)) {
+			eat(); // Eat ':'
+			decl = DeclKind::MUTABLE;
+		}
+
+		if (!is_operator(OperatorKind::COLON) && !is_assignment(AssignKind::EQ)) {
+			type = parse_type();
+			if (!type) {
+				return {};
+			}
+		}
+
+		// When proceeded by a ':' or '=' then we're parsing an initializer. The
+		// initializer can also be a list of initializers (comma separated).
+		if (is_operator(OperatorKind::COLON)) {
+			decl = DeclKind::IMMUTABLE;
+		}
+		if (decl == DeclKind::IMMUTABLE || is_assignment(AssignKind::EQ)) {
+			eat(); // Eat ':' or '='
+			auto init = parse_expr(false);
+			if (!init || !rhs.push_back(init)) {
+				return {};
+			}
+			while (is_kind(TokenKind::COMMA) && !is_kind(TokenKind::ENDOF)) {
+				eat(); // Eat ','
+				auto ref = parse_expr(false); // assignment
+				if (!ref || !rhs.push_back(ref)) {
+					return {};
+				}
+			}
+		}
+
+		AstRefArray<AstExpr> lhs_refs = ast_.insert(move(lhs));
+		AstRefArray<AstExpr> rhs_refs;
+		if (!rhs.is_empty()) {
+			rhs_refs = ast_.insert(move(rhs));
+		}
+		const auto offset = ast_[expr].offset;
+		if (decl == DeclKind::NONE) {
+			stmt = ast_.create<AstAssignStmt>(offset, lhs_refs, rhs_refs, AssignKind::EQ);
+		} else {
+			AstRefArray<AstDirective> d_refs;
+			AstRefArray<AstAttribute> a_refs;
+			if (directives) d_refs = ast_.insert(move(*directives));
+			if (attributes) a_refs = ast_.insert(move(*attributes));
+			stmt = ast_.create<AstDeclStmt>(offset,
+			                                decl == DeclKind::IMMUTABLE,
+			                                is_using,
+			                                lhs_refs,
+			                                type,
+			                                rhs_refs,
+			                                d_refs,
+			                                a_refs);
+		}
 	}
 	if (!stmt) {
 		return {};
@@ -434,7 +536,10 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	if (is_kind(TokenKind::EXPLICITSEMI)) {
 		cond = parse_expr(false);
 	} else {
-		init = parse_stmt(false, {}, {}); // TODO parse_decl_stmt();
+		init = parse_stmt(false, {}, {});
+		if (!ast_[init].is_stmt<AstDeclStmt>()) {
+			return error("Expected a declaration for 'init' statement in 'if'");
+		}
 		if (is_kind(TokenKind::EXPLICITSEMI)) {
 			cond = parse_expr(false);
 		} else if (init) {
@@ -677,6 +782,36 @@ AstRef<AstImaginaryExpr> Parser::parse_imaginary_expr() {
 	return ast_.create<AstImaginaryExpr>(offset, value);
 }
 
+// CompoundExpr := '{' Field (',' Field)* '}'
+AstRef<AstCompoundExpr> Parser::parse_compound_expr() {
+	TRACE();
+	auto offset = eat(); // Eat '{'
+	if (is_kind(TokenKind::IMPLICITSEMI)) {
+		eat(); // Eat ';'
+	}
+	Array<AstRef<AstField>> fields{temporary_};
+	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+		auto field = parse_field(true);
+		if (!field || !fields.push_back(field)) {
+			return {};
+		}
+		if (is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+		} else {
+			break;
+		}
+	}
+	if (is_kind(TokenKind::IMPLICITSEMI)) {
+		eat();
+	}
+	if (!is_kind(TokenKind::RBRACE)) {
+		return error("Expected ',' or '}'");
+	}
+	eat(); // Eat '}'
+	auto refs = ast_.insert(move(fields));
+	return ast_.create<AstCompoundExpr>(offset, refs);
+}
+
 // IdentExpr := Ident
 AstRef<AstIdentExpr> Parser::parse_ident_expr() {
 	TRACE();
@@ -779,6 +914,14 @@ AstRef<AstExpr> Parser::parse_expr(Bool lhs) {
 		return {};
 	}
 	return expr;
+}
+
+AstRef<AstExpr> Parser::parse_value(Bool lhs) {
+	TRACE();
+	if (is_kind(TokenKind::LBRACE)) {
+		return parse_compound_expr();
+	}
+	return parse_expr(lhs);
 }
 
 AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
@@ -961,11 +1104,6 @@ AstRef<AstExpr> Parser::parse_unary_atom(AstRef<AstExpr> operand, Bool is_lhs) {
 			return parse_or_break_expr(operand);
 		} else if (is_operator(OperatorKind::OR_CONTINUE)) {
 			return parse_or_continue_expr(operand);
-		} else if (is_kind(TokenKind::LBRACE)) {
-			// TODO(dweiler): Parse initializer
-			if (is_lhs) {
-				break;
-			}
 		} else {
 			break;
 		}
@@ -1024,9 +1162,8 @@ AstRef<AstExpr> Parser::parse_unary_expr(Bool lhs) {
 	return parse_unary_atom(operand, lhs);
 }
 
-AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
+AstRef<AstExpr> Parser::parse_operand(Bool is_lhs) {
 	TRACE();
-	(void)lhs;
 	if (is_literal(LiteralKind::INTEGER)) {
 		return parse_int_expr();
 	} else if (is_literal(LiteralKind::FLOAT)) {
@@ -1044,16 +1181,11 @@ AstRef<AstExpr> Parser::parse_operand(Bool lhs) {
 	} else if (is_keyword(KeywordKind::PROC)) {
 		return parse_proc_expr();
 	} else if (is_operator(OperatorKind::LPAREN)) {
-		eat(); // Eat '('
-		auto expr = parse_expr(false);
-		if (!expr) {
-			return {};
+		return parse_paren_expr();
+	} else if (is_kind(TokenKind::LBRACE)) {
+		if (!is_lhs) {
+			return parse_compound_expr();
 		}
-		if (!is_operator(OperatorKind::RPAREN)) {
-			return error("Expected ')'");
-		}
-		eat(); // Eat ')'
-		return expr;
 	}
 	auto type = parse_type();
 	if (!type) {
@@ -1225,7 +1357,7 @@ AstRef<AstEnumType> Parser::parse_enum_type() {
 // Field := Expr ('=' Expr)?
 AstRef<AstField> Parser::parse_field(Bool allow_assignment) {
 	TRACE();
-	auto operand = parse_expr(false);
+	auto operand = parse_value(false);
 	if (!operand) {
 		return {};
 	}
@@ -1235,7 +1367,7 @@ AstRef<AstField> Parser::parse_field(Bool allow_assignment) {
 			return error("Unexpected '='");
 		}
 		eat(); // Eat '='
-		expr = parse_expr(false);
+		expr = parse_value(false);
 		if (!expr) {
 			return error("Could not parse expression");
 			return {};

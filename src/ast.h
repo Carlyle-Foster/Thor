@@ -148,6 +148,8 @@ struct AstField : AstNode {
 	AstRef<AstExpr> expr; // Optional value associated with attribute, enum, or parameter
 };
 
+using AstAttribute = AstField;
+
 // Directive
 struct AstDirective : AstNode {
 	constexpr AstDirective(Uint32 offset, AstStringRef name, AstRefArray<AstExpr> args)
@@ -183,6 +185,7 @@ struct AstExpr : AstNode {
 		FLOAT,
 		STRING,
 		IMAGINARY,
+		COMPOUND,
 		CAST,
 		SELECTOR,
 		ACCESS,
@@ -475,6 +478,19 @@ struct AstImaginaryExpr : AstExpr {
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
 	Float64 value;
+};
+
+// Represents a compound literal expression, e.g:
+//	{ ... }
+struct AstCompoundExpr : AstExpr {
+	static constexpr const auto KIND = Kind::COMPOUND;
+	constexpr AstCompoundExpr(Uint32 offset, AstRefArray<AstField> fields)
+		: AstExpr{offset, KIND}
+		, fields{fields}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRefArray<AstField> fields;
 };
 
 // Represents a cast expression, e.g:
@@ -896,18 +912,18 @@ struct AstAssignStmt : AstStmt {
 	static constexpr const auto KIND = Kind::ASSIGN;
 	constexpr AstAssignStmt(Uint32               offset,
 	                        AstRefArray<AstExpr> lhs,
-	                        Token                token,
-	                        AstRefArray<AstExpr> rhs)
+	                        AstRefArray<AstExpr> rhs,
+	                        AssignKind           kind)
 		: AstStmt{offset, KIND}
 		, lhs{lhs}
 		, rhs{rhs}
-		, token{token}
+		, kind{kind}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
 	AstRefArray<AstExpr> lhs;
 	AstRefArray<AstExpr> rhs;
-	Token                token;
+	AssignKind           kind;
 };
 
 struct AstBlockStmt : AstStmt {
@@ -1055,19 +1071,39 @@ struct AstExpr;
 struct AstDeclStmt : AstStmt {
 	static constexpr const auto KIND = Kind::DECL;
 	using List = AstRefArray<AstExpr>;
-	constexpr AstDeclStmt(Uint32 offset, List lhs, AstRef<AstType> type, Maybe<List>&& rhs)
+	constexpr AstDeclStmt(Uint32                    offset,
+	                      Bool                      is_const,
+	                      Bool                      is_using,
+	                      List                      lhs,
+	                      AstRef<AstType>           type,
+	                      List                      rhs,
+	                      AstRefArray<AstDirective> directives,
+	                      AstRefArray<AstAttribute> attributes)
 		: AstStmt{offset, KIND}
+		, is_const{is_const}
+		, is_using{is_using}
 		, lhs{move(lhs)}
 		, type{type}
 		, rhs{move(rhs)}
+		, directives{directives}
+		, attributes{attributes}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
-	List            lhs;
-	AstRef<AstType> type;
-	Maybe<List>     rhs;
+	Bool                      is_const;
+	Bool                      is_using;
+	List                      lhs;
+	AstRef<AstType>           type;
+	List                      rhs; // Optional
+	AstRefArray<AstDirective> directives; // Optional
+	AstRefArray<AstAttribute> attributes; // Optional
 };
 
+// Represents a procedure-level using stmt, e.g:
+// 	using fmt
+//
+// Not to be confused with using on a DeclStmt which is just indicated by the
+// DeclStmt::is_using flag.
 struct AstUsingStmt : AstStmt {
 	static constexpr const auto KIND = Kind::USING;
 	constexpr AstUsingStmt(Uint32 offset, AstRef<AstExpr> expr)

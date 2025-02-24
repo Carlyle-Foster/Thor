@@ -110,7 +110,7 @@ AstFile::~AstFile() {
 
 AstIDArray AstFile::insert(Slice<const AstID> ids) {
 	const auto offset = ids_.length();
-	if (!ids_.resize(ids.length())) {
+	if (!ids_.resize(offset + ids.length())) {
 		return {};
 	}
 	memcpy(ids_.data() + offset, ids.data(), ids.length() * sizeof(AstID));
@@ -168,7 +168,7 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	}
 
 	builder.put(' ');
-	builder.put(OP[Uint32(token.as_assign)]);
+	builder.put(OP[Uint32(kind)]);
 	builder.put(' ');
 
 	first = true;
@@ -181,6 +181,7 @@ void AstAssignStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) 
 	}
 
 	builder.put(';');
+	builder.put('\n');
 }
 
 void AstBlockStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -338,19 +339,33 @@ void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 		ast[value].dump(ast, builder);
 		first = false;
 	}
-	builder.put(':');
-	ast[type].dump(ast, builder);
-	if (rhs) {
+	if (type) {
 		builder.put(':');
+		builder.put(' ');
+		ast[type].dump(ast, builder);
+		builder.put(' ');
+	} else {
+		builder.put(' ');
+		builder.put(':');
+	}
+	if (!rhs.is_empty()) {
+		if (is_const) {
+			builder.put(':');
+		} else {
+			builder.put('=');
+		}
+		builder.put(' ');
 		Bool first = true;
-		for (auto value : ast[*rhs]) {
+		for (auto value : ast[rhs]) {
 			if (!first) {
 				builder.put(',');
+				builder.put(' ');
 			}
 			ast[value].dump(ast, builder);
 			first = false;
 		}
 	}
+	builder.put('\n');
 }
 
 void AstUsingStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
@@ -383,6 +398,7 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case FLOAT:       return to_expr<const AstFloatExpr>()->dump(ast, builder);
 	case STRING:      return to_expr<const AstStringExpr>()->dump(ast, builder);
 	case IMAGINARY:   return to_expr<const AstImaginaryExpr>()->dump(ast, builder);
+	case COMPOUND:    return to_expr<const AstCompoundExpr>()->dump(ast, builder);
 	case CAST:        return to_expr<const AstCastExpr>()->dump(ast, builder);
 	case SELECTOR:    return to_expr<const AstSelectorExpr>()->dump(ast, builder);
 	case ACCESS:      return to_expr<const AstAccessExpr>()->dump(ast, builder);
@@ -537,6 +553,20 @@ void AstStringExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 void AstImaginaryExpr::dump(const AstFile&, StringBuilder& builder) const {
 	builder.put(value);
 	builder.put('i');
+}
+
+void AstCompoundExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put('{');
+	Bool first = true;
+	for (auto field : ast[fields]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[field].dump(ast, builder);
+		first = false;
+	}
+	builder.put('}');
 }
 
 void AstCastExpr::dump(const AstFile& ast, StringBuilder& builder) const {
