@@ -677,6 +677,17 @@ struct AstUnionType : AstType {
 	AstRefArray<AstType> types;
 };
 
+struct AstStructType : AstType {
+	static constexpr const auto KIND = Kind::STRUCT;
+	constexpr AstStructType(Uint32 offset, AstRefArray<AstStmt> decls)
+		: AstType{offset, KIND}
+		, decls{decls}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRefArray<AstStmt> decls;
+};
+
 struct AstEnumType : AstType {
 	static constexpr const auto KIND = Kind::ENUM;
 	constexpr AstEnumType(Uint32 offset, AstRef<AstType> base, AstRefArray<AstField> enums)
@@ -1035,7 +1046,7 @@ struct AstIfStmt : AstStmt {
 	                    AstRef<AstStmt> on_true,
 	                    AstRef<AstStmt> on_false)
 		: AstStmt{offset, KIND}
-		, init{init} 
+		, init{init}
 		, cond{cond}
 		, on_true{on_true}
 		, on_false{on_false}
@@ -1119,7 +1130,7 @@ struct AstUsingStmt : AstStmt {
 // can be serialized as nothing more than a flat array of bytes. This series of
 // static asserts checks that. If you're reading this it's because you added a
 // virtual function to one of the derived or base classes and this is strictly
-// not supported. You can switch on the kind member to emulate the polymorphic 
+// not supported. You can switch on the kind member to emulate the polymorphic
 // behavior.
 static_assert(!is_polymorphic<AstExpr>, "Cannot be polymorphic");
 static_assert(!is_polymorphic<AstBinExpr>, "Cannot be polymorphic");

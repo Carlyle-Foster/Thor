@@ -620,8 +620,8 @@ void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	using enum Kind;
 	switch (kind) {
 	case TYPEID:   return to_type<const AstTypeIDType>()->dump(ast, builder);
-	case STRUCT:   /* TODO */ break;
 	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
+	case STRUCT:   return to_type<const AstStructType>()->dump(ast, builder);
 	case ENUM:     return to_type<const AstEnumType>()->dump(ast, builder);
 	case PROC:     /* TODO */ break;
 	case PTR:      return to_type<const AstPtrType>()->dump(ast, builder);
@@ -655,6 +655,24 @@ void AstUnionType::dump(const AstFile& ast, StringBuilder& builder) const {
 			builder.put(' ');
 		}
 		ast[type].dump(ast, builder);
+		first = false;
+	}
+	builder.put(' ');
+	builder.put('}');
+}
+
+void AstStructType::dump(const AstFile& ast, StringBuilder& builder) const {
+	builder.put("struct");
+	builder.put(' ');
+	builder.put('{');
+	builder.put(' ');
+	Bool first = true;
+	for (const auto decl : ast[decls]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[decl].dump(ast, builder, 0);
 		first = false;
 	}
 	builder.put(' ');

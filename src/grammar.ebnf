@@ -74,6 +74,7 @@ CastExpr          := '(' Type ')' Expr
 TypeExpr          := Type
 
 Type              := UnionType
+                   | StructType
                    | EnumType
                    | PtrType
                    | MultiPtrType

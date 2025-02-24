@@ -61,6 +61,7 @@ struct Parser {
 	AstRef<AstType> parse_type();
 	AstRef<AstTypeIDType> parse_typeid_type();
 	AstRef<AstUnionType> parse_union_type();
+	AstRef<AstStructType> parse_struct_type();
 	AstRef<AstEnumType> parse_enum_type();
 	AstRef<AstPtrType> parse_ptr_type();
 	AstRef<AstMultiPtrType> parse_multiptr_type(Uint32 offset);

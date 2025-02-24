@@ -1151,6 +1151,8 @@ AstRef<AstType> Parser::parse_type() {
 		return parse_typeid_type();
 	} else if (is_keyword(KeywordKind::UNION)) {
 		return parse_union_type();
+	} else if (is_keyword(KeywordKind::STRUCT)) {
+		return parse_struct_type();
 	} else if (is_keyword(KeywordKind::ENUM)) {
 		return parse_enum_type();
 	} else if (is_operator(OperatorKind::POINTER)) {
@@ -1246,6 +1248,39 @@ AstRef<AstUnionType> Parser::parse_union_type() {
 	eat(); // '}'
 	auto refs = ast_.insert(move(types));
 	return ast_.create<AstUnionType>(offset, refs);
+}
+
+// StructType := 'struct' '{' (DeclStmt ',')* DeclStmt? '}'
+AstRef<AstStructType> Parser::parse_struct_type() {
+	TRACE();
+	if (!is_keyword(KeywordKind::STRUCT)) {
+		return error("Expected 'struct'");
+	}
+	auto offset = eat(); // Eat 'struct'
+	if (!is_kind(TokenKind::LBRACE)) {
+		return error("Expected '{'");
+	}
+	Array<AstRef<AstStmt>> decls{temporary_};
+	eat(); // Eat '}'
+	while (!is_kind(TokenKind::RBRACE) && !is_kind(TokenKind::ENDOF)) {
+		auto decl = parse_stmt(false, {}, {});
+		if (!ast_[decl].is_stmt<AstDeclStmt>()) {
+			return error("Expected a declaration statement in 'struct'");
+		}
+		if (!decl || !decls.push_back(decl)) {
+			return {};
+		}
+		if (!is_kind(TokenKind::COMMA)) {
+			break;
+		}
+		eat(); // Eat ','
+	}
+	if (!is_kind(TokenKind::RBRACE)) {
+		return error("Expected '}'");
+	}
+	eat(); // '}'
+	auto refs = ast_.insert(move(decls));
+	return ast_.create<AstStructType>(offset, refs);
 }
 
 // EnumType := 'enum' Type? '{' (Enum ',')* Enum? '}'
