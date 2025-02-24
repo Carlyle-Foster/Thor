@@ -445,9 +445,9 @@ AstRef<AstForeignImportStmt> Parser::parse_foreign_import_stmt() {
 	return ast_.create<AstForeignImportStmt>(offset, ident, refs);
 }
 
-// IfStmt := 'if' ';' Expr?         (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
-//         | 'if' DeclStmt ';' Expr (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
-//         | 'if' ExprStmt          (BlockStmt | DoStmt) ('else' (BlockStmt | DoStmt))?
+// IfStmt := 'if' ';' Expr?         (DoStmt | BlockStmt) ('else' (IfStmt | DoStmt | BlockStmt))?
+//         | 'if' DeclStmt ';' Expr (DoStmt | BlockStmt) ('else' (IfStmt | DoStmt | BlockStmt))?
+//         | 'if' ExprStmt          (DoStmt | BlockStmt) ('else' (IfStmt | DoStmt | BlockStmt))?
 AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	TRACE();
 	if (!is_keyword(KeywordKind::IF)) {
