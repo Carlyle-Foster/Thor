@@ -870,6 +870,7 @@ struct AstStmt : AstNode {
 		FOREIGNIMPORT,
 		IF,
 		WHEN,
+		FOR,
 		DECL,
 		USING,
 	};
@@ -1075,6 +1076,27 @@ struct AstWhenStmt : AstStmt {
 	AstRef<AstExpr>      cond;
 	AstRef<AstBlockStmt> on_true;
 	AstRef<AstBlockStmt> on_false; // Optional
+};
+
+struct AstForStmt : AstStmt {
+	static constexpr const auto KIND = Kind::FOR;
+	constexpr AstForStmt(Uint32               offset,
+	                     AstRefArray<AstStmt> init,
+	                     AstRef<AstExpr>      cond,
+	                     AstRef<AstStmt>      post,
+	                     AstRef<AstStmt>      body)
+		: AstStmt{offset, KIND}
+		, init{init}
+		, cond{cond}
+		, post{post}
+		, body{body}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	AstRefArray<AstStmt> init; // Optional
+	AstRef<AstExpr>      cond; // Optional
+	AstRef<AstStmt>      post; // Optional
+	AstRef<AstStmt>      body;
 };
 
 struct AstExpr;

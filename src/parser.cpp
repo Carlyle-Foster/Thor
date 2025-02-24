@@ -179,7 +179,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 	} else if (is_keyword(KeywordKind::WHEN)) {
 		return parse_when_stmt();
 	} else if (is_keyword(KeywordKind::FOR)) {
-		// TODO
+		return parse_for_stmt();
 	} else if (is_keyword(KeywordKind::SWITCH)) {
 		// TODO
 	} else if (is_keyword(KeywordKind::USING)) {
@@ -208,6 +208,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		if (is_semi() || is_kind(TokenKind::LBRACE) || is_keyword(KeywordKind::DO)) {
 			return ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 		}
+
 
 		Array<AstRef<AstExpr>> lhs{temporary_};
 		Array<AstRef<AstExpr>> rhs{temporary_};
@@ -273,7 +274,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 		// implicit semicolon we should eat it. This isn't always the case though:
 		// for instance, when we're parsing a structure type we use this existing
 		// decl statement parser, except there the statements will be proceeded with
-		// a comma which we do not want to consume here. Instead, parse_struct_type 
+		// a comma which we do not want to consume here. Instead, parse_struct_type
 		// should consume the ','. When parsing a struct then, it's expected that
 		// there might be an implicit semicolon proceeding the ',' due to automatic
 		// semicolon insertion.
@@ -583,6 +584,72 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 		eat(); // Eat ';'
 	}
 	return ast_.create<AstWhenStmt>(offset, cond, on_true, on_false);
+}
+
+// ForStmt := 'for' (BlockStmt | DoStmt)
+//         |  'for' Expr (BlockStmt | DoStmt)
+//         |  'for' DeclStmt ';' Expr ';' Stmt (BlockStmt | DoStmt)
+//         |  'for' Field 'in' Expr (BlockStmt | DoStmt)
+//         |  'for' '(' IdentExpr 'in' IdentExpr ')' (BlockStmt | DoStmt)
+AstRef<AstForStmt> Parser::parse_for_stmt() {
+	TRACE();
+	if(!is_keyword(KeywordKind::FOR)) {
+		return error("Expectfed 'for'");
+	}
+	auto offset = eat(); // Eat 'for'
+
+	AstRef<AstStmt> post;
+	AstRef<AstExpr> cond;
+	Array<AstRef<AstStmt>> stmts{temporary_};
+
+	allow_in_expr_ = false;
+	auto first_stmt = parse_stmt(false, {}, {});
+
+	if(auto stmt = ast_[first_stmt].to_stmt<AstExprStmt>()) {
+		if(!stmts.push_back(first_stmt)) {
+			return {};
+		}
+		while(is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+			auto expr = parse_stmt(false, {}, {});
+			if(!expr || !stmts.push_back(expr)) {
+				return {};
+			}
+		}
+		if(!is_operator(OperatorKind::IN)) {
+			return error("Expected 'in' operator in 'for' statement");
+		}
+		eat(); // Eat 'in'
+
+		cond = parse_expr(false);
+	} else if(ast_[first_stmt].to_stmt<AstDeclStmt>()) {
+		cond = parse_expr(false);
+		if(!is_kind(TokenKind::EXPLICITSEMI)) {
+			return error("Expected ';' after init satement in 'for' statement");
+		}
+		eat(); // Eat ';'
+		if(!is_keyword(KeywordKind::DO) && !is_kind(TokenKind::LBRACE)) {
+			post = parse_stmt(false, {}, {});
+		}
+	} else {
+		return error("Expected declaration or expression");
+	}
+
+	AstRef<AstStmt> body = {};
+	if(is_keyword(KeywordKind::DO)) {
+		body = parse_stmt(false, {}, {});
+	} else if(is_kind(TokenKind::LBRACE)) {
+		body = parse_block_stmt();
+	}
+
+	allow_in_expr_ = true;
+
+	auto refs = ast_.insert(move(stmts));
+	return ast_.create<AstForStmt>(offset,
+	                               move(refs),
+	                               cond,
+	                               post,
+	                               body);
 }
 
 // DeferStmt := 'defer' Stmt
@@ -903,6 +970,9 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 				expr = parse_when_expr(expr);
 			}
 			break;
+		}
+		if(is_operator(OperatorKind::IN) && !allow_in_expr_) {
+			return expr;
 		}
 		if (PREC[Uint32(token_.as_operator)] < prec) {
 			// Stop climbing, found the correct precedence.

@@ -54,6 +54,7 @@ struct Parser {
 	AstRef<AstIfStmt> parse_if_stmt();
 	AstRef<AstBlockStmt> parse_do_stmt();
 	AstRef<AstWhenStmt> parse_when_stmt();
+	AstRef<AstForStmt> parse_for_stmt();
 	AstRef<AstDeferStmt> parse_defer_stmt();
 	AstRef<AstReturnStmt> parse_return_stmt();
 	AstRef<AstUsingStmt> parse_using_stmt();

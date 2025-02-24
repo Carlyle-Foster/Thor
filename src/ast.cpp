@@ -135,6 +135,7 @@ void AstStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const 
 	case FOREIGNIMPORT: return to_stmt<const AstForeignImportStmt>()->dump(ast, builder, nest);
 	case IF:            return to_stmt<const AstIfStmt>()->dump(ast, builder, nest);
 	case WHEN:          return to_stmt<const AstWhenStmt>()->dump(ast, builder, nest);
+	case FOR:           return to_stmt<const AstForStmt>()->dump(ast, builder, nest);
 	case DECL:          return to_stmt<const AstDeclStmt>()->dump(ast, builder, nest);
 	case USING:         return to_stmt<const AstUsingStmt>()->dump(ast, builder, nest);
 	}
@@ -338,6 +339,9 @@ void AstWhenStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) co
 		builder.put("else");
 		ast[on_false].dump(ast, builder, nest+1);
 	}
+}
+
+void AstForStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
 }
 
 void AstDeclStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const {
