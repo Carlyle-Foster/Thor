@@ -79,9 +79,6 @@ struct AstNode {
 	constexpr AstNode(Uint32 offset)
 		: offset{offset}
 	{
-		if (offset == 0) {
-			*(volatile int *)0 = 0;
-		}
 	}
 	Uint32 offset;
 };

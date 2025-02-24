@@ -117,6 +117,9 @@ private:
 	constexpr Bool is_kind(TokenKind kind) const {
 		return token_.kind == kind;
 	}
+	constexpr Bool is_semi() const {
+		return is_kind(TokenKind::EXPLICITSEMI) || is_kind(TokenKind::IMPLICITSEMI);
+	}
 	constexpr Bool is_keyword(KeywordKind kind) const {
 		return is_kind(TokenKind::KEYWORD) && token_.as_keyword == kind;
 	}

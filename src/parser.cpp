@@ -181,7 +181,7 @@ AstRef<AstDecl> Parser::parse_decl() {
 AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, AttributeList&& attributes) {
 	TRACE();
 	AstRef<AstStmt> stmt;
-	if (is_kind(TokenKind::SEMICOLON)) {
+	if (is_semi()) {
 		return parse_empty_stmt();
 	} else if (is_kind(TokenKind::LBRACE)) {
 		return parse_block_stmt();
@@ -256,7 +256,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, Attribu
 	if (!stmt) {
 		return {};
 	}
-	if (!is_kind(TokenKind::SEMICOLON)) {
+	if (!is_semi()) {
 		return error("Expected ';' or newline after statement");
 	}
 	eat(); // Eat ';'
@@ -266,7 +266,7 @@ AstRef<AstStmt> Parser::parse_stmt(Bool use, DirectiveList&& directives, Attribu
 // EmptyStmt := ';'
 AstRef<AstEmptyStmt> Parser::parse_empty_stmt() {
 	TRACE();
-	if (!is_kind(TokenKind::SEMICOLON)) {
+	if (!is_semi()) {
 		return error("Expected ';' (or newline)");
 	}
 	auto offset = eat(); // Eat ';'
@@ -417,7 +417,9 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	if (!is_keyword(KeywordKind::IF)) {
 		return error("Expected 'if'");
 	}
+
 	auto offset = eat(); // Eat 'if'
+
 	AstRef<AstStmt> init;
 	AstRef<AstExpr> cond;
 	AstRef<AstStmt> on_true;
@@ -429,19 +431,23 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	auto prev_allow_in_expr = this->allow_in_expr_;
 	this->allow_in_expr_ = true;
 
-	if (is_kind(TokenKind::SEMICOLON)) {
+	if (is_kind(TokenKind::EXPLICITSEMI)) {
 		cond = parse_expr(false);
 	} else {
-		init = {}; // TODO parse_decl_stmt();
-		if (is_kind(TokenKind::SEMICOLON)) {
+		init = parse_stmt(false, {}, {}); // TODO parse_decl_stmt();
+		if (is_kind(TokenKind::EXPLICITSEMI)) {
 			cond = parse_expr(false);
-		} else {
-			if (init && ast_[init].is_stmt<AstExprStmt>()) {
-				cond = static_cast<const AstExprStmt &>(ast_[init]).expr;
+		} else if (init) {
+			auto& node = ast_[init];
+			if (node.is_stmt<AstExprStmt>()) {
+				cond = static_cast<const AstExprStmt &>(node).expr;
 			} else {
-				error("Expected a boolean expression");
+				*(volatile int *)0 = 0;
+				return error("Expected expression statement");
 			}
 			init = {};
+		} else {
+			return error("Expected a boolean expression");
 		}
 	}
 
@@ -454,13 +460,18 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 
 	if (is_keyword(KeywordKind::DO)) {
 		eat(); // Eat 'do'
-		// TODO(bill): enforce same line behaviour
 		on_true = parse_stmt(false, {}, {});
 	} else {
 		on_true = parse_block_stmt();
 	}
+	if (!on_true) {
+		return {};
+	}
 
-	skip_possible_newline_for_literal();
+	if (is_kind(TokenKind::IMPLICITSEMI)) {
+		eat();
+	}
+
 	if (is_keyword(KeywordKind::ELSE)) {
 		// Token else_tok = token_;
 		eat();
@@ -470,10 +481,12 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 			on_false = parse_block_stmt();
 		} else if (is_keyword(KeywordKind::DO)) {
 			eat(); // Eat 'do'
-			// TODO(bill): enforce same line behaviour
 			on_false = parse_stmt(false, {}, {});
 		} else {
 			return error("Expected if statement block statement");
+		}
+		if (!on_false) {
+			return {};
 		}
 	}
 
@@ -513,15 +526,6 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 		}
 	}
 	return ast_.create<AstWhenStmt>(offset, cond, on_true, on_false);
-}
-
-Bool Parser::skip_possible_newline_for_literal() {
-	if (is_kind(TokenKind::SEMICOLON) && lexer_.string(token_) == "\n") {
-		// peek
-		eat();
-		// TODO
-	}
-	return false;
 }
 
 // DeferStmt := 'defer' Stmt
@@ -1402,7 +1406,7 @@ AstRef<AstBitsetType> Parser::parse_bitset_type() {
 		return {};
 	}
 	AstRef<AstType> type;
-	if (is_kind(TokenKind::SEMICOLON)) {
+	if (is_kind(TokenKind::EXPLICITSEMI)) {
 		eat(); // Eat ';'
 		type = parse_type();
 		if (!type) {

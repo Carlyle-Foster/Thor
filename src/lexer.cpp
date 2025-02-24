@@ -255,13 +255,16 @@ Token Lexer::advance() {
 		eat(); // Eat EOF
 		if (asi_) {
 			asi_ = false;
-			return { TokenKind::SEMICOLON, beg, 1_u16 };
+			return { TokenKind::IMPLICITSEMI, beg, 1_u16 };
 		}
 		return { TokenKind::ENDOF, beg, 1_u16 };
 	case '\n':
 		eat(); // Eat '\n'
-		asi_ = false;
-		return { TokenKind::SEMICOLON, beg, 1_u16 };
+		if (asi_) {
+			asi_ = false;
+			return { TokenKind::IMPLICITSEMI, beg, 1_u16 };
+		}
+		return advance();
 	case '\\':
 		eat();
 		// eat();
@@ -269,20 +272,20 @@ Token Lexer::advance() {
 		return next(); // Recurse
 		// TODO
 		// if next.line == position_.line we're missing a newline after '\'
-	case '@': eat(); return { TokenKind::ATTRIBUTE,   beg, 1_u16 };
-	case '#': eat(); return { TokenKind::DIRECTIVE,   beg, 1_u16 };
-	case '$': eat(); return { TokenKind::CONST,       beg, 1_u16 };
-	case ';': eat(); return { TokenKind::SEMICOLON,   beg, 1_u16 };
-	case ',': eat(); return { TokenKind::COMMA,       beg, 1_u16 };
-	case '{': eat(); return { TokenKind::LBRACE,      beg, 1_u16 };
-	case '}': eat(); return { TokenKind::RBRACE,      beg, 1_u16 };
-	case '(': eat(); return { OperatorKind::LPAREN,   beg, 1_u16 };
-	case ')': eat(); return { OperatorKind::RPAREN,   beg, 1_u16 };
-	case '[': eat(); return { OperatorKind::LBRACKET, beg, 1_u16 };
-	case ']': eat(); return { OperatorKind::RBRACKET, beg, 1_u16 };
-	case '?': eat(); return { OperatorKind::QUESTION, beg, 1_u16 };
-	case ':': eat(); return { OperatorKind::COLON,    beg, 1_u16 };
-	case '^': eat(); return { OperatorKind::POINTER,  beg, 1_u16 };
+	case '@': eat(); return { TokenKind::ATTRIBUTE,    beg, 1_u16 };
+	case '#': eat(); return { TokenKind::DIRECTIVE,    beg, 1_u16 };
+	case '$': eat(); return { TokenKind::CONST,        beg, 1_u16 };
+	case ';': eat(); return { TokenKind::EXPLICITSEMI, beg, 1_u16 };
+	case ',': eat(); return { TokenKind::COMMA,        beg, 1_u16 };
+	case '{': eat(); return { TokenKind::LBRACE,       beg, 1_u16 };
+	case '}': eat(); return { TokenKind::RBRACE,       beg, 1_u16 };
+	case '(': eat(); return { OperatorKind::LPAREN,    beg, 1_u16 };
+	case ')': eat(); return { OperatorKind::RPAREN,    beg, 1_u16 };
+	case '[': eat(); return { OperatorKind::LBRACKET,  beg, 1_u16 };
+	case ']': eat(); return { OperatorKind::RBRACKET,  beg, 1_u16 };
+	case '?': eat(); return { OperatorKind::QUESTION,  beg, 1_u16 };
+	case ':': eat(); return { OperatorKind::COLON,     beg, 1_u16 };
+	case '^': eat(); return { OperatorKind::POINTER,   beg, 1_u16 };
 	case '%':
 		eat(); // Eat '%'
 		switch (rune_) {

@@ -21,23 +21,24 @@
 #endif
 
 // Token kinds
-//   ENUM        NAME           ASI
-KIND(ENDOF,      "eof",         false)
-KIND(INVALID,    "invalid",     false)
-KIND(COMMENT,    "comment",     false)
-KIND(IDENTIFIER, "identifier",  true)
-KIND(LITERAL,    "literal",     true)
-KIND(OPERATOR,   "operator",    false) // ASI handled separate
-KIND(KEYWORD,    "keyword",     false) // ASI handled separate
-KIND(ASSIGNMENT, "assignment",  false)
-KIND(DIRECTIVE,  "directive",   false) // '#'
-KIND(ATTRIBUTE,  "attribute",   false) // '@'
-KIND(CONST,      "const",       false) // '$'
-KIND(SEMICOLON,  "semicolon",   false) // ';'
-KIND(COMMA,      "comma",       false) // ','
-KIND(LBRACE,     "left brace",  false) // '{'
-KIND(RBRACE,     "right brace", true)  // '}'
-KIND(UNDEFINED,  "undefined",   true)  // '---'
+//   ENUM          NAME           ASI
+KIND(ENDOF,        "eof",         false)
+KIND(INVALID,      "invalid",     false)
+KIND(COMMENT,      "comment",     false)
+KIND(IDENTIFIER,   "identifier",  true)
+KIND(LITERAL,      "literal",     true)
+KIND(OPERATOR,     "operator",    false) // ASI handled separate
+KIND(KEYWORD,      "keyword",     false) // ASI handled separate
+KIND(ASSIGNMENT,   "assignment",  false)
+KIND(DIRECTIVE,    "directive",   false) // '#'
+KIND(ATTRIBUTE,    "attribute",   false) // '@'
+KIND(CONST,        "const",       false) // '$'
+KIND(EXPLICITSEMI, "semicolon",   false) // ';'
+KIND(IMPLICITSEMI, "semicolon",   false) // ';'
+KIND(COMMA,        "comma",       false) // ','
+KIND(LBRACE,       "left brace",  false) // '{'
+KIND(RBRACE,       "right brace", true)  // '}'
+KIND(UNDEFINED,    "undefined",   true)  // '---'
 
 // Assignment tokens
 //
