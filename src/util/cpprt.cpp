@@ -5,6 +5,8 @@ using namespace Thor;
 // libstdc++ ABI implementation.
 #if !defined(THOR_COMPILER_MSVC)
 
+extern "C" void __cxa_pure_virtual() { }
+
 struct Guard {
 	Uint8 done;
 	Uint8 pending;
