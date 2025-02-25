@@ -1391,11 +1391,14 @@ AstRef<AstStructType> Parser::parse_struct_type() {
 				eat(); // Eat ';'
 			}
 		} else {
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
 			break;
 		}
 	}
 	if (!is_kind(TokenKind::RBRACE)) {
-		return error("Expected '}'");
+		return error("Expected '}' to terminate struct");
 	}
 	eat(); // '}'
 	auto refs = ast_.insert(move(decls));
@@ -1430,7 +1433,13 @@ AstRef<AstEnumType> Parser::parse_enum_type() {
 		}
 		if (is_kind(TokenKind::COMMA)) {
 			eat(); // Eat ','
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
 		} else {
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
 			break;
 		}
 	}
