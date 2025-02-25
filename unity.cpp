@@ -11,5 +11,6 @@
 #include "src/lexer.cpp"
 #include "src/main.cpp"
 #include "src/parser.cpp"
+#include "src/cg_llvm.cpp"
 #include "src/system_posix.cpp"
 #include "src/system_windows.cpp"

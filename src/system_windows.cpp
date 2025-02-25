@@ -316,7 +316,7 @@ static void process_assert(System& sys, StringView msg, StringView file, Sint32 
 }
 
 extern const Process STD_PROCESS = {
-	assert = process_assert,
+	.assert = process_assert,
 };
 
 static Linker::Library* linker_load(System&, StringView name) {
@@ -331,17 +331,17 @@ static Linker::Library* linker_load(System&, StringView name) {
 		return nullptr;
 	}
 	if (auto lib = LoadLibraryA(result->data())) {
-		return static_cast<Linker::Library*>(lib);
+		return reinterpret_cast<Linker::Library*>(lib);
 	}
 	return nullptr;
 }
 
 static void linker_close(System&, Linker::Library* lib) {
-	FreeLibrary(static_cast<HMODULE>(lib));
+	FreeLibrary(reinterpret_cast<HMODULE>(lib));
 }
 
 static void (*linker_link(System&, Linker::Library* lib, const char* sym))(void) {
-	if (auto addr = GetProcAddress(static_cast<void*>(lib), sym)) {
+	if (auto addr = GetProcAddress(reinterpret_cast<HMODULE>(lib), sym)) {
 		return reinterpret_cast<void (*)(void)>(addr);
 	}
 	return nullptr;

@@ -1,7 +1,6 @@
 #include "util/pool.h"
 #include "util/slice.h"
 #include "util/stream.h"
-
 namespace Thor {
 
 // The serialized representation of the Pool
@@ -101,6 +100,9 @@ Pool::Pool(Pool&& other)
 }
 
 #if defined(THOR_COMPILER_MSVC)
+
+	typedef unsigned long DWORD;
+
 	// Count the number of trailing zero bits in [value] which is the same as
 	// giving the index to the first non-zero bit.
 	static inline Uint32 count_trailing_zeros(Uint64 value) {
