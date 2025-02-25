@@ -1262,6 +1262,8 @@ AstRef<AstType> Parser::parse_type() {
 		return parse_enum_type();
 	} else if (is_operator(OperatorKind::POINTER)) {
 		return parse_ptr_type();
+	} else if (is_keyword(KeywordKind::PROC)) { 
+		return parse_proc_type();
 	} else if (is_operator(OperatorKind::LBRACKET)) {
 		auto offset = eat(); // Eat '['
 		if (is_operator(OperatorKind::POINTER)) {
@@ -1471,6 +1473,42 @@ AstRef<AstField> Parser::parse_field(Bool allow_assignment) {
 		}
 	}
 	return ast_.create<AstField>(ast_[operand].offset, operand, expr);
+}
+
+// ProcType := 'proc' '(' ')'
+AstRef<AstProcType> Parser::parse_proc_type() {
+	TRACE();
+	if(!is_keyword(KeywordKind::PROC)) {
+		return error("Expected 'proc'");
+	}
+	auto offset = eat(); // Eat 'proc'
+
+	AstRef<AstField> field = parse_field(true);
+
+	if (is_operator(OperatorKind::ARROW)) {
+		eat(); // Eat '->'
+	}
+
+	AstRef<AstField> types = {};
+	if (is_operator(OperatorKind::LPAREN)) {
+		eat(); // Eat '('
+
+		types = parse_field(false);
+		if (!types) {
+			return error("Expected at least one type");
+		}
+		if (!is_operator(OperatorKind::RPAREN)) {
+			return error("Expected ')'");
+		}
+		eat(); // Eat ')'
+	} else {
+		types = parse_field(false);
+		if(!types) {
+			return error("Expected at least one type");
+		}
+	}
+
+	return ast_.create<AstProcType>(offset, field, types);
 }
 
 // PtrType := '^' Type
