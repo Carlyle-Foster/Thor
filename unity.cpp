@@ -2,7 +2,7 @@
 #include "src/util/assert.cpp"
 #include "src/util/cpprt.cpp"
 #include "src/util/file.cpp"
-#include "src/util/pool.cpp"
+#include "src/util/lock.cpp"
 #include "src/util/pool.cpp"
 #include "src/util/slab.cpp"
 #include "src/util/stream.cpp"
