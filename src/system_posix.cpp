@@ -1,5 +1,5 @@
-#include <stdlib.h> // exit needed from libc sadly
 #include "util/info.h"
+#include "util/assert.h"
 
 #if defined(THOR_HOST_PLATFORM_POSIX)
 
@@ -12,6 +12,9 @@
 #include <string.h> // strlen
 #include <dlfcn.h> // dlopen, dlclose, dlsym, RTLD_NOW
 #include <stdio.h> // printf
+#include <pthread.h> // pthread_create, pthread_join, pthread_sigblock
+#include <signal.h> // sigset, sigfillset
+#include <stdlib.h> // exit needed from libc since it calls destructors
 
 #include "util/system.h"
 
@@ -223,6 +226,195 @@ extern const Linker STD_LINKER = {
 	.load  = linker_load,
 	.close = linker_close,
 	.link  = linker_link
+};
+
+struct Thread {
+	Thread(System& sys, void (*fn)(System&, void*), void* user)
+		: sys{sys}
+		, fn{fn}
+		, user{user}
+	{
+	}
+	System&   sys;
+	void      (*fn)(System& sys, void* user);
+	void*     user;
+	pthread_t handle;
+};
+
+struct Mutex {
+	pthread_mutex_t handle;
+};
+
+struct Cond {
+	pthread_cond_t handle;
+};
+
+static void* scheduler_thread_proc(void* user) {
+	auto thread = reinterpret_cast<Thread*>(user);
+	thread->fn(thread->sys, thread->user);
+	return nullptr;
+}
+
+static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System& sys, void* user), void* user) {
+	auto thread = sys.allocator.create<Thread>(sys, fn, user);
+	if (!thread) {
+		return nullptr;
+	}
+
+	// When constructing the thread we need to block all signals. Once the thread
+	// is constructed it will inherit our signal mask. We do this because we don't
+	// want any of our threads to be delivered signals as they're a source of many
+	// dataraces and deadlocks. Many applications do this wrong and block signals
+	// at the start of the thread but this has a datarace where a signal can still
+	// be delivered to the thread after it's constructed but before the thread has
+	// executed the code to block signals.
+	sigset_t nset;
+	sigset_t oset;
+	sigfillset(&nset);
+	if (pthread_sigmask(SIG_SETMASK, &nset, &oset) != 0) {
+		return nullptr;
+	}
+
+	// The thread can now be constructed and during construction it will inherit
+	// the signal mask set in this process, which in this case is one that blocks
+	// all signals.
+	if (pthread_create(&thread->handle, nullptr, scheduler_thread_proc, thread) != 0) {
+		// Restore the previous signal mask. This cannot fail since [oset] is derived
+		// from the previous (valid) signal mask state.
+		pthread_sigmask(SIG_SETMASK, &oset, nullptr);
+		sys.allocator.destroy<Thread>(thread);
+		return nullptr;
+	}
+
+	// Restore the previous signal mask. This cannot fail since [oset] is derived
+	// from the previous (valid) signal mask state.
+	pthread_sigmask(SIG_SETMASK, &oset, nullptr);
+
+	return reinterpret_cast<Scheduler::Thread*>(thread);
+}
+
+static void scheduler_thread_join(System& sys, Scheduler::Thread* thr) {
+	auto thread = reinterpret_cast<Thread*>(thr);
+	THOR_ASSERT(sys, &thread->sys == &sys);
+	pthread_join(thread->handle, nullptr);
+	sys.allocator.destroy(thread);
+}
+
+static Scheduler::Mutex* scheduler_mutex_create(System& sys) {
+	// There is no specified default type on POSIX. While most should default to
+	// non-recursive (i.e normal) mutexes, we cannot be sure and so to ensure we
+	// only get non-recursive mutexes just be explicit and request it.
+	pthread_mutexattr_t attr;
+	if (pthread_mutexattr_init(&attr) != 0) {
+		return nullptr;
+	}
+	if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL) != 0) {
+		pthread_mutexattr_destroy(&attr);
+		return nullptr;
+	}
+
+	auto mutex = sys.allocator.create<Mutex>();
+	if (!mutex) {
+		pthread_mutexattr_destroy(&attr);
+		return nullptr;
+	}
+
+	if (pthread_mutex_init(&mutex->handle, &attr) != 0) {
+		sys.allocator.destroy(mutex);
+		pthread_mutexattr_destroy(&attr);
+		return nullptr;
+	}
+
+	pthread_mutexattr_destroy(&attr);
+
+	return reinterpret_cast<Scheduler::Mutex*>(mutex);
+}
+
+static void scheduler_mutex_destroy([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	if (pthread_mutex_destroy(&mutex->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not destroy mutex");
+	}
+	sys.allocator.destroy(mutex);
+}
+
+
+static void scheduler_mutex_lock([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	if (pthread_mutex_lock(&mutex->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not lock mutex");
+	}
+}
+
+static void scheduler_mutex_unlock([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	if (pthread_mutex_unlock(&mutex->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not unlock mutex");
+	}
+}
+
+static Scheduler::Cond* scheduler_cond_create(System& sys) {
+	auto cond = sys.allocator.create<Cond>();
+	if (!cond) {
+		return nullptr;
+	}
+	if (pthread_cond_init(&cond->handle, nullptr) != 0) {
+		sys.allocator.destroy(cond);
+		return nullptr;
+	}
+	return reinterpret_cast<Scheduler::Cond*>(cond);
+}
+
+static void scheduler_cond_destroy([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	if (pthread_cond_destroy(&cond->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not destroy condition variable");
+	}
+	sys.allocator.destroy(cond);
+}
+
+static void scheduler_cond_signal([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	if (pthread_cond_signal(&cond->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not signal condition variable");
+	}
+}
+
+static void scheduler_cond_broadcast([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	if (pthread_cond_broadcast(&cond->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not broadcast condition variable");
+	}
+}
+
+static void scheduler_cond_wait([[maybe_unused]] System& sys, Scheduler::Cond* c, Scheduler::Mutex* m) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	if (pthread_cond_wait(&cond->handle, &mutex->handle) != 0) {
+		THOR_ASSERT(sys, !"Could not wait condition variable");
+	}
+}
+
+static void scheduler_yield(System&) {
+	sched_yield();
+}
+
+extern const Scheduler STD_SCHEDULER = {
+	.thread_start = scheduler_thread_start,
+	.thread_join = scheduler_thread_join,
+
+	.mutex_create = scheduler_mutex_create,
+	.mutex_destroy = scheduler_mutex_destroy,
+	.mutex_lock = scheduler_mutex_lock,
+	.mutex_unlock = scheduler_mutex_unlock,
+
+	.cond_create = scheduler_cond_create,
+	.cond_destroy = scheduler_cond_destroy,
+	.cond_signal = scheduler_cond_signal,
+	.cond_broadcast = scheduler_cond_broadcast,
+	.cond_wait = scheduler_cond_wait,
+
+	.yield = scheduler_yield,
 };
 
 } // namespace Thor

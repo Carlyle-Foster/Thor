@@ -3,6 +3,7 @@
 #include "src/util/cpprt.cpp"
 #include "src/util/file.cpp"
 #include "src/util/pool.cpp"
+#include "src/util/pool.cpp"
 #include "src/util/slab.cpp"
 #include "src/util/stream.cpp"
 #include "src/util/string.cpp"

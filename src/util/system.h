@@ -53,17 +53,41 @@ struct Linker {
 	void (*(*link)(System& sys, Library* library, const char* symbol))(void);
 };
 
+struct Scheduler {
+	struct Thread;
+	struct Mutex;
+	struct Cond;
+
+	Thread* (*thread_start)(System& sys, void (*fn)(System& sys, void* user), void* user);
+	void (*thread_join)(System& sys, Thread* thread);
+
+	Mutex* (*mutex_create)(System& sys);
+	void (*mutex_destroy)(System& sys, Mutex* mutex);
+	void (*mutex_lock)(System& sys, Mutex* mutex);
+	void (*mutex_unlock)(System& sys, Mutex* mutex);
+
+	Cond* (*cond_create)(System& sys);
+	void (*cond_destroy)(System& sys, Cond* cond);
+	void (*cond_signal)(System& sys, Cond* cond);
+	void (*cond_broadcast)(System& sys, Cond* cond);
+	void (*cond_wait)(System& sys, Cond* cond, Mutex* mutex);
+
+	void (*yield)(System& sys);
+};
+
 struct System {
 	constexpr System(const Filesystem& filesystem,
 	                 const Heap&       heap,
 	                 const Console&    console,
 	                 const Process&    process,
-	                 const Linker&     linker)
+	                 const Linker&     linker,
+	                 const Scheduler&  scheduler)
 		: filesystem{filesystem}
 		, heap{heap}
 		, console{console}
 		, process{process}
 		, linker{linker}
+		, scheduler{scheduler}
 		, allocator{*this}
 	{
 	}
@@ -72,6 +96,7 @@ struct System {
 	const Console&    console;
 	const Process&    process;
 	const Linker&     linker;
+	const Scheduler&  scheduler;
 	SystemAllocator   allocator;
 };
 

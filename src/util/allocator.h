@@ -1,6 +1,7 @@
 #ifndef THOR_ALLOCATOR_H
 #define THOR_ALLOCATOR_H
 #include "util/types.h"
+#include "util/forward.h"
 
 namespace Thor {
 

@@ -353,6 +353,134 @@ extern const Linker STD_LINKER = {
 	.link  = linker_link
 };
 
+struct Thread {
+	Thread(System& sys, void (*fn)(System&, void*), void* user)
+		: sys{sys}
+		, fn{fn}
+		, user{user}
+	{
+	}
+	System& sys;
+	void    (*fn)(System& sys, void* user);
+	void*   user;
+	HANDLE  handle;
+};
+
+struct Mutex {
+	SRWLOCK handle;
+};
+
+struct Cond {
+	CONDITION_VARIABLE handle;
+};
+
+static DWORD WINAPI scheduler_thread_proc(void* user) {
+	auto thread = reinterpret_cast<Thread*>(user);
+	thread->fn(thread->sys, thread->user);
+	return 0;
+}
+
+static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System& sys, void* user), void* user) {
+	auto thread = sys.allocator.create<Thread>(sys, fn, user);
+	if (!thread) {
+		return nullptr;
+	}
+	thread->handle = CreateThread(nullptr,
+	                              0,
+	                              scheduler_thread_proc,
+	                              nullptr,
+	                              0, 
+	                              nullptr);
+	if (thread->handle == INVALID_HANDLE_VALUE) {
+		sys.allocator.destroy(thread);
+		return nullptr;
+	}
+	return reinterpret_cast<Scheduler::Thread*>(thread);
+}
+
+static void scheduler_thread_join(System& sys, Scheduler::Thread* t) {
+	auto thread = reinterpret_cast<Thread*>(t);
+	THOR_ASSERT(sys, &sys == &thread->sys);
+	WaitForSingleObject(thread->handle, INFINITE);
+	sys.allocator.destroy(thread);
+}
+
+static Scheduler::Mutex* scheduler_mutex_create(System& sys) {
+	auto mutex = sys.allocator.create<Mutex>();
+	if (!mutex) {
+		return nullptr;
+	}
+	InitializeSRWLock(&mutex->handle);
+	return reinterpret_cast<Scheduler::Mutex*>(mutex);
+}
+
+static void scheduler_mutex_destroy([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	sys.allocator.destroy(mutex);
+}
+
+static void scheduler_mutex_lock([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	AcquireSRWLockExclusive(&mutex->handle);
+}
+
+static void scheduler_mutex_unlock([[maybe_unused]] System& sys, Scheduler::Mutex* m) {
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	ReleaseSRWLockExclusive(&mutex->handle);
+}
+
+static Scheduler::Cond* scheduler_cond_create(System& sys) {
+	auto cond = sys.allocator.create<Cond>();
+	if (!cond) {
+		return nullptr;
+	}
+	InitializeConditionVariable(&cond->handle);
+	return reinterpret_cast<Scheduler::Cond*>(cond);
+}
+
+static void scheduler_cond_destroy([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	sys.allocator.destroy(cond);
+}
+
+static void scheduler_cond_signal([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	WakeConditionVariable(&cond->handle);
+}
+
+static void scheduler_cond_broadcast([[maybe_unused]] System& sys, Scheduler::Cond* c) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	WakeAllConditionVariable(&cond->handle);
+}
+
+static void scheduler_cond_wait([[maybe_unused]] System& sys, Scheduler::Cond* c, Scheduler::Mutex* m) {
+	auto cond = reinterpret_cast<Cond*>(c);
+	auto mutex = reinterpret_cast<Mutex*>(m);
+	SleepConditionVariableSRW(&cond->handle, &mutex->handle, INFINITE, 0);
+}
+
+static void scheduler_yield(System&) {
+	SwitchToThread();
+}
+
+extern const Scheduler STD_SCHEDULER = {
+	.thread_start = scheduler_thread_start,
+	.thread_join = scheduler_thread_join,
+
+	.mutex_create = scheduler_mutex_create,
+	.mutex_destroy = scheduler_mutex_destroy,
+	.mutex_lock = scheduler_mutex_lock,
+	.mutex_unlock = scheduler_mutex_unlock,
+
+	.cond_create = scheduler_cond_create,
+	.cond_destroy = scheduler_cond_destroy,
+	.cond_signal = scheduler_cond_signal,
+	.cond_broadcast = scheduler_cond_broadcast,
+	.cond_wait = scheduler_cond_wait,
+
+	.yield = scheduler_yield
+};
+
 } // namespace Thor
 
 #endif // THOR_HOST_PLATFORM_WINDOWS

@@ -2,6 +2,7 @@
 #include "util/file.h"
 #include "util/map.h"
 #include "util/stream.h"
+#include "util/lock.h"
 
 #include "parser.h"
 
@@ -13,6 +14,7 @@ namespace Thor {
 	extern const Console    STD_CONSOLE;
 	extern const Process    STD_PROCESS;
 	extern const Linker     STD_LINKER;
+	extern const Scheduler  STD_SCHEDULER;
 }
 
 using namespace Thor;
@@ -24,6 +26,7 @@ int main(int, char **) {
 		STD_CONSOLE,
 		STD_PROCESS,
 		STD_LINKER,
+		STD_SCHEDULER,
 	};
 
 	auto parser = Parser::open(sys, "test/ks.odin");
