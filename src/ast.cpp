@@ -668,7 +668,7 @@ void AstType::dump(const AstFile& ast, StringBuilder& builder) const {
 	case UNION:    return to_type<const AstUnionType>()->dump(ast, builder);
 	case STRUCT:   return to_type<const AstStructType>()->dump(ast, builder);
 	case ENUM:     return to_type<const AstEnumType>()->dump(ast, builder);
-	case PROC:     /* TODO */ break;
+	case PROC:     return to_type<const AstProcType>()->dump(ast, builder);
 	case PTR:      return to_type<const AstPtrType>()->dump(ast, builder);
 	case MULTIPTR: return to_type<const AstMultiPtrType>()->dump(ast, builder);
 	case SLICE:    return to_type<const AstSliceType>()->dump(ast, builder);
@@ -746,9 +746,34 @@ void AstEnumType::dump(const AstFile& ast, StringBuilder& builder) const {
 }
 
 void AstProcType::dump(const AstFile& ast, StringBuilder& builder) const {
-	// TODO(dweiler):
-	(void)ast;
-	(void)builder;
+	builder.put("proc");
+	builder.put(' ');
+	builder.put('(');
+	Bool first = true;
+	for (const auto decl : ast[fields]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[decl].dump(ast, builder, 0);
+		first = false;
+	}
+	builder.put(')');
+	builder.put(' ');
+	builder.put("->");
+	builder.put(' ');
+
+	builder.put('(');
+	first = true;
+	for (const auto type : ast[types]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[type].dump(ast, builder, 0);
+		first = false;
+	}
+	builder.put(')');
 }
 
 void AstPtrType::dump(const AstFile& ast, StringBuilder& builder) const {

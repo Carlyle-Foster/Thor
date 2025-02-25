@@ -703,15 +703,15 @@ struct AstEnumType : AstType {
 
 struct AstProcType : AstType {
 	static constexpr const auto KIND = Kind::PROC;
-	constexpr AstProcType(Uint32 offset, AstRef<AstField> field, AstRef<AstField> types)
+	constexpr AstProcType(Uint32 offset, AstRefArray<AstStmt> fields, AstRefArray<AstStmt> types)
 		: AstType{offset, KIND}
-		, field{field}
+		, fields{fields}
 		, types{types}
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder) const;
-	AstRef<AstField> field;
-	AstRef<AstField> types;
+	AstRefArray<AstStmt> fields;
+	AstRefArray<AstStmt> types;
 };
 
 struct AstPtrType : AstType {

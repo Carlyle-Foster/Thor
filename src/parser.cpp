@@ -81,7 +81,7 @@ AstStringRef Parser::parse_ident(Uint32* poffset) {
 
 AstRef<AstProcExpr> Parser::parse_proc_expr() {
 	TRACE();
-	AstRef<AstProcType> type; // = parse_proc_type() TODO(dweiler):
+	AstRef<AstProcType> type = parse_proc_type();
 	if (!type) {
 		return {};
 	}
@@ -1483,32 +1483,92 @@ AstRef<AstProcType> Parser::parse_proc_type() {
 	}
 	auto offset = eat(); // Eat 'proc'
 
-	AstRef<AstField> field = parse_field(true);
+	if(!is_operator(OperatorKind::LPAREN)) {
+		return error("Expected '('");
+	}
+	eat(); // Eat '('
 
+	Array<AstRef<AstStmt>> decls{temporary_};
+	while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
+		auto decl = parse_stmt(false, {}, {});
+		if (!decl) {
+			break;
+		}
+		if (!ast_[decl].is_stmt<AstDeclStmt>()) {
+			return error("Expected a declaration statement in 'proc'");
+		}
+		if (!decl || !decls.push_back(decl)) {
+			return {};
+		}
+		if (is_kind(TokenKind::COMMA)) {
+			eat(); // Eat ','
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
+		} else {
+			if (is_kind(TokenKind::IMPLICITSEMI)) {
+				eat(); // Eat ';'
+			}
+			break;
+		}
+	}
+
+	if(!is_operator(OperatorKind::RPAREN)) {
+		return error("Expected ')'");
+	}
+	eat(); // Eat ')'
+
+	Array<AstRef<AstStmt>> types{temporary_};
 	if (is_operator(OperatorKind::ARROW)) {
 		eat(); // Eat '->'
+		
+		if (is_operator(OperatorKind::LPAREN)) {
+			eat(); // Eat '('
+
+			while (!is_operator(OperatorKind::RPAREN) && !is_kind(TokenKind::ENDOF)) {
+				auto decl = parse_stmt(false, {}, {});
+				if (!decl) {
+					break;
+				}
+				// TODO(Oliver): This could either be a list of types or a list of decls,
+				// check accordingly
+				if (!types.push_back(decl)) {
+					return {};
+				}
+				if (is_kind(TokenKind::COMMA)) {
+					eat(); // Eat ','
+					if (is_kind(TokenKind::IMPLICITSEMI)) {
+						eat(); // Eat ';'
+					}
+				} else {
+					if (is_kind(TokenKind::IMPLICITSEMI)) {
+						eat(); // Eat ';'
+					}
+					break;
+				}
+			}
+
+			if(types.is_empty()) {
+				return error("Expected declaration");
+			}
+
+			if(!is_operator(OperatorKind::RPAREN)) {
+				return error("Expected ')'");
+			}
+		} else {
+			auto decl = parse_stmt(false, {}, {});
+			if (!decl || !ast_[decl].is_stmt<AstDeclStmt>()) {
+				return error("Expected a declaration statement in 'proc'");
+			}
+			if (!types.push_back(decl)) {
+				return {};
+			}
+		}
 	}
 
-	AstRef<AstField> types = {};
-	if (is_operator(OperatorKind::LPAREN)) {
-		eat(); // Eat '('
-
-		types = parse_field(false);
-		if (!types) {
-			return error("Expected at least one type");
-		}
-		if (!is_operator(OperatorKind::RPAREN)) {
-			return error("Expected ')'");
-		}
-		eat(); // Eat ')'
-	} else {
-		types = parse_field(false);
-		if(!types) {
-			return error("Expected at least one type");
-		}
-	}
-
-	return ast_.create<AstProcType>(offset, field, types);
+	auto decl_refs = ast_.insert(move(decls));
+	auto type_refs = ast_.insert(move(types));
+	return ast_.create<AstProcType>(offset, decl_refs, type_refs);
 }
 
 // PtrType := '^' Type
