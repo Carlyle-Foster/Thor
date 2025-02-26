@@ -56,7 +56,7 @@ struct Time {
 	}
 	THOR_FORCEINLINE static constexpr T from_now(System& sys, Seconds time_from_now) {
 		if (time_from_now.is_inf()) {
-			return T::from_raw(time_from_now.raw_);
+			return T::from_raw(time_from_now.value());
 		}
 		return T::now(sys) + time_from_now;
 	}
