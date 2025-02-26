@@ -4,9 +4,6 @@ using namespace Thor;
 
 // libstdc++ ABI implementation.
 #if !defined(THOR_COMPILER_MSVC)
-
-extern "C" void __cxa_pure_virtual() { }
-
 struct Guard {
 	Uint8 done;
 	Uint8 pending;
@@ -14,10 +11,10 @@ struct Guard {
 };
 static_assert(sizeof(Guard) == 64);
 
-void operator delete(void*) {
+void operator delete(void*) noexcept {
 	// See comment below
 }
-void operator delete(void*, unsigned long) {
+void operator delete(void*, unsigned long) noexcept {
 	// When a base class contains a virtual destructor, the compiler will generate
 	// two destructors for a derived class. The regular destructor and a special
 	// destructor called a "deleting destructor" which is called when "delete" is
@@ -42,6 +39,10 @@ int __cxa_guard_acquire(Guard* guard) {
 
 void __cxa_guard_release(Guard* guard) {
 	guard->done = 1;
+}
+
+void __cxa_pure_virtual() {
+	// No-op
 }
 
 } // extern "C"

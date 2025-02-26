@@ -228,8 +228,8 @@ extern const Linker STD_LINKER = {
 	.link  = linker_link
 };
 
-struct Thread {
-	Thread(System& sys, void (*fn)(System&, void*), void* user)
+struct SystemThread {
+	SystemThread(System& sys, void (*fn)(System&, void*), void* user)
 		: sys{sys}
 		, fn{fn}
 		, user{user}
@@ -250,13 +250,13 @@ struct Cond {
 };
 
 static void* scheduler_thread_proc(void* user) {
-	auto thread = reinterpret_cast<Thread*>(user);
+	auto thread = reinterpret_cast<SystemThread*>(user);
 	thread->fn(thread->sys, thread->user);
 	return nullptr;
 }
 
 static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System& sys, void* user), void* user) {
-	auto thread = sys.allocator.create<Thread>(sys, fn, user);
+	auto thread = sys.allocator.create<SystemThread>(sys, fn, user);
 	if (!thread) {
 		return nullptr;
 	}
@@ -282,7 +282,7 @@ static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System&
 		// Restore the previous signal mask. This cannot fail since [oset] is derived
 		// from the previous (valid) signal mask state.
 		pthread_sigmask(SIG_SETMASK, &oset, nullptr);
-		sys.allocator.destroy<Thread>(thread);
+		sys.allocator.destroy<SystemThread>(thread);
 		return nullptr;
 	}
 
@@ -294,7 +294,7 @@ static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System&
 }
 
 static void scheduler_thread_join(System& sys, Scheduler::Thread* thr) {
-	auto thread = reinterpret_cast<Thread*>(thr);
+	auto thread = reinterpret_cast<SystemThread*>(thr);
 	THOR_ASSERT(sys, &thread->sys == &sys);
 	pthread_join(thread->handle, nullptr);
 	sys.allocator.destroy(thread);
