@@ -2,7 +2,6 @@
 #include "util/file.h"
 #include "util/map.h"
 #include "util/stream.h"
-#include "util/lock.h"
 
 #include "parser.h"
 
@@ -15,6 +14,7 @@ namespace Thor {
 	extern const Process    STD_PROCESS;
 	extern const Linker     STD_LINKER;
 	extern const Scheduler  STD_SCHEDULER;
+	extern const Chrono     STD_CHRONO;
 }
 
 using namespace Thor;
@@ -27,6 +27,7 @@ int main(int, char **) {
 		STD_PROCESS,
 		STD_LINKER,
 		STD_SCHEDULER,
+		STD_CHRONO,
 	};
 
 	auto parser = Parser::open(sys, "test/ks.odin");

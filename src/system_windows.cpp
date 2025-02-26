@@ -1,4 +1,5 @@
 #include "util/info.h"
+#include "util/atomic.h"
 
 // Implementation of the System for Windows systems
 #if defined(THOR_HOST_PLATFORM_WINDOWS)
@@ -479,6 +480,168 @@ extern const Scheduler STD_SCHEDULER = {
 	.cond_wait = scheduler_cond_wait,
 
 	.yield = scheduler_yield
+};
+
+// Windows is rife with various timing-related discrepancies and historical bugs
+// which make it diffcult to provide robust monotonic and wall time.
+//
+// Read more information here:
+// 	https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps
+// 	https://learn.microsoft.com/en-us/troubleshoot/windows-server/performance/programs-queryperformancecounter-function-perform-poorly
+//  https://learn.microsoft.com/en-us/windows/win32/api/profileapi/nf-profileapi-queryperformancecounter
+//
+// Suffice to say that the TSC cannot be trusted since a system might not have
+// an invariant TSC and processors might not have synchronized TSC. The modern
+// advent of virtualization and live migrations can also cause it to be highly
+// unreliable.
+//
+// The suggested method (in 2025) is to make use of QPC, however QPC is really
+// only useful for measuring a time interval. What most "serious" applications
+// do is use a combination of FILETIME & QPC. The former contains UTC time, but
+// it does not have sufficient resolution. QPC on the other hand is only useful
+// for measuring a time interval, but does have high resolution. So what if we
+// combine them, deriving the initial time with FILETIME and accumulate QPC? We
+// then just have to periodically re-sync them to account for drift.
+struct SystemTime {
+	SystemTime() {
+		QueryPerformanceCounter(&qpc_last_);
+		QueryPerformanceFrequency(&qpc_freq_);
+		tic_last = GetTickCount64();
+	}
+
+	Float64 lo_res_now() {
+		FILETIME ft;
+		GetSystemTimeAsFileTime(&ft);
+		// FILETIME is in 100s of nanoseconds so we need to do a little math here:
+		// 	BIAS - Number of 100ns between Jan 1st, 1601 and Jan 1st, 1970.
+		static constexpr const auto BIAS = 116444736000000000ULL;
+		ULARGE_INTEGER time;
+		memcpy(&time, &ft, sizeof ft);
+		return reinterpret_cast<Float64>(time.QuadPart - BIAS) / 10000.0;
+	}
+
+	Float64 hi_res_now() {
+		LARGE_INTEGER qpc;
+		QueryPerformanceCounter(&qpc);
+		ULONGLONG tic = GetTickCount64();
+		Sint64 qpc_elapsed = ((qpc.QuadPart - qpc_last_.QuadPart) * 1000) / qpc_freq_.QuadPart;
+		Sint64 tic_elapsed;
+		if (tic >= tic_last_) {
+			tic_elapsed = tic - tic_last_;
+		} else {
+			tic_elapsed = (tic + Sint64(0x100000000I64)) - tic_last_;
+		}
+		// Resync when QPC differs from GetTickCount64() by more than 500ms. Permits
+		// exactly 1sec of drift (500ms on either side).
+		auto diff = tic_elapsed - qpc_elapsed;
+		if (diff > 500 || diff < -500) {
+			sync_ = false;
+		}
+		qpc_last_ = qpc;
+		tic_last_ = tic;
+		return (qpc.QuadPart * 1000.0) / static_cast<Float64>(qpc_freq_.QuadPart);
+	}
+
+	Float64 wall_now() {
+		auto lo = lo_res_now();
+		auto hi = hi_res_now();
+		if (!sync_) {
+			// Increase the timer resolution for a short period when querying lo now.
+			timeBeginPeriod(1);
+			sync_lo_ = lo = lo_res_now();
+			timeEndPeriod(1);
+			sync_hi_ = hi;
+			sync_ = true;
+		}
+
+		// Schedule a re-sync if we've drifted too much. In this case "too much" is
+		// defined by 2x the duration of the lo res timer precision. On Windows the
+		// default scheduling quanta is 64 Hz or 15.625ms. So drifting anymore than
+		// 31.25ms would indicate a desync.
+		static constexpr const auto DRIFT_TOLERANCE = 15.625 * 2.0;
+		const auto hi_elapsed = hi - sync_hi_;
+		const auto lo_elapsed = lo - sync_lo_;
+		if (abs(hi_elapsed - lo_elapsed) > DRIFT_TOLERANCE) {
+			sync_ = true;
+		}
+
+		// We also have to account for time running backwards since this is used for
+		// monotonic time. We're careful here not to correct for large deltas since
+		// DST or clock changes can happen. Here we consider anything >= 2sec to be
+		// not worth accounting for.
+		const auto utc = lo + hi;
+		if (utc < utc_last_ && (utc_last_ - utc) < 2000.0) {
+			return utc_last_ / 1000.0;
+		}
+		utc_last_ = utc;
+		return utc / 1000.0;
+	}
+
+	Float64 monotonic_now() {
+		const auto now = wall_now();
+		if (now < last_mono_) {
+			// On clock change, DST, or large backward changes which wall_now does not
+			// account for, we'll just return the last monotonic time.
+			return last_mono_;
+		}
+		last_mono_ = now;
+		return now;
+	}
+
+	// Simple test-and-set spinloop lock to serialize the intricate management of
+	// all the state here.
+	void lock() {
+		for (;;) {
+			if (!lock_.exchange(true, MemoryOrder::acquire)) {
+				break;
+			}
+			while (lock_.load(MemoryOrder::relaxed)) {
+				_mm_pause();
+			}
+		}
+	}
+
+	void unlock() {
+		lock_.store(false, MemoryOrder::release);
+	}
+
+private:
+	Bool          sync_      = false;
+	Float64       utc_last_  = 0;
+	LARGE_INTEGER qpc_last_  = {};
+	LARGE_INTEGER qpc_freq_  = {};
+	ULONGLONG     tic_last_  = 0;
+	Float64       sync_lo_   = 0;
+	Float64       sync_hi_   = 0;
+	Float64       last_mono_ = 0;
+	Atomic<Bool>  lock_;
+};
+
+static SystemTime& chrono_singleton() {
+	// TODO(dweiler): We should store this off the System& someday.
+	static SystemTime s_time;
+	return s_time;
+}
+
+static Float64 chrono_monotonic_now(System&) {
+	auto &s = chrono_singleton();
+	s.lock();
+	const auto now = monotonic_now();
+	s.unlock();
+	return now;
+}
+
+static Float64 chrono_wall_now(System&) {
+	auto& s = chrono_singleton();
+	s.lock();
+	const auto now = wall_now();
+	s.unlock();
+	return now;
+}
+
+extern const Chrono STD_CHRONO = {
+	.monotonic_now = chrono_monotonic_now,
+	.wall_now = chrono_wall_now,
 };
 
 } // namespace Thor

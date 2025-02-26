@@ -417,6 +417,23 @@ extern const Scheduler STD_SCHEDULER = {
 	.yield = scheduler_yield,
 };
 
+static Float64 chrono_monotonic_now(System&) {
+	struct timespec ts{};
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return static_cast<Float64>(ts.tv_sec) + ts.tv_nsec / 1.0e9;
+}
+
+static Float64 chrono_wall_now(System&) {
+	struct timespec ts{};
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return static_cast<Float64>(ts.tv_sec) + ts.tv_nsec / 1.0e9;
+}
+
+extern const Chrono STD_CHRONO = {
+	.monotonic_now = chrono_monotonic_now,
+	.wall_now = chrono_wall_now,
+};
+
 } // namespace Thor
 
 #endif // THOR_HOST_PLATFORM_POSIX

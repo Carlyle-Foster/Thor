@@ -4,14 +4,14 @@
 
 namespace Thor {
 
-struct Waiter {
-	Waiter(System& sys)
+struct LockWaiter {
+	LockWaiter(System& sys)
 		: sys{sys}
 		, mutex{sys.scheduler.mutex_create(sys)}
 		, cond{sys.scheduler.cond_create(sys)}
 	{
 	}
-	~Waiter() {
+	~LockWaiter() {
 		sys.scheduler.cond_destroy(sys, cond);
 		sys.scheduler.mutex_destroy(sys, mutex);
 	}
@@ -19,8 +19,8 @@ struct Waiter {
 	Bool              park  = false;
 	Scheduler::Mutex* mutex = nullptr;
 	Scheduler::Cond*  cond  = nullptr;
-	Waiter*           next  = nullptr;
-	Waiter*           tail  = nullptr;
+	LockWaiter*       next  = nullptr;
+	LockWaiter*       tail  = nullptr;
 };
 
 void Lock::lock_slow(System& sys) {
@@ -49,7 +49,7 @@ void Lock::lock_slow(System& sys) {
 		// Put this thread on the queue. We can do this without allocating memory
 		// since lock_slow will be held in place, meaning the stack frame is as good
 		// a place as any for the Waiter.
-		Waiter waiter{sys};
+		LockWaiter waiter{sys};
 		
 		// Reload the current word though since some time might've passed.
 		current_word = word_.load();
@@ -69,7 +69,7 @@ void Lock::lock_slow(System& sys) {
 		// This thread now owns the queue. No other thread can enqueue or dequeue
 		// until we're done. It's also not possible to release the Lock while we
 		// hold this queue lock.
-		auto head = reinterpret_cast<Waiter*>(current_word & ~QUEUE_HEAD_MASK);
+		auto head = reinterpret_cast<LockWaiter*>(current_word & ~QUEUE_HEAD_MASK);
 		if (head) {
 			// Put this thread at the end of the queue.
 			head->tail->next = &waiter;
@@ -162,7 +162,7 @@ void Lock::unlock_slow(System& sys) {
 	// if it did, then it only releases it after it puts something on the queue.
 	THOR_ASSERT(sys, current_word & IS_LOCKED_BIT);
 	THOR_ASSERT(sys, current_word & IS_QUEUE_LOCKED_BIT);
-	auto head = reinterpret_cast<Waiter*>(current_word & ~QUEUE_HEAD_MASK);
+	auto head = reinterpret_cast<LockWaiter*>(current_word & ~QUEUE_HEAD_MASK);
 	THOR_ASSERT(sys, head);
 
 	// Either this was the only thread on the queue, in which case the queue can

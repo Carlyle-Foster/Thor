@@ -25,6 +25,10 @@ struct Atomic {
 		value_.store(desired, order);
 	}
 
+	THOR_FORCEINLINE T exchange(T desired, MemoryOrder order = MemoryOrder::seq_cst) {
+		return value_.exchange(desired, order);
+	}
+
 	THOR_FORCEINLINE Bool compare_exchange_weak(T expected, T desired, MemoryOrder order = MemoryOrder::seq_cst) {
 		T expected_or_actual = expected;
 		return value_.compare_exchange_weak(expected_or_actual, desired, order);

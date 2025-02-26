@@ -75,19 +75,26 @@ struct Scheduler {
 	void (*yield)(System& sys);
 };
 
+struct Chrono {
+	Float64 (*monotonic_now)(System& sys);
+	Float64 (*wall_now)(System& sys);
+};
+
 struct System {
 	constexpr System(const Filesystem& filesystem,
 	                 const Heap&       heap,
 	                 const Console&    console,
 	                 const Process&    process,
 	                 const Linker&     linker,
-	                 const Scheduler&  scheduler)
+	                 const Scheduler&  scheduler,
+	                 const Chrono&     chrono)
 		: filesystem{filesystem}
 		, heap{heap}
 		, console{console}
 		, process{process}
 		, linker{linker}
 		, scheduler{scheduler}
+		, chrono{chrono}
 		, allocator{*this}
 	{
 	}
@@ -97,6 +104,7 @@ struct System {
 	const Process&    process;
 	const Linker&     linker;
 	const Scheduler&  scheduler;
+	const Chrono&     chrono;
 	SystemAllocator   allocator;
 };
 
