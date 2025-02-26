@@ -30,13 +30,11 @@ int main(int, char **) {
 		STD_CHRONO,
 	};
 
+
 	auto parser = Parser::open(sys, "test/ks.odin");
 	if (!parser) {
 		return 1;
 	}
-	auto& ast = parser->ast();
-
-	StringBuilder builder{sys.allocator};
 
 	Array<AstRef<AstStmt>> stmts{sys.allocator};
 	for (;;) {
@@ -49,47 +47,19 @@ int main(int, char **) {
 		}
 	}
 
-	Bool first = true;
+	auto& ast = parser->ast();
+	StringBuilder builder{sys.allocator};
 	for (auto stmt : stmts) {
 		if (ast[stmt].is_stmt<AstEmptyStmt>()) {
 			continue;
 		}
-		if (!first) {
-			builder.put('\n');
-		}
 		ast[stmt].dump(ast, builder, 0);
-		first = false;
+		builder.put('\n');
 	}
-
-	auto llvm = LLVM::load(sys, "libLLVM-19");
-
-	/*
-	Array<AstRef<AstExpr>> exprs{sys.allocator};
-	for (;;) {
-		auto expr = parser->parse_expr(false);
-		if (!expr) {
-			break;
-		}
-		if (!exprs.push_back(move(expr))) {
-			break;
-		}
-	}
-	for (auto expr : exprs) {
-		ast[expr].dump(ast, builder);
-	}
-	*/
-
-	/*
-	auto type = parser->parse_type();
-	if (!type) {
-		return 1;
-	}
-	ast[type].dump(ast, builder);
-	*/
-
 	if (auto result = builder.result()) {
 		sys.console.write(sys, *result);
 		sys.console.write(sys, StringView { "\n" });
 	}
+
 	return 0;
 }

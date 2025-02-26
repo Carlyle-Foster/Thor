@@ -60,7 +60,7 @@ Maybe<Parser> Parser::open(System& sys, StringView filename) {
 
 Parser::Parser(System& sys, Lexer&& lexer, AstFile&& ast)
 	: sys_{sys}
-	, temporary_{sys.allocator}
+	, temporary_{static_cast<Allocator&>(sys.allocator)}
 	, ast_{move(ast)}
 	, lexer_{move(lexer)}
 	, token_{TokenKind::INVALID, 0, 0}

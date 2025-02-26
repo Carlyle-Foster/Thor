@@ -137,9 +137,9 @@ extern const Filesystem STD_FILESYSTEM = {
 static void* heap_allocate(System&, Ulen length, Bool) {
 	auto addr = mmap(nullptr,
 	                 length,
-	                 PROT_READ | PROT_WRITE,
+	                 PROT_WRITE,
 	                 MAP_PRIVATE | MAP_ANONYMOUS,
-	                 0,
+	                 -1,
 	                 0);
 	if (addr == MAP_FAILED) {
 		return nullptr;

@@ -81,6 +81,9 @@ struct Chrono {
 };
 
 struct System {
+private:
+	SystemAllocator allocator_;
+public:
 	constexpr System(const Filesystem& filesystem,
 	                 const Heap&       heap,
 	                 const Console&    console,
@@ -88,24 +91,25 @@ struct System {
 	                 const Linker&     linker,
 	                 const Scheduler&  scheduler,
 	                 const Chrono&     chrono)
-		: filesystem{filesystem}
+		: allocator_{*this}
+		, filesystem{filesystem}
 		, heap{heap}
 		, console{console}
 		, process{process}
 		, linker{linker}
 		, scheduler{scheduler}
 		, chrono{chrono}
-		, allocator{*this}
+		, allocator{allocator_}
 	{
 	}
-	const Filesystem& filesystem;
-	const Heap&       heap;
-	const Console&    console;
-	const Process&    process;
-	const Linker&     linker;
-	const Scheduler&  scheduler;
-	const Chrono&     chrono;
-	SystemAllocator   allocator;
+	const Filesystem&  filesystem;
+	const Heap&        heap;
+	const Console&     console;
+	const Process&     process;
+	const Linker&      linker;
+	const Scheduler&   scheduler;
+	const Chrono&      chrono;
+	TemporaryAllocator allocator;
 };
 
 } // namespace Thor

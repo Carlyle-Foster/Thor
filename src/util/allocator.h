@@ -2,7 +2,7 @@
 #define THOR_ALLOCATOR_H
 #include "util/types.h"
 #include "util/forward.h"
-
+#include "util/exchange.h"
 namespace Thor {
 
 struct System;
@@ -52,11 +52,9 @@ struct Allocator {
 };
 
 struct ArenaAllocator : Allocator {
-	constexpr ArenaAllocator(Address base, Ulen length)
-		: region_{base, base + length}
-		, cursor_{base}
-	{
-	}
+	ArenaAllocator(Address base, Ulen length);
+	ArenaAllocator(const ArenaAllocator&) = delete;
+	ArenaAllocator(ArenaAllocator&& other) = delete;
 	Bool owns(Address addr, Ulen len) const;
 	virtual Address alloc(Ulen new_len, Bool zero);
 	virtual void free(Address addr, Ulen old_len);
@@ -76,11 +74,20 @@ struct InlineAllocator : ArenaAllocator {
 		: ArenaAllocator{reinterpret_cast<Address>(data_), E}
 	{
 	}
+	InlineAllocator(const InlineAllocator&) = delete;
+	InlineAllocator(InlineAllocator&&) = delete;
 private:
 	alignas(16) Uint8 data_[E];
 };
 
 struct TemporaryAllocator : Allocator {
+	TemporaryAllocator(const TemporaryAllocator&) = delete;
+	TemporaryAllocator(TemporaryAllocator&& other)
+		: allocator_{other.allocator_}
+		, head_{exchange(other.head_, nullptr)}
+		, tail_{exchange(other.tail_, nullptr)}
+	{
+	}
 	constexpr TemporaryAllocator(Allocator& allocator)
 		: allocator_{allocator}
 	{
@@ -114,6 +121,8 @@ struct ScratchAllocator : Allocator {
 		: temporary_{allocator}
 	{
 	}
+	ScratchAllocator(const ScratchAllocator&) = delete;
+	ScratchAllocator(ScratchAllocator&&) = delete;
 	virtual Address alloc(Ulen new_len, Bool zero) {
 		if (auto addr = inline_.alloc(new_len, zero)) return addr;
 		return temporary_.alloc(new_len, zero);
