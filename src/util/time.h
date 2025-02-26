@@ -86,10 +86,10 @@ struct Time {
 		auto derived = static_cast<T*>(this);
 		return *derived = *derived - other;
 	}
-	THOR_FORCEINLINE Bool operator<(const Time& other) const { return raw_ < other.raw; }
-	THOR_FORCEINLINE Bool operator>(const Time& other) const { return raw_ > other.raw; }
-	THOR_FORCEINLINE Bool operator<=(const Time& other) const { return raw_ <= other.raw; }
-	THOR_FORCEINLINE Bool operator>=(const Time& other) const { return raw_ >= other.raw; }
+	THOR_FORCEINLINE Bool operator<(const Time& other) const { return raw_ < other.raw_; }
+	THOR_FORCEINLINE Bool operator>(const Time& other) const { return raw_ > other.raw_; }
+	THOR_FORCEINLINE Bool operator<=(const Time& other) const { return raw_ <= other.raw_; }
+	THOR_FORCEINLINE Bool operator>=(const Time& other) const { return raw_ >= other.raw_; }
 protected:
 	constexpr Time() = default;
 	constexpr Time(Float64 raw)
