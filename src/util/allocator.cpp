@@ -1,7 +1,12 @@
 #include "util/allocator.h"
 #include "util/system.h"
 
-#if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#if defined(_WIN32) || defined(_WIN64)
+	#define ASAN_POISON_MEMORY_REGION(addr, size) \
+		(static_cast<void>(addr), static_cast<void>(size))
+	#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
+		(static_cast<void>(addr), static_cast<void>(size))
+#elif defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
 	extern "C" void __asan_poison_memory_region(void const volatile *addr, decltype(sizeof 0));
 	extern "C" void __asan_unpoison_memory_region(void const volatile *addr, decltype(sizeof 0));
 	#define ASAN_POISON_MEMORY_REGION(addr, size) \

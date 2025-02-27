@@ -6,6 +6,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <timeapi.h>
 
 namespace Thor {
 
@@ -354,8 +355,8 @@ extern const Linker STD_LINKER = {
 	.link  = linker_link
 };
 
-struct Thread {
-	Thread(System& sys, void (*fn)(System&, void*), void* user)
+struct SystemThread {
+	SystemThread(System& sys, void (*fn)(System&, void*), void* user)
 		: sys{sys}
 		, fn{fn}
 		, user{user}
@@ -376,13 +377,13 @@ struct Cond {
 };
 
 static DWORD WINAPI scheduler_thread_proc(void* user) {
-	auto thread = reinterpret_cast<Thread*>(user);
+	auto thread = reinterpret_cast<SystemThread*>(user);
 	thread->fn(thread->sys, thread->user);
 	return 0;
 }
 
 static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System& sys, void* user), void* user) {
-	auto thread = sys.allocator.create<Thread>(sys, fn, user);
+	auto thread = sys.allocator.create<SystemThread>(sys, fn, user);
 	if (!thread) {
 		return nullptr;
 	}
@@ -400,7 +401,7 @@ static Scheduler::Thread* scheduler_thread_start(System& sys, void (*fn)(System&
 }
 
 static void scheduler_thread_join(System& sys, Scheduler::Thread* t) {
-	auto thread = reinterpret_cast<Thread*>(t);
+	auto thread = reinterpret_cast<SystemThread*>(t);
 	THOR_ASSERT(sys, &sys == &thread->sys);
 	WaitForSingleObject(thread->handle, INFINITE);
 	sys.allocator.destroy(thread);
@@ -506,7 +507,7 @@ struct SystemTime {
 	SystemTime() {
 		QueryPerformanceCounter(&qpc_last_);
 		QueryPerformanceFrequency(&qpc_freq_);
-		tic_last = GetTickCount64();
+		tic_last_ = GetTickCount64();
 	}
 
 	Float64 lo_res_now() {
@@ -517,7 +518,7 @@ struct SystemTime {
 		static constexpr const auto BIAS = 116444736000000000ULL;
 		ULARGE_INTEGER time;
 		memcpy(&time, &ft, sizeof ft);
-		return reinterpret_cast<Float64>(time.QuadPart - BIAS) / 10000.0;
+		return static_cast<Float64>(time.QuadPart - BIAS) / 10000.0;
 	}
 
 	Float64 hi_res_now() {
@@ -626,7 +627,7 @@ static SystemTime& chrono_singleton() {
 static Float64 chrono_monotonic_now(System&) {
 	auto &s = chrono_singleton();
 	s.lock();
-	const auto now = monotonic_now();
+	const auto now = s.monotonic_now();
 	s.unlock();
 	return now;
 }
@@ -634,7 +635,7 @@ static Float64 chrono_monotonic_now(System&) {
 static Float64 chrono_wall_now(System&) {
 	auto& s = chrono_singleton();
 	s.lock();
-	const auto now = wall_now();
+	const auto now = s.wall_now();
 	s.unlock();
 	return now;
 }
