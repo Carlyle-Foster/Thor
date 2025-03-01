@@ -1,8 +1,8 @@
 #ifndef THOR_ARRAY_H
 #define THOR_ARRAY_H
 #include "util/allocator.h"
-#include "util/traits.h"
 #include "util/slice.h"
+#include "util/maybe.h"
 
 namespace Thor {
 
@@ -98,6 +98,34 @@ struct Array {
 		new (data_ + length_, Nat{}) T{value};
 		length_++;
 		return true;
+	}
+
+	Maybe<Array<T>> copy(Allocator& allocator)
+		requires CopyConstructible<T> || MaybeCopyable<T>
+	{
+		// We do not use resize here because that would default construct the T and
+		// T may not have a default constructor. Instead we reserve the space then
+		// placement new the copy into each slot, remembering to increase the length
+		// for each element we add. This length has to be incremented and cannot be
+		// folded with one result.length_ = length_ at the end because it's possible
+		// that say the first N elements copy successfully but N+1 fails, in this
+		// case we return {} and the [result] destructor has to destroy the N copies
+		// which is dependent on the length stored in [result.length_].
+		Array<T> result{allocator};
+		if (!result.reserve(length_)) {
+			return {};
+		}
+		for (Ulen i = length_; i < length; i++) {
+			if constexpr (CopyConstructible<T>) {
+				new (result.data_ + i, Nat{}) T{data_[i]}; // Call the copy constructor
+			} else if constexpr (MaybeCopyable<T>) {
+				if (auto copied = data_[i].copy()) {
+					new (result.data_ + i, Nat{}) T{move(*copied)};
+				}
+			}
+			result.length_++;
+		}
+		return result;
 	}
 
 	void pop_back() {

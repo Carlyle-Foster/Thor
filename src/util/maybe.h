@@ -1,8 +1,19 @@
 #ifndef THOR_MAYBE_H
 #define THOR_MAYBE_H
 #include "util/exchange.h"
-
+#include "util/traits.h"
 namespace Thor {
+
+struct Allocator;
+
+template<typename T>
+struct Maybe;
+
+// Concept that checks for T::copy(allocator) method which returns a Maybe<T>.
+template<typename T>
+concept MaybeCopyable = requires(const T& value) {
+	{ value.copy(declval<Allocator&>()) } -> Same<Maybe<T>>;
+};
 
 // Simple optional type, use like Maybe<T>, check if valid with if (maybe) or
 // if (maybe.is_valid()). The underlying T can be extracted (unboxed) with the
@@ -37,6 +48,25 @@ struct Maybe {
 	constexpr Maybe& operator=(Maybe&& value) {
 		return *new(drop(), Nat{}) Maybe{move(value)};
 	}
+
+	Maybe<T> copy()
+		requires CopyConstructible<T>
+	{
+		if (!is_valid()) {
+			return {};
+		}
+		return Maybe { as_value_ };
+	}
+
+	Maybe<T> copy(Allocator& allocator)
+		requires MaybeCopyable<T>
+	{
+		if (!is_valid()) {
+			return {};
+		}
+		return as_value_.copy(allocator);
+	}
+
 	[[nodiscard]] THOR_FORCEINLINE constexpr auto is_valid() const { return valid_; }
 	[[nodiscard]] THOR_FORCEINLINE constexpr operator Bool() const { return is_valid(); }
 	[[nodiscard]] THOR_FORCEINLINE constexpr T& value() { return as_value_; }
