@@ -46,8 +46,10 @@ struct Allocator {
 
 	template<typename T>
 	void destroy(T* obj) {
-		obj->~T();
-		deallocate(obj, 1);
+		if (obj) {
+			obj->~T();
+			deallocate(obj, 1);
+		}
 	}
 };
 
