@@ -170,6 +170,7 @@ struct AstExpr : AstNode {
 		UNARY,
 		IF,
 		WHEN,
+		FORIN,
 		DEREF,
 		OR_RETURN,
 		OR_BREAK,
@@ -269,6 +270,19 @@ struct AstWhenExpr : AstExpr {
 	AstRef<AstExpr> cond;
 	AstRef<AstExpr> on_true;
 	AstRef<AstExpr> on_false;
+};
+
+struct AstForInExpr : AstExpr {
+	static constexpr const auto KIND = Kind::FORIN;
+	constexpr AstForInExpr(Uint32 offset, AstRefArray<AstExpr> lhs, AstRef<AstExpr> rhs)
+		: AstExpr{offset, KIND}
+		, lhs{lhs}
+		, rhs{rhs}
+	{
+	}
+	void dump(const AstFile& ast, StringBuilder& builder) const;
+	AstRefArray<AstExpr> lhs;
+	AstRef<AstExpr>  rhs;
 };
 
 struct AstDerefExpr : AstExpr {
@@ -1087,11 +1101,13 @@ struct AstWhenStmt : AstStmt {
 struct AstForStmt : AstStmt {
 	static constexpr const auto KIND = Kind::FOR;
 	constexpr AstForStmt(Uint32               offset,
+	                     AstRef<AstStmt>      in,
 	                     AstRefArray<AstStmt> init,
 	                     AstRef<AstExpr>      cond,
 	                     AstRef<AstStmt>      post,
 	                     AstRef<AstStmt>      body)
 		: AstStmt{offset, KIND}
+		, in{in}
 		, init{init}
 		, cond{cond}
 		, post{post}
@@ -1099,6 +1115,7 @@ struct AstForStmt : AstStmt {
 	{
 	}
 	void dump(const AstFile& ast, StringBuilder& builder, Ulen nest) const;
+	AstRef<AstStmt>      in;   // Optional
 	AstRefArray<AstStmt> init; // Optional
 	AstRef<AstExpr>      cond; // Optional
 	AstRef<AstStmt>      post; // Optional

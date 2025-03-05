@@ -246,6 +246,14 @@ AstRef<AstStmt> Parser::parse_stmt(Bool is_using,
 			}
 		}
 
+		if (is_operator(OperatorKind::IN)) {
+			eat(); // Eat 'in'
+			auto rhs = parse_expr(false);
+			auto lhs_refs = ast_.insert(move(lhs));
+			auto for_in = ast_.create<AstForInExpr>(ast_[expr].offset, lhs_refs, rhs);
+			return ast_.create<AstExprStmt>(ast_[expr].offset, for_in);
+		}
+
 		// When proceeded by a ':' or '=' then we're parsing an initializer. The
 		// initializer can also be a list of initializers (comma separated).
 		if (is_operator(OperatorKind::COLON)) {
@@ -586,10 +594,11 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 	return ast_.create<AstWhenStmt>(offset, cond, on_true, on_false);
 }
 
+//
 // ForStmt := 'for' (BlockStmt | DoStmt)
 //         |  'for' Expr (BlockStmt | DoStmt)
 //         |  'for' DeclStmt ';' Expr ';' Stmt (BlockStmt | DoStmt)
-//         |  'for' Field 'in' Expr (BlockStmt | DoStmt)
+//         |  'for' ForInStmt (BlockStmt | DoStmt)
 //         |  'for' '(' IdentExpr 'in' IdentExpr ')' (BlockStmt | DoStmt)
 AstRef<AstForStmt> Parser::parse_for_stmt() {
 	TRACE();
@@ -598,6 +607,7 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 	}
 	auto offset = eat(); // Eat 'for'
 
+	AstRef<AstStmt> in;
 	AstRef<AstStmt> post;
 	AstRef<AstExpr> cond;
 	Array<AstRef<AstStmt>> stmts{temporary_};
@@ -609,22 +619,7 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 	}
 
 	if(ast_[first_stmt].is_stmt<AstExprStmt>()) {
-		if(!stmts.push_back(first_stmt)) {
-			return {};
-		}
-		while(is_kind(TokenKind::COMMA)) {
-			eat(); // Eat ','
-			auto expr = parse_stmt(false, {}, {});
-			if(!expr || !stmts.push_back(expr)) {
-				return {};
-			}
-		}
-		if(!is_operator(OperatorKind::IN)) {
-			return error("Expected 'in' operator in 'for' statement");
-		}
-		eat(); // Eat 'in'
-
-		cond = parse_expr(false);
+		in = first_stmt;
 	} else if(ast_[first_stmt].is_stmt<AstDeclStmt>()) {
 		if(!stmts.push_back(first_stmt)) {
 			return {};
@@ -655,6 +650,7 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 
 	auto refs = ast_.insert(move(stmts));
 	return ast_.create<AstForStmt>(offset,
+	                               in,
 	                               move(refs),
 	                               cond,
 	                               post,
@@ -1262,7 +1258,7 @@ AstRef<AstType> Parser::parse_type() {
 		return parse_enum_type();
 	} else if (is_operator(OperatorKind::POINTER)) {
 		return parse_ptr_type();
-	} else if (is_keyword(KeywordKind::PROC)) { 
+	} else if (is_keyword(KeywordKind::PROC)) {
 		return parse_proc_type();
 	} else if (is_operator(OperatorKind::LBRACKET)) {
 		auto offset = eat(); // Eat '['
@@ -1521,7 +1517,7 @@ AstRef<AstProcType> Parser::parse_proc_type() {
 	Array<AstRef<AstStmt>> types{temporary_};
 	if (is_operator(OperatorKind::ARROW)) {
 		eat(); // Eat '->'
-		
+
 		if (is_operator(OperatorKind::LPAREN)) {
 			eat(); // Eat '('
 

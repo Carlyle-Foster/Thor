@@ -345,33 +345,38 @@ void AstForStmt::dump(const AstFile& ast, StringBuilder& builder, Ulen nest) con
 	builder.rep(nest * 2, ' ');
 	builder.put("for");
 	builder.put(' ');
-	Bool first = true;
-	for (auto value : ast[init]) {
-		if (!first) {
-			builder.put(',');
+	if (in) {
+		ast[in].dump(ast, builder, nest);
+	} else {
+		Bool first = true;
+		for (auto value : ast[init]) {
+			if (!first) {
+				builder.put(',');
+				builder.put(' ');
+			}
+			ast[value].dump(ast, builder, nest);
+			first = false;
+		}
+
+
+		if(ast[ast[init][0]].is_stmt<AstExprStmt>()) {
+			builder.put(' ');
+			builder.put("in");
+			builder.put(' ');
+		} else if(ast[ast[init][0]].is_stmt<AstDeclStmt>()) {
+			builder.put(';');
 			builder.put(' ');
 		}
-		ast[value].dump(ast, builder, nest);
-		first = false;
-	}
 
-	if(ast[ast[init][0]].is_stmt<AstExprStmt>()) {
-		builder.put(' ');
-		builder.put("in");
-		builder.put(' ');
-	} else if(ast[ast[init][0]].is_stmt<AstDeclStmt>()) {
-		builder.put(';');
-		builder.put(' ');
-	}
+		if(cond) {
+			ast[cond].dump(ast, builder);
+			builder.put(';');
+			builder.put(' ');
+		}
 
-	if(cond) {
-		ast[cond].dump(ast, builder);
-		builder.put(';');
-		builder.put(' ');
-	}
-
-	if(post) {
-		ast[post].dump(ast, builder, nest);
+		if(post) {
+			ast[post].dump(ast, builder, nest);
+		}
 	}
 
 	builder.put(' ');
@@ -431,6 +436,7 @@ void AstExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	case UNARY:       return to_expr<const AstUnaryExpr>()->dump(ast, builder);
 	case IF:          return to_expr<const AstIfExpr>()->dump(ast, builder);
 	case WHEN:        return to_expr<const AstWhenExpr>()->dump(ast, builder);
+	case FORIN:       return to_expr<const AstForInExpr>()->dump(ast, builder);
 	case DEREF:       return to_expr<const AstDerefExpr>()->dump(ast, builder);
 	case OR_RETURN:   return to_expr<const AstOrReturnExpr>()->dump(ast, builder);
 	case OR_BREAK:    return to_expr<const AstOrBreakExpr>()->dump(ast, builder);
@@ -500,6 +506,22 @@ void AstWhenExpr::dump(const AstFile& ast, StringBuilder& builder) const {
 	builder.put("else");
 	builder.put(' ');
 	ast[on_false].dump(ast, builder);
+}
+
+void AstForInExpr::dump(const AstFile& ast, StringBuilder& builder) const {
+	Bool first = true;
+	for (auto arg : ast[lhs]) {
+		if (!first) {
+			builder.put(',');
+			builder.put(' ');
+		}
+		ast[arg].dump(ast, builder);
+		first = false;
+	}
+	builder.put(' ');
+	builder.put("in");
+	builder.put(' ');
+	ast[rhs].dump(ast, builder);
 }
 
 void AstDerefExpr::dump(const AstFile& ast, StringBuilder& builder) const {
