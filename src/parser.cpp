@@ -612,37 +612,41 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 	AstRef<AstExpr> cond;
 	Array<AstRef<AstStmt>> stmts{temporary_};
 
-	allow_in_expr_ = false;
-	auto first_stmt = parse_stmt(false, {}, {});
-	if(!first_stmt) {
-		return {};
-	}
 
-	if(ast_[first_stmt].is_stmt<AstExprStmt>()) {
-		in = first_stmt;
-	} else if(ast_[first_stmt].is_stmt<AstDeclStmt>()) {
-		if(!stmts.push_back(first_stmt)) {
-			return {};
-		}
+	if (is_operator(OperatorKind::LPAREN)) {
 		allow_in_expr_ = true;
 		cond = parse_expr(false);
-		if(!is_kind(TokenKind::EXPLICITSEMI)) {
-			return error("Expected ';' after init satement in 'for' statement");
-		}
-		eat(); // Eat ';'
-		if(!is_keyword(KeywordKind::DO) && !is_kind(TokenKind::LBRACE)) {
-			post = parse_stmt(false, {}, {});
-		}
 	} else {
-		return error("Expected declaration or expression");
+
+		auto first_stmt = parse_stmt(false, {}, {});
+		if(!first_stmt) {
+			return {};
+		}
+
+		if (ast_[first_stmt].is_stmt<AstExprStmt>()) {
+			in = first_stmt;
+		} else if (ast_[first_stmt].is_stmt<AstDeclStmt>()) {
+			if(!stmts.push_back(first_stmt)) {
+				return {};
+			}
+			cond = parse_expr(false);
+			if (!is_kind(TokenKind::EXPLICITSEMI)) {
+				return error("Expected ';' after init satement in 'for' statement");
+			}
+			eat(); // Eat ';'
+			if (!is_keyword(KeywordKind::DO) && !is_kind(TokenKind::LBRACE)) {
+				post = parse_stmt(false, {}, {});
+			}
+		} else {
+			return error("Expected declaration or expression");
+		}
+
 	}
 
-	allow_in_expr_ = true;
-
 	AstRef<AstStmt> body = {};
-	if(is_keyword(KeywordKind::DO)) {
+	if (is_keyword(KeywordKind::DO)) {
 		body = parse_stmt(false, {}, {});
-	} else if(is_kind(TokenKind::LBRACE)) {
+	} else if (is_kind(TokenKind::LBRACE)) {
 		body = parse_block_stmt();
 	} else {
 		error("Expected either 'do' or '{'");
