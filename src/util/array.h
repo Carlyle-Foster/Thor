@@ -115,7 +115,7 @@ struct Array {
 		if (!result.reserve(length_)) {
 			return {};
 		}
-		for (Ulen i = length_; i < length; i++) {
+		for (Ulen i = length_; i < length_; i++) {
 			if constexpr (CopyConstructible<T>) {
 				new (result.data_ + i, Nat{}) T{data_[i]}; // Call the copy constructor
 			} else if constexpr (MaybeCopyable<T>) {
