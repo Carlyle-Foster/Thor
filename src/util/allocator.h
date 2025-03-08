@@ -57,6 +57,7 @@ struct ArenaAllocator : Allocator {
 	ArenaAllocator(Address base, Ulen length);
 	ArenaAllocator(const ArenaAllocator&) = delete;
 	ArenaAllocator(ArenaAllocator&& other) = delete;
+	~ArenaAllocator();
 	Bool owns(Address addr, Ulen len) const;
 	virtual Address alloc(Ulen new_len, Bool zero);
 	virtual void free(Address addr, Ulen old_len);

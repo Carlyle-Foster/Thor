@@ -134,7 +134,10 @@ extern const Filesystem STD_FILESYSTEM = {
 	.read_dir   = filesystem_read_dir,
 };
 
-static void* heap_allocate(System&, Ulen length, Bool) {
+static void* heap_allocate(System&, Ulen length, [[maybe_unused]] Bool zero) {
+#if defined(THOR_CFG_USE_MALLOC)
+	return zero ? calloc(length, 1) : malloc(length);
+#else
 	auto addr = mmap(nullptr,
 	                 length,
 	                 PROT_WRITE,
@@ -145,10 +148,15 @@ static void* heap_allocate(System&, Ulen length, Bool) {
 		return nullptr;
 	}
 	return addr;
+#endif
 }
 
-static void heap_deallocate(System&, void *addr, Ulen length) {
+static void heap_deallocate(System&, void *addr, [[maybe_unused]] Ulen length) {
+#if defined(THOR_CFG_USE_MALLOC)
+	free(addr);
+#else
 	munmap(addr, length);
+#endif
 }
 
 extern const Heap STD_HEAP = {

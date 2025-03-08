@@ -58,6 +58,19 @@ concept DerivedFrom = is_base_of<B, D>;
 template<typename T>
 inline constexpr bool is_polymorphic = __is_polymorphic(T);
 
+template<typename T>
+inline constexpr bool is_trivially_destructible =
+#if THOR_HAS_BUILTIN(__is_trivially_destructible)
+	__is_trivially_destructible(T);
+#elif THOR_HAS_BUILTIN(__has_trivial_destructor)
+	__has_trivial_destructor(T);
+#else
+	([] { static_assert(false, "Cannot implement is_trivially_destructible"); }, false);
+#endif
+
+template<typename T>
+concept TriviallyDestructible = is_trivially_destructible<T>;
+
 template<typename T> AddLValueReference<T> declval();
 
 } // namespace Thor

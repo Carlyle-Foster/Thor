@@ -14,6 +14,12 @@ struct Allocator;
 // Requires a polymorphic allocator on construction.
 template<typename T>
 struct Array {
+	// Minimum capacity of the array when populated with the first element.
+	static inline constexpr const auto MIN_CAPACITY = 16;
+
+	// The resize factor of the capacity as a percentage.
+	static inline constexpr const auto RESIZE_FACTOR = 250;
+
 	constexpr Array(Allocator& allocator)
 		: allocator_{allocator}
 	{
@@ -38,8 +44,10 @@ struct Array {
 
 	[[nodiscard]] Bool resize(Ulen length) {
 		if (length < length_) {
-			for (Ulen i = length_ - 1; i > length; i--) {
-				data_[i].~T();
+			if constexpr (!TriviallyDestructible<T>) {
+				for (Ulen i = length_ - 1; i > length; i--) {
+					data_[i].~T();
+				}
 			}
 		} else if (length > length_) {
 			if (!reserve(length)) {
@@ -57,19 +65,20 @@ struct Array {
 		if (length < capacity_) {
 			return true;
 		}
-		Ulen capacity = 0;
+		Ulen capacity = MIN_CAPACITY;
 		while (capacity < length) {
-			capacity = ((capacity + 1) * 3) / 2;
+			capacity = (capacity * RESIZE_FACTOR) / 100;
 		}
-		auto data = allocator_.alloc(capacity * sizeof(T), false);
+
+		auto data = allocator_.allocate<T>(capacity, false);
 		if (!data) {
 			return false;
 		}
 		for (Ulen i = 0; i < length_; i++) {
-			new (reinterpret_cast<T*>(data) + i, Nat{}) T{move(data_[i])};
+			new (data + i, Nat{}) T{move(data_[i])};
 		}
 		drop();
-		data_ = reinterpret_cast<T*>(data);
+		data_ = data;
 		capacity_ = capacity;
 		return true;
 	}
@@ -129,12 +138,16 @@ struct Array {
 	}
 
 	void pop_back() {
-		data_[length_ - 1].~T();
+		if constexpr (!TriviallyDestructible<T>) {
+			data_[length_ - 1].~T();
+		}
 		length_--;
 	}
 
 	void pop_front() {
-		data_[0].~T();
+		if constexpr (!TriviallyDestructible<T>) {
+			data_[0].~T();
+		}
 		for (Ulen i = 1; i < length_; i--) {
 			data_[i - 1] = move(data_[i]);
 		}
@@ -175,10 +188,13 @@ struct Array {
 	[[nodiscard]] THOR_FORCEINLINE constexpr const T* begin() const { return data_; }
 	[[nodiscard]] THOR_FORCEINLINE constexpr T* end() { return data_ + length_; }
 	[[nodiscard]] THOR_FORCEINLINE constexpr const T* end() const { return data_ + length_; }
+
 private:
 	void destruct() {
-		for (Ulen i = length_ - 1; i < length_; i--) {
-			data_[i].~T();
+		if constexpr (!TriviallyDestructible<T>) {
+			for (Ulen i = length_ - 1; i < length_; i--) {
+				data_[i].~T();
+			}
 		}
 	}
 

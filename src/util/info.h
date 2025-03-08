@@ -31,4 +31,25 @@
 	#define THOR_FORCEINLINE __forceinline
 #endif
 
+#if defined(__has_builtin)
+	#define THOR_HAS_BUILTIN(...) __has_builtin(__VA_ARGS__)
+#else
+	#define THOR_HAS_BUILTIN(...) 0
+#endif
+
+#if defined(__has_feature)
+	#define THOR_HAS_FEATURE(...) __has_feature(__VA_ARGS__)
+#else
+	#define THOR_HAS_FEATURE(...) 0
+#endif
+
+#if defined(__has_include)
+	#define THOR_HAS_INCLUDE(...) __has_include(__VA_ARGS__)
+#else
+	#define THOR_HAS_INCLUDE(...) 0
+#endif
+
+// These are debug build options
+// #define THOR_CFG_USE_MALLOC 1
+
 #endif // THOR_INFO_H

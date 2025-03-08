@@ -129,9 +129,11 @@ private:
 		return true;
 	}
 	Map* drop() {
-		for (Ulen i = 0; i < capacity_; i++) if (hs_[i]) {
-			ks_[i].~K();
-			vs_[i].~V();
+		if constexpr (!TriviallyDestructible<K> || !TriviallyDestructible<V>) {
+			for (Ulen i = 0; i < capacity_; i++) if (hs_[i]) {
+				if constexpr (!TriviallyDestructible<K>) ks_[i].~K();
+				if constexpr (!TriviallyDestructible<V>) vs_[i].~V();
+			}
 		}
 		allocator_.deallocate(ks_, capacity_);
 		allocator_.deallocate(vs_, capacity_);

@@ -39,7 +39,9 @@ struct Maybe {
 	{
 		if (valid_) {
 			new (&as_value_, Nat{}) T{move(other.as_value_)};
-			other.as_value_.~T();
+			if constexpr (!TriviallyDestructible<T>) {
+				other.as_value_.~T();
+			}
 		}
 	}
 	constexpr Maybe& operator=(T&& value) {
@@ -75,18 +77,29 @@ struct Maybe {
 	[[nodiscard]] THOR_FORCEINLINE constexpr const T& operator*() const { return as_value_; }
 	[[nodiscard]] THOR_FORCEINLINE constexpr T* operator->() { return &as_value_; }
 	[[nodiscard]] THOR_FORCEINLINE constexpr const T* operator->() const { return &as_value_; }
-	~Maybe() { drop(); }
-	void reset() {
+
+	~Maybe() 
+		requires (!TriviallyDestructible<T>)
+	{
+		drop();
+	}
+
+	constexpr ~Maybe() requires TriviallyDestructible<T> = default;
+
+	THOR_FORCEINLINE void reset() {
 		drop();
 		valid_ = false;
 	}
+
 	template<typename... Ts>
 	void emplace(Ts&&... args) {
 		new (drop(), Nat{}) Maybe{T{forward<Ts>(args)...}};
 	}
 private:
-	constexpr Maybe* drop() {
-		if (is_valid()) as_value_.~T();
+	THOR_FORCEINLINE constexpr Maybe* drop() {
+		if constexpr (!TriviallyDestructible<T>) {
+			if (is_valid()) as_value_.~T();
+		}
 		return this;
 	}
 	union {

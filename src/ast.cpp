@@ -110,7 +110,7 @@ AstFile::~AstFile() {
 
 AstIDArray AstFile::insert(Slice<const AstID> ids) {
 	const auto offset = ids_.length();
-	if (!ids_.resize(offset + ids.length())) {
+	if (ids.is_empty() || !ids_.resize(offset + ids.length())) {
 		return {};
 	}
 	memcpy(ids_.data() + offset, ids.data(), ids.length() * sizeof(AstID));

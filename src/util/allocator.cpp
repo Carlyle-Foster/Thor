@@ -1,14 +1,9 @@
 #include "util/allocator.h"
 #include "util/system.h"
 
-#if defined(_WIN32) || defined(_WIN64)
-	#define ASAN_POISON_MEMORY_REGION(addr, size) \
-		(static_cast<void>(addr), static_cast<void>(size))
-	#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
-		(static_cast<void>(addr), static_cast<void>(size))
-#elif defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
-	extern "C" void __asan_poison_memory_region(void const volatile *addr, decltype(sizeof 0));
-	extern "C" void __asan_unpoison_memory_region(void const volatile *addr, decltype(sizeof 0));
+#if THOR_HAS_FEATURE(address_sanitizer) && defined(__SANITIZE_ADDRESS__)
+	extern "C" void __asan_poison_memory_region(void const volatile*, decltype(sizeof 0));
+	extern "C" void __asan_unpoison_memory_region(void const volatile*, decltype(sizeof 0));
 	#define ASAN_POISON_MEMORY_REGION(addr, size) \
 		__asan_poison_memory_region(reinterpret_cast<volatile const void *>(addr), (size))
 	#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
@@ -18,7 +13,19 @@
 		(static_cast<void>(addr), static_cast<void>(size))
 	#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
 		(static_cast<void>(addr), static_cast<void>(size))
-#endif 
+#endif
+
+#if THOR_HAS_INCLUDE(<valgrind/valgrind.h>) && THOR_HAS_INCLUDE(<valgrind/memcheck.h>)
+	#include <valgrind/valgrind.h>
+	#include <valgrind/memcheck.h>
+#else
+	#define VALGRIND_MALLOCLIKE_BLOCK(...)
+	#define VALGRIND_FREELIKE_BLOCK(...)
+	#define VALGRIND_RESIZEINPLACE_BLOCK(...)
+	#define VALGRIND_MAKE_MEM_NOACCESS(...)
+	#define VALGRIND_MAKE_MEM_DEFINED(...)
+	#define VALGRIND_MAKE_MEM_UNDEFINED(...)
+#endif
 
 namespace Thor {
 
@@ -46,6 +53,11 @@ ArenaAllocator::ArenaAllocator(Address base, Ulen length)
 	, cursor_{base}
 {
 	ASAN_POISON_MEMORY_REGION(base, length);
+	VALGRIND_MAKE_MEM_NOACCESS(base, length);
+}
+
+ArenaAllocator::~ArenaAllocator() {
+	VALGRIND_MAKE_MEM_UNDEFINED(region_.beg, region_.end - region_.beg);
 }
 
 Bool ArenaAllocator::owns(Address addr, Ulen len) const {
@@ -53,35 +65,37 @@ Bool ArenaAllocator::owns(Address addr, Ulen len) const {
 }
 
 Address ArenaAllocator::alloc(Ulen req_len, Bool zero) {
-	Ulen new_len = round(req_len);
+	const Ulen new_len = round(req_len);
 	if (cursor_ + new_len > region_.end) {
 		return 0;
 	}
 	auto addr = cursor_;
 	ASAN_UNPOISON_MEMORY_REGION(addr, req_len);
+	VALGRIND_MALLOCLIKE_BLOCK(addr, req_len, 0, zero);
 	cursor_ += new_len;
 	if (zero) {
-		memzero(addr, new_len);
+		memzero(addr, req_len);
 	}
 	return addr;
 }
 
 void ArenaAllocator::free(Address addr, Ulen req_old_len) {
 	if (addr == 0) return;
-	Ulen old_len = round(req_old_len);
+	const Ulen old_len = round(req_old_len);
 	ASSERT(addr >= region_.beg);
 	ASAN_POISON_MEMORY_REGION(addr, req_old_len);
+	VALGRIND_FREELIKE_BLOCK(addr, 0);
 	if (addr + old_len == cursor_) {
 		cursor_ -= old_len;
 	}
 }
 
-void ArenaAllocator::shrink(Address addr, Ulen old_len, Ulen new_len) {
-	old_len = round(old_len);
-	new_len = round(new_len);
+void ArenaAllocator::shrink(Address addr, Ulen req_old_len, Ulen req_new_len) {
+	const Ulen old_len = round(req_old_len);
+	const Ulen new_len = round(req_new_len);
 	ASSERT(addr >= region_.beg);
-	ASAN_POISON_MEMORY_REGION(addr, old_len);
-	ASAN_UNPOISON_MEMORY_REGION(addr, new_len);
+	ASAN_POISON_MEMORY_REGION(addr + req_new_len, req_old_len - req_new_len);
+	VALGRIND_RESIZEINPLACE_BLOCK(addr, req_old_len, req_new_len, 0);
 	if (addr + old_len == cursor_) {
 		cursor_ -= old_len;
 		cursor_ += new_len;
@@ -89,33 +103,40 @@ void ArenaAllocator::shrink(Address addr, Ulen old_len, Ulen new_len) {
 }
 
 Address ArenaAllocator::grow(Address src_addr, Ulen req_old_len, Ulen req_new_len, Bool zero) {
-	Ulen old_len = round(req_old_len);
-	Ulen new_len = round(req_new_len);
+	const Ulen old_len = round(req_old_len);
+	const Ulen new_len = round(req_new_len);
 	ASSERT(src_addr >= region_.beg);
-	const auto delta = new_len - old_len;
+	const auto req_delta = req_new_len - req_old_len;
 	if (src_addr + old_len == cursor_) {
+		const auto delta = new_len - old_len;
 		if (cursor_ + delta >= region_.end) {
 			// Out of memory.
 			return 0;
 		}
-		ASAN_POISON_MEMORY_REGION(src_addr, req_old_len);
-		ASAN_UNPOISON_MEMORY_REGION(src_addr, req_new_len);
+		ASAN_UNPOISON_MEMORY_REGION(src_addr + req_old_len, req_delta);
+		VALGRIND_RESIZEINPLACE_BLOCK(src_addr, req_old_len, req_new_len, 0);
 		if (zero) {
-			memzero(src_addr + old_len, delta);
+			// RESIZEINPLACE doesn't appear to have a mechanism to specify the growed
+			// area is initialized, so do it manually here.
+			VALGRIND_MAKE_MEM_DEFINED(src_addr + req_old_len, req_delta);
+		}
+		if (zero) {
+			memzero(src_addr + req_old_len, req_delta);
 		}
 		cursor_ += delta;
 		return src_addr;
 	}
-	const auto dst_addr = alloc(new_len, false);
+	// Otherwise allocate new memory and copy.
+	const auto dst_addr = alloc(req_new_len, false);
 	if (!dst_addr) {
 		// Out of memory.
 		return 0;
 	}
-	memcopy(dst_addr, src_addr, old_len);
+	memcopy(dst_addr, src_addr, req_old_len);
 	if (zero) {
-		memzero(dst_addr + old_len, delta);
+		memzero(dst_addr + req_old_len, req_delta);
 	}
-	free(src_addr, old_len);
+	free(src_addr, req_old_len);
 	return dst_addr;
 }
 
@@ -212,6 +233,8 @@ Address TemporaryAllocator::grow(Address old_addr, Ulen old_len, Ulen new_len, B
 
 Address SystemAllocator::alloc(Ulen new_len, Bool zero) {
 	if (const auto ptr = sys_.heap.allocate(sys_, new_len, zero)) {
+		ASAN_UNPOISON_MEMORY_REGION(ptr, new_len);
+		VALGRIND_MALLOCLIKE_BLOCK(ptr, new_len, 0, zero);
 		return reinterpret_cast<Address>(ptr);
 	}
 	return 0;
@@ -221,6 +244,8 @@ void SystemAllocator::free(Address addr, Ulen old_len) {
 	if (addr == 0) return;
 	const auto ptr = reinterpret_cast<void *>(addr);
 	sys_.heap.deallocate(sys_, ptr, old_len);
+	ASAN_POISON_MEMORY_REGION(ptr, old_len);
+	VALGRIND_FREELIKE_BLOCK(ptr, 0);
 }
 
 void SystemAllocator::shrink(Address, Ulen, Ulen) {

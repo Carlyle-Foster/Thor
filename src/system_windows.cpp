@@ -8,6 +8,10 @@
 #include <windows.h>
 #include <timeapi.h>
 
+#if defined(THOR_CFG_USE_MALLOC)
+#include <stdlib.h>
+#endif
+
 namespace Thor {
 
 static Ulen convert_utf8_to_utf16(Slice<const Uint8> utf8, Slice<Uint16> utf16) {
@@ -275,12 +279,20 @@ extern const Filesystem STD_FILESYSTEM = {
 	.read_dir   = filesystem_read_dir,
 };
 
-static void* heap_allocate(System&, Ulen length, Bool) {
+static void* heap_allocate(System&, Ulen length, [[maybe_unused]] Bool zero) {
+#if defined(THOR_CFG_USE_MALLOC)
+	return zero ? calloc(length, 1) : malloc(length);
+#else
 	return VirtualAlloc(nullptr, length, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#endif
 }
 
-static void heap_deallocate(System&, void *address, Ulen length) {
+static void heap_deallocate(System&, void *address, [[maybe_unused]] Ulen length) {
+#if defined(THOR_CFG_USE_MALLOC)
+	free(address);
+#else
 	VirtualFree(address, length, MEM_RELEASE);
+#endif
 }
 
 extern const Heap STD_HEAP = {
