@@ -602,7 +602,7 @@ AstRef<AstWhenStmt> Parser::parse_when_stmt() {
 //         |  'for' '(' IdentExpr 'in' IdentExpr ')' (BlockStmt | DoStmt)
 AstRef<AstForStmt> Parser::parse_for_stmt() {
 	TRACE();
-	if(!is_keyword(KeywordKind::FOR)) {
+	if (!is_keyword(KeywordKind::FOR)) {
 		return error("Expectfed 'for'");
 	}
 	auto offset = eat(); // Eat 'for'
@@ -619,14 +619,14 @@ AstRef<AstForStmt> Parser::parse_for_stmt() {
 	} else {
 
 		auto first_stmt = parse_stmt(false, {}, {});
-		if(!first_stmt) {
+		if (!first_stmt) {
 			return {};
 		}
 
 		if (ast_[first_stmt].is_stmt<AstExprStmt>()) {
 			in = first_stmt;
 		} else if (ast_[first_stmt].is_stmt<AstDeclStmt>()) {
-			if(!stmts.push_back(first_stmt)) {
+			if (!stmts.push_back(first_stmt)) {
 				return {};
 			}
 			cond = parse_expr(false);
@@ -980,7 +980,7 @@ AstRef<AstExpr> Parser::parse_bin_expr(Bool lhs, Uint32 prec) {
 			}
 			break;
 		}
-		if(is_operator(OperatorKind::IN) && !allow_in_expr_) {
+		if (is_operator(OperatorKind::IN) && !allow_in_expr_) {
 			return expr;
 		}
 		if (PREC[Uint32(token_.as_operator)] < prec) {
@@ -1478,12 +1478,12 @@ AstRef<AstField> Parser::parse_field(Bool allow_assignment) {
 // ProcType := 'proc' '(' ')'
 AstRef<AstProcType> Parser::parse_proc_type() {
 	TRACE();
-	if(!is_keyword(KeywordKind::PROC)) {
+	if (!is_keyword(KeywordKind::PROC)) {
 		return error("Expected 'proc'");
 	}
 	auto offset = eat(); // Eat 'proc'
 
-	if(!is_operator(OperatorKind::LPAREN)) {
+	if (!is_operator(OperatorKind::LPAREN)) {
 		return error("Expected '('");
 	}
 	eat(); // Eat '('
@@ -1513,7 +1513,7 @@ AstRef<AstProcType> Parser::parse_proc_type() {
 		}
 	}
 
-	if(!is_operator(OperatorKind::RPAREN)) {
+	if (!is_operator(OperatorKind::RPAREN)) {
 		return error("Expected ')'");
 	}
 	eat(); // Eat ')'
@@ -1548,11 +1548,11 @@ AstRef<AstProcType> Parser::parse_proc_type() {
 				}
 			}
 
-			if(types.is_empty()) {
+			if (types.is_empty()) {
 				return error("Expected declaration");
 			}
 
-			if(!is_operator(OperatorKind::RPAREN)) {
+			if (!is_operator(OperatorKind::RPAREN)) {
 				return error("Expected ')'");
 			}
 		} else {
