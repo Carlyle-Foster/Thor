@@ -44,17 +44,16 @@ ks :: proc(items: []Item, w: int) -> []bool {
 
 main :: proc() {
 	if x: bit_set[
-		            1..<2
-		         u32]
+		            1..<2;
+		         u32];
 		    false
 		{
 		}
-	else do for                i := 0
+	else do for                i := 0;
 	                   i < 10;
 	            i += 1
 	            { fmt.printf("%d\n", i) }
 
-	/*
 	items := []Item {
 		{"map",                      9,   150},
 		{"compass",                 13,    35},
@@ -77,7 +76,7 @@ main :: proc() {
 		{"sunglasses",               7,    20},
 		{"towel",                   18,    12},
 		{"socks",                    4,    50},
-		{"book",                    30,    10}
+		{"book",                    30,    10},
 	}
 	s  := ks(items, 400)
 	tw := 0
@@ -89,7 +88,6 @@ main :: proc() {
 		tv += item.value
 	}
 	fmt.printf("%-22s % 5d % 5d\n", "totals:", tw, tv)
-	*/
 
-	// x, y: int;
+	x, y: int;
 }

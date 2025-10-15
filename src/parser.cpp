@@ -495,6 +495,9 @@ AstRef<AstIfStmt> Parser::parse_if_stmt() {
 	auto offset = eat(); // Eat 'if'
 
 	AstRef<AstStmt> init = parse_stmt(false, {}, {});
+	if (!init) {
+		return {};
+	}
 	AstRef<AstExpr> cond = parse_expr(true);
 	AstRef<AstStmt> body;
 
@@ -1230,7 +1233,15 @@ AstRef<AstExpr> Parser::parse_operand(Bool is_lhs) {
 	if (!type) {
 		return {};
 	}
-	return ast_.create<AstTypeExpr>(ast_[type].offset, type);
+	if (is_kind(TokenKind::LBRACE)) {
+		if (auto struct_literal = parse_compound_expr()) {
+			return ast_.create<AstCastExpr>(ast_[type].offset, type, struct_literal);
+		} else {
+			return {};
+		}
+	} else {
+		return ast_.create<AstTypeExpr>(ast_[type].offset, type);
+	}
 }
 
 // Type := TypeIDType
@@ -1555,11 +1566,14 @@ AstRef<AstProcType> Parser::parse_proc_type() {
 			if (!is_operator(OperatorKind::RPAREN)) {
 				return error("Expected ')'");
 			}
+			eat(); // Eat ')'
 		} else {
-			auto decl = parse_stmt(false, {}, {});
-			if (!decl || !ast_[decl].is_stmt<AstDeclStmt>()) {
-				return error("Expected a declaration statement in 'proc'");
+			auto type = parse_type();
+			if (!type) {
+				return {};
 			}
+			auto expr = ast_.create<AstTypeExpr>(ast_[type].offset, type);
+			auto decl = ast_.create<AstExprStmt>(ast_[expr].offset, expr);
 			if (!types.push_back(decl)) {
 				return {};
 			}
